@@ -126,7 +126,7 @@ msgstr "Sí, eliminar configuración"
 
 #: includes/class-diluxone-offload-admin.php:500
 msgid "Please enter the new access key."
-msgstr "Ingresá la nueva clave de acceso."
+msgstr "Ingresa la nueva clave de acceso."
 
 #: includes/class-diluxone-offload-admin.php:501
 msgid "Saving..."
@@ -889,7 +889,7 @@ msgstr "No autorizado."
 
 #: includes/class-diluxone-offload-admin.php:1414
 msgid "You must test the connection first"
-msgstr "Primero tenés que probar la conexión."
+msgstr "Primero tienes que probar la conexión."
 
 #: includes/class-diluxone-offload-admin.php:1426
 msgid "Credentials do not match tested values. Please test again."
@@ -1154,7 +1154,7 @@ msgstr "Azure Blob Storage"
 
 #: templates/admin-cloud-provider.php:80
 msgid "Enter your Azure Storage credentials."
-msgstr "Ingresá tus credenciales de Azure Storage."
+msgstr "Ingresa tus credenciales de Azure Storage."
 
 #: templates/admin-cloud-provider.php:83
 msgid "Storage Account Name"
@@ -1482,7 +1482,7 @@ msgstr "Configurar proveedor de nube"
 
 #: templates/admin-overview.php:485
 msgid "Choose your cloud provider and enter your credentials"
-msgstr "Elegí tu proveedor de nube e ingresá tus credenciales"
+msgstr "Elige tu proveedor de nube e ingresa tus credenciales"
 
 #: templates/admin-overview.php:491
 msgid "Sync Your Files"
@@ -2141,7 +2141,7 @@ msgstr "Todos los archivos descargados y descarga deshabilitada"
 
 #: templates/admin-sync.php:775
 msgid "You can force disconnect without downloading files:"
-msgstr "Podés forzar la desconexión sin descargar los archivos:"
+msgstr "Puedes forzar la desconexión sin descargar los archivos:"
 
 #: templates/admin-sync.php:778
 msgid ""
