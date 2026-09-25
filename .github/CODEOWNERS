@@ -1,0 +1,14 @@
+# CODEOWNERS for diluxone-offload
+#
+# Lines below define who is auto-assigned as reviewer when a PR touches
+# matching paths. The first matching line wins per file. See:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Branch protection on `main` does NOT require code-owner approval today —
+# this file currently only triggers automatic review-request on every PR.
+# Useful as a public statement of who maintains the repository and as a
+# habit-forming nudge: every PR shows up in the maintainer's review queue
+# automatically.
+
+# Default: maintainer reviews every PR.
+* @soydiloreto

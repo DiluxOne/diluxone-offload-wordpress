@@ -1,0 +1,39 @@
+# PHPStan configuration for diluxone-offload.
+#
+# Level 8 (max strictness) on the production code. The WordPress
+# extension (szepeviktor/phpstan-wordpress) is auto-registered via the
+# phpstan/extension-installer composer plugin — no manual `includes:`
+# needed for it.
+
+parameters:
+  level: 8
+
+  bootstrapFiles:
+    - phpstan-bootstrap.php
+
+  paths:
+    - diluxone-offload.php
+    - includes
+    - templates
+
+  excludePaths:
+    analyse:
+      - tests/*
+      - vendor/*
+      - node_modules/*
+      - .wordpress-org/*
+      - assets/*
+
+  # Modern PHP-7.4 minimum. testVersion in PHPCS handles the
+  # cross-version compatibility checks; PHPStan focuses on correctness.
+  phpVersion: 70400
+
+  # These constants are stubbed in phpstan-bootstrap.php so the file-level
+  # `define()`s become visible to static analysis, but their *runtime* values
+  # are user-controlled (typically from wp-config.php) and may flip on a
+  # per-deployment basis. Mark them dynamic so PHPStan does not collapse
+  # `if ( DILUXONE_OFFLOAD_DEV_MODE )` into "always false" based on the stub.
+  dynamicConstantNames:
+    - DILUXONE_OFFLOAD_DEV_MODE
+    - DILUXONE_OFFLOAD_VERBOSE_LOGGING
+    - WP_DEBUG

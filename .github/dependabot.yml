@@ -1,0 +1,86 @@
+# Dependabot configuration for diluxone-offload.
+#
+# Why this exists, even though the published plugin has zero production
+# dependencies: the GitHub Actions this repository's own workflows use are
+# a supply-chain surface. Dependabot watches them; the shared workflows in
+# DiluxOne/.github have their own Dependabot.
+#
+# Also covers npm devDependencies (@wordpress/env, Playwright), which run
+# locally and in CI. None of these dependencies ever ship to wp.org —
+# they are excluded from the deploy via .distignore.
+#
+# Schedule is weekly with grouping enabled — at most 1–2 PRs per week,
+# not one per package. Combined with branch protection (CI must pass
+# before merge), Dependabot PRs that go green can be merged confidently.
+
+# Commit prefix + include: scope yields Conventional Commit titles that
+# the shared conventions check accepts: "ci(deps): Bump …", "build(deps-dev): Bump …".
+
+version: 2
+updates:
+  # GitHub Actions used in this repository's own workflows (CodeQL and the
+  # real-storage suite): checkout, setup-node, setup-php, cache,
+  # upload-artifact, codeql-action.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # npm dev dependencies (@wordpress/env, Playwright). We never ship npm
+  # packages, so all updates are dev-only.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 3
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  # Composer dev dependencies (PHPUnit, brain/monkey, mockery, PHPStan,
+  # Psalm, WPCS). All dev-only; the plugin runtime never invokes Composer,
+  # and vendor/ never reaches wp.org (.distignore).
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 3
+    groups:
+      composer-dev:
+        dependency-type: "development"
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "composer"
+    commit-message:
+      prefix: "build"
+      include: "scope"

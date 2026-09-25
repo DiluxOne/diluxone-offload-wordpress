@@ -1,0 +1,20 @@
+name: Release
+
+# Pushing a tag X.Y.Z publishes DiluxOne Offload to wordpress.org, through the
+# shared workflow in DiluxOne/.github. Release tags are permanent: a failed
+# deploy is fixed and re-run, never re-tagged. See docs/release.md.
+
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@v1
+    with:
+      slug: diluxone-offload
+      version-constant: DILUXONE_OFFLOAD_VERSION
+    secrets: inherit

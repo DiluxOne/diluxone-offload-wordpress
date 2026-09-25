@@ -1,0 +1,425 @@
+.diluxone-offload-overview {
+	max-width: 1200px;
+}
+
+/* Welcome Header */
+.welcome-header {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 24px;
+	margin-bottom: 24px;
+}
+
+.welcome-header h2 {
+	margin: 0 0 8px 0;
+	font-size: 24px;
+	color: #1d2327;
+}
+
+.welcome-header .description {
+	margin: 0;
+	color: #646970;
+	font-size: 14px;
+}
+
+/* Status Grid */
+.status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 20px;
+	margin-bottom: 30px;
+}
+
+.status-card {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 20px;
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+.status-card.status-success {
+	border-left: 4px solid #28a745;
+}
+
+.status-card.status-warning {
+	border-left: 4px solid #ffc107;
+}
+
+.status-card.status-neutral {
+	border-left: 4px solid #6c757d;
+}
+
+.status-card.status-info {
+	border-left: 4px solid #17a2b8;
+}
+
+.status-icon {
+	flex-shrink: 0;
+}
+
+.status-icon .dashicons {
+	font-size: 40px;
+	width: 40px;
+	height: 40px;
+}
+
+.status-success .status-icon .dashicons {
+	color: #28a745;
+}
+
+.status-warning .status-icon .dashicons {
+	color: #ffc107;
+}
+
+.status-neutral .status-icon .dashicons {
+	color: #6c757d;
+}
+
+.status-info .status-icon .dashicons {
+	color: #17a2b8;
+}
+
+.status-content {
+	flex: 1;
+}
+
+.status-content h3 {
+	margin: 0 0 8px 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.status-label {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0 0 6px 0;
+}
+
+.status-label.status-active {
+	color: #28a745;
+}
+
+.status-label.status-inactive {
+	color: #6c757d;
+}
+
+.status-details {
+	font-size: 13px;
+	color: #646970;
+	margin: 4px 0;
+	line-height: 1.5;
+}
+
+.status-details strong {
+	color: #1d2327;
+}
+
+.button-small {
+	padding: 4px 12px;
+	font-size: 12px;
+	height: auto;
+	line-height: 1.5;
+	margin-top: 8px;
+}
+
+/* State Badge */
+.state-badge {
+	display: inline-block;
+	padding: 4px 12px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.state-badge.state-gray {
+	background: #f0f0f0;
+	color: #6c757d;
+}
+
+.state-badge.state-blue {
+	background: #e7f3ff;
+	color: #0073aa;
+}
+
+.state-badge.state-yellow {
+	background: #fff8e1;
+	color: #f57c00;
+}
+
+.state-badge.state-green {
+	background: #e8f5e9;
+	color: #2e7d32;
+}
+
+.state-badge.state-purple {
+	background: #f3e5f5;
+	color: #7b1fa2;
+}
+
+/* Greyed-out badge when the connection-health system reports a pause —
+ * the underlying state is preserved but visually de-emphasised because
+ * the feature is not actually working at the moment. */
+.state-badge.is-paused {
+	opacity: 0.5;
+}
+
+/* Quick Links Section */
+.quick-links-section {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 24px;
+}
+
+.quick-links-section h3 {
+	margin: 0 0 16px 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.quick-links {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.quick-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 16px;
+	background: #f6f7f7;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	text-decoration: none;
+	color: #1d2327;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.2s ease;
+}
+
+.quick-link:hover {
+	background: #fff;
+	border-color: #0073aa;
+	color: #0073aa;
+	text-decoration: none;
+	transform: translateY(-1px);
+}
+
+.quick-link .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+
+/* Getting Started Section */
+.getting-started-section {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 24px;
+}
+
+.getting-started-section h3 {
+	margin: 0 0 20px 0;
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.setup-steps {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	counter-reset: step-counter;
+}
+
+.setup-steps li {
+	position: relative;
+	padding: 20px 0 20px 60px;
+	border-left: 2px solid #e0e0e0;
+	margin-left: 20px;
+}
+
+.setup-steps li:last-child {
+	border-left-color: transparent;
+}
+
+.setup-steps li::before {
+	content: counter(step-counter);
+	counter-increment: step-counter;
+	position: absolute;
+	left: -21px;
+	top: 20px;
+	width: 40px;
+	height: 40px;
+	background: #0073aa;
+	color: #fff;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: bold;
+	font-size: 18px;
+}
+
+.setup-steps li strong {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 15px;
+	color: #1d2327;
+}
+
+.setup-steps li p {
+	margin: 0 0 12px 0;
+	color: #646970;
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+	.status-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.quick-links {
+		flex-direction: column;
+	}
+
+	.quick-link {
+		justify-content: center;
+	}
+}
+
+/* Storage Overview Section */
+.storage-overview-section {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 24px;
+}
+
+.storage-overview-section h3 {
+	margin: 0 0 16px 0;
+	font-size: 16px;
+	font-weight: 600;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+}
+
+/* Progress bars layout */
+.diluxone-offload-overview-bars {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin-bottom: 20px;
+}
+
+.diluxone-offload-bar-section {
+	background: #f9f9f9;
+	border: 1px solid #e2e4e7;
+	border-radius: 6px;
+	padding: 14px;
+}
+
+.diluxone-offload-bar-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.diluxone-offload-bar-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.diluxone-offload-bar-value {
+	font-size: 13px;
+	color: #50575e;
+}
+
+/* Files section with pie */
+.diluxone-offload-files-section {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid #eee;
+}
+
+.diluxone-offload-files-grid {
+	display: flex;
+	align-items: center;
+	gap: 30px;
+}
+
+.diluxone-offload-files-count {
+	text-align: center;
+	min-width: 120px;
+}
+
+/* Pie chart CSS */
+.diluxone-offload-pie-container {
+	display: flex;
+	align-items: center;
+	gap: 24px;
+	flex: 1;
+}
+
+.diluxone-offload-pie {
+	width: 140px;
+	height: 140px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.diluxone-offload-pie-legend {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.diluxone-offload-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.diluxone-offload-legend-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* Spin animation */
+.dashicons.spin {
+	animation: diluxone-offload-spin 1s linear infinite;
+}
+
+@keyframes diluxone-offload-spin {
+	100% { transform: rotate(360deg); }
+}
+
+/* Responsive for storage overview */
+@media (max-width: 782px) {
+	.diluxone-offload-files-grid {
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.diluxone-offload-pie-container {
+		flex-direction: column;
+	}
+}

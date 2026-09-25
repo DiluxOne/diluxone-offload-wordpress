@@ -1,0 +1,401 @@
+/* DiluxOne Offload — admin styles */
+
+/* =============================================================================
+   Tab Navigation with Icons
+   ========================================================================== */
+
+.diluxone-offload-admin .nav-tab-wrapper {
+    border-bottom: 1px solid #c3c4c7;
+    padding: 0;
+    margin: 20px 0 0 0;
+}
+
+.diluxone-offload-admin .nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    padding: 10px 15px;
+}
+
+.diluxone-offload-admin .nav-tab .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.diluxone-offload-admin h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.diluxone-offload-admin h1 .dashicons {
+    color: #0073aa;
+}
+
+.diluxone-offload-settings,
+.diluxone-offload-overview,
+.diluxone-offload-migration,
+.diluxone-offload-status {
+    margin-top: 20px;
+}
+
+/* Configuration Section */
+.configuration-section {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.configuration-section h3 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.form-row {
+    margin-bottom: 20px;
+}
+
+.form-row label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.form-row input[type="text"],
+.form-row input[type="password"] {
+    width: 100%;
+    max-width: 500px;
+}
+
+.form-row .description {
+    font-style: italic;
+    color: #646970;
+    margin-top: 5px;
+}
+
+/* Test Connection Button */
+.test-connection-wrapper {
+    margin-top: 20px;
+}
+
+/* Test Connection Results */
+.test-result,
+.connection-result {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 4px;
+    display: none;
+}
+
+.test-result.success,
+.connection-result.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.test-result.error,
+.connection-result.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.test-result.warning,
+.connection-result.warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stats-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stats-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #0073aa;
+    display: block;
+}
+
+.stats-label {
+    color: #646970;
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+
+.stats-size {
+    font-size: 0.8em;
+    color: #646970;
+    margin-top: 2px;
+}
+
+/* Status Health */
+.system-health {
+    margin: 20px 0;
+}
+
+.health-overview {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+}
+
+.health-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+}
+
+.health-circle.healthy {
+    background: #00a32a;
+}
+
+.health-circle.warning {
+    background: #dba617;
+}
+
+.health-circle.critical {
+    background: #d63638;
+}
+
+.health-summary {
+    display: flex;
+    gap: 30px;
+}
+
+.health-metric {
+    text-align: center;
+}
+
+.health-metric-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #0073aa;
+}
+
+.summary-label {
+    color: #646970;
+    font-size: 0.9em;
+}
+
+/* Network Settings */
+.network-warning {
+    background: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 20px 0;
+    color: #856404;
+}
+
+/* DiluxOne Stats Panel */
+.diluxone-offload-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 12px;
+}
+
+.diluxone-offload-stat-card {
+	background: #f9f9f9;
+	border: 1px solid #e2e4e7;
+	border-radius: 6px;
+	padding: 14px;
+	text-align: center;
+}
+
+.diluxone-offload-stat-card-wide {
+	grid-column: 1 / -1;
+}
+
+.diluxone-offload-stat-label {
+	font-size: 12px;
+	color: #646970;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-bottom: 6px;
+}
+
+.diluxone-offload-stat-value {
+	font-size: 20px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.diluxone-offload-stat-detail {
+	font-size: 13px;
+	color: #50575e;
+	margin-top: 6px;
+}
+
+.diluxone-offload-stat-bar-container {
+	height: 10px;
+	border-radius: 5px;
+	overflow: hidden;
+	margin-top: 8px;
+}
+
+.diluxone-offload-stat-bar {
+	height: 100%;
+	border-radius: 5px;
+	transition: width 0.3s ease;
+}
+
+/* Spin animation for refresh button */
+.dashicons.spin {
+	animation: diluxone-offload-spin 1s linear infinite;
+}
+
+@keyframes diluxone-offload-spin {
+	100% { transform: rotate(360deg); }
+}
+
+/* Provider Info table */
+.diluxone-offload-provider-info th {
+	width: 150px;
+	padding: 8px 10px 8px 0;
+}
+
+.diluxone-offload-provider-info td {
+	padding: 8px 10px;
+}
+
+.diluxone-offload-provider-info code {
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .diluxone-offload-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .migration-tools {
+        grid-template-columns: 1fr;
+    }
+    
+    .health-overview {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .health-summary {
+        justify-content: center;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* WordPress Admin Compatibility */
+.wrap h1 {
+    margin-bottom: 20px;
+}
+
+.nav-tab-wrapper {
+    margin-bottom: 20px;
+}
+/* ---------------------------------------------------------------------------
+ * Loading state for cloud-backed panels
+ *
+ * A panel whose numbers come from the cloud renders its normal markup with
+ * empty values, blurred, and puts a centred message on top. The layout is the
+ * final one from the first paint, so nothing jumps when the values land — and
+ * the message is unmissable, which a row of grey bars was not.
+ *
+ * Usage: add .diluxone-offload-loading to the panel and drop a
+ * .diluxone-offload-loading-overlay inside it as the first child.
+ * ------------------------------------------------------------------------ */
+.diluxone-offload-stats-wrap {
+	position: relative;
+}
+
+.diluxone-offload-loading {
+	position: relative;
+	min-height: 140px;
+}
+
+/* Everything except the overlay goes soft and non-interactive. */
+.diluxone-offload-loading > *:not( .diluxone-offload-loading-overlay ) {
+	filter: blur( 4px );
+	opacity: 0.45;
+	pointer-events: none;
+	user-select: none;
+}
+
+.diluxone-offload-loading-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	text-align: center;
+}
+
+.diluxone-offload-loading-overlay .spinner {
+	float: none;
+	margin: 0;
+}
+
+.diluxone-offload-loading-overlay p {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.diluxone-offload-loading-overlay .diluxone-offload-loading-hint {
+	font-weight: 400;
+	font-size: 12px;
+	color: #646970;
+	max-width: 320px;
+}
+
+/* The blur is decorative; without it the dimming still reads as "not ready". */
+@media ( prefers-reduced-motion: reduce ) {
+	.diluxone-offload-loading > *:not( .diluxone-offload-loading-overlay ) {
+		filter: none;
+		opacity: 0.35;
+	}
+}

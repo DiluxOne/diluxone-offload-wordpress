@@ -1,0 +1,11 @@
+# PHP CLI with pcov for line coverage, plus every extension the plugin
+# touches (mysqli for the integration suite, gd/imagick for the image
+# editors). Built once with `make cov-image`; used by `make coverage`.
+FROM php:8.3-cli
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libzip-dev zlib1g-dev libxml2-dev libpng-dev libjpeg-dev libwebp-dev libmagickwand-dev \
+ && docker-php-ext-configure gd --with-jpeg --with-webp \
+ && docker-php-ext-install -j$(nproc) bcmath mysqli pdo_mysql zip dom xml gd \
+ && pecl install pcov imagick \
+ && docker-php-ext-enable pcov imagick \
+ && rm -rf /var/lib/apt/lists/*

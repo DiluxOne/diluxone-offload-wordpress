@@ -1,0 +1,152 @@
+name: Real-storage suite (Azure)
+
+# Every plugin screen driven as a user, on a single site and on a multisite
+# network, against a real Azure storage account — the suite that says "green,
+# you can merge" for the parts a fake client cannot prove.
+#
+# It runs with the repository's Azure secrets, so it runs only on events the
+# maintainer owns: pull requests from branches of this repository that are
+# not drafts, pushes to main, and the manual button. A pull request from a
+# fork gets every other check and is skipped here on purpose; nothing
+# external ever runs with the key. A draft (the bot's reproduction pull
+# requests are drafts) runs it once it is marked ready for review. A maintainer who wants this suite on a contributed change brings the
+# branch into the repository first (see CONTRIBUTING.md).
+#
+# Each run creates its own containers (e2e-<run id>-single, -network and
+# -php-* for PHPUnit) and deletes them at the end. A run that is cancelled
+# never reaches its teardown, so the last step sweeps this run's containers
+# and any e2e-* older than an hour.
+# A failure on main opens an issue that names the commit, its pull request
+# and its author, and comments on that pull request.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: real-azure-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  real:
+    name: Real Azure end-to-end (single site + network)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # Never with a fork's code (the secrets are the maintainer's), and never
+    # on a draft: the bot's reproduction pull requests are drafts, and a fix
+    # a person pushes on top runs the suite the moment it is marked ready.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)
+    env:
+      AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}
+      AZURE_E2E_KEY: ${{ secrets.AZURE_E2E_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
+      - name: Determine Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-real-${{ runner.os }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-real-${{ runner.os }}-
+
+      - name: Install Composer dependencies
+        # vendor/ is mounted into the wp-env container with the plugin; that
+        # is how the container reaches phpunit for the real-provider tests.
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start wp-env
+        run: npx wp-env start
+
+      - name: Activate the plugin on the single site
+        run: npx wp-env run cli wp plugin activate diluxone-offload-wordpress
+
+      - name: Convert the tests site into a multisite network and network-activate
+        run: make env-multisite
+
+      - name: Run the real-storage suite
+        env:
+          CI: 'true'
+        run: npx playwright test -c playwright.real.config.ts
+
+      - name: Run the real-provider PHPUnit tests
+        if: always()
+        env:
+          CI: 'true'
+        run: make test-integration-real
+
+      - name: Upload traces, videos and screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: real-azure-results
+          path: build/real-results
+          retention-days: 14
+
+      - name: Open an issue and notify the pull request when main is broken
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[0]' 2>/dev/null || true)"
+          number="$(printf '%s' "$pr" | jq -r '.number // empty')"
+          author="$(printf '%s' "$pr" | jq -r '.user.login // empty')"
+          mention="@${{ github.repository_owner }}"
+          [ -n "$author" ] && [ "$author" != "${{ github.repository_owner }}" ] && mention="$mention @$author"
+          title="Real-storage suite failed on main (${SHA:0:7})"
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          body="$mention the real Azure end-to-end suite failed on \`main\` after ${SHA:0:7}."
+          body="$body"$'\n\n'"Run: $RUN_URL"
+          [ -n "$number" ] && body="$body"$'\n'"Pull request: #$number"
+          body="$body"$'\n\n'"Traces, videos and screenshots are attached to the run as \`real-azure-results\`."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --label bug --assignee "${{ github.repository_owner }}" --body "$body"
+          fi
+          if [ -n "$number" ]; then
+            gh pr comment "$number" --body "This change broke the real-storage suite on \`main\`: $RUN_URL"
+          fi
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop
+
+      - name: Delete this run's containers and any left behind by a cancelled run
+        if: always()
+        run: node tests/E2E-real/sweep-containers.js

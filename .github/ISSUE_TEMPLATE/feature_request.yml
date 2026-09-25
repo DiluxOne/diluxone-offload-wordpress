@@ -1,0 +1,61 @@
+name: ✨ Feature request
+description: Suggest new functionality or an enhancement.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a new feature. To help us evaluate the request, please answer the questions below.
+
+        Before submitting:
+        - Search [existing issues](https://github.com/DiluxOne/diluxone-offload-wordpress/issues?q=is%3Aissue) to make sure this is not a duplicate.
+        - For end-user questions ("how do I…?"), use the [wp.org support forum](https://wordpress.org/support/plugin/diluxone-offload/) instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the use case or pain point that motivates this request. Focus on the *why*, not the *how*.
+      placeholder: As a [type of user], I want to [goal] so that [benefit].
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: How would you like the plugin to behave? Be specific — what UI element, setting, API, or behavior change are you imagining?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other approaches? Any workarounds you currently use?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which area of the plugin does this affect?
+      multiple: true
+      options:
+        - Cloud provider (Azure / new provider)
+        - Stream wrapper / filesystem layer
+        - Sync engine
+        - Offloading mode
+        - Admin UI
+        - Settings / configuration
+        - Connection health / monitoring
+        - Multisite
+        - Translations / i18n
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links to similar features in other plugins, anything that helps us understand the request.

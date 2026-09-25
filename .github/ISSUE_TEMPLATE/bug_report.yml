@@ -1,0 +1,93 @@
+name: 🐛 Bug report
+description: Report a defect — something is broken or behaves unexpectedly.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Before submitting, please confirm:
+
+        - This is a **defect in the plugin code**, not a usage question (those go to the [wp.org support forum](https://wordpress.org/support/plugin/diluxone-offload/)).
+        - This is **not a security vulnerability** (those go to [GitHub Security Advisories](https://github.com/DiluxOne/diluxone-offload-wordpress/security/advisories/new)).
+        - You have searched [existing issues](https://github.com/DiluxOne/diluxone-offload-wordpress/issues?q=is%3Aissue) and this is not a duplicate.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear, concise description of the bug. What did you expect to happen, and what happened instead?
+      placeholder: When I click X, the plugin shows error Y instead of Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, ordered steps that reliably trigger the bug.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: From "Plugins" screen in WordPress admin, or from the plugin header.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: wordpress-version
+    attributes:
+      label: WordPress version
+      placeholder: "7.1"
+    validations:
+      required: true
+
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP version
+      placeholder: "8.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Cloud provider in use
+      options:
+        - Azure Blob Storage
+        - None / not applicable
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: multisite
+    attributes:
+      label: Is this a WordPress multisite install?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / error messages
+      description: Paste any relevant entries from `wp-content/debug.log`, browser console, or admin notices. **Redact any credentials, API keys, or personal data before pasting.**
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Other plugins active, theme in use, host environment, anything else that might be relevant.

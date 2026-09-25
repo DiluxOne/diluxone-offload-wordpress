@@ -1,0 +1,55 @@
+name: Pull request
+
+# Every check a change to DiluxOne Offload goes through, from the shared
+# workflows in DiluxOne/.github: conventions, the fast quality gates, then
+# the Claude review and the auto-merge decision, with the slow wp-env suites
+# running alongside the review. The real Azure suite (tests-real-azure.yml)
+# and CodeQL (codeql.yml) are this repository's own.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    uses: DiluxOne/.github/.github/workflows/conventions.yml@v1
+    with:
+      retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
+
+  checks:
+    uses: DiluxOne/.github/.github/workflows/plugin-checks-wp.yml@v1
+    with:
+      slug: diluxone-offload
+      version-constant: DILUXONE_OFFLOAD_VERSION
+
+  tests:
+    uses: DiluxOne/.github/.github/workflows/plugin-tests-wp.yml@v1
+
+  review:
+    needs: [conventions, checks]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    uses: DiluxOne/.github/.github/workflows/claude-review.yml@v1
+    with:
+      profile: plugin-wp
+    secrets: inherit
+
+  auto-merge:
+    needs: review
+    if: always() && needs.review.result != 'skipped'
+    uses: DiluxOne/.github/.github/workflows/auto-merge.yml@v1
+    with:
+      risk: ${{ needs.review.outputs.risk }}
+      complexity: ${{ needs.review.outputs.complexity }}
+      floor: ${{ needs.review.outputs.floor }}
+      trusted: ${{ needs.review.outputs.trusted }}
+      blocking: ${{ needs.review.outputs.blocking }}
+      enabled: ${{ needs.review.outputs.auto-merge }}
+    secrets: inherit

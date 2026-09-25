@@ -1,0 +1,32 @@
+# DiluxOne Offload's review policy, added to the organisation defaults in
+# DiluxOne/.github (policy/review-policy.default.yml). Read before the Claude
+# review; the review can raise the risk these rules set, never lower it.
+
+# Code where a mistake loses media, leaks credentials or breaks every site:
+# always high risk, always a human merge.
+high-risk:
+  - "diluxone-offload.php"
+  - "uninstall.php"
+  - "includes/class-diluxone-offload-cloud-stream-wrapper.php"
+  - "includes/class-diluxone-offload-crypto.php"
+  - "includes/class-diluxone-offload-config-manager.php"
+  - "includes/class-diluxone-offload-db.php"
+  - "includes/class-diluxone-offload-admin.php"
+  - "includes/class-diluxone-offload-plugin-enhanced.php"
+  - "includes/class-diluxone-offload-sync-manager.php"
+  - "includes/providers/**"
+  - "includes/class-diluxone-offload-logger.php"
+  - "templates/**"
+
+# Every review setting can be overridden here, key by key; what is left out
+# keeps the organisation's default (policy/review-policy.default.yml in
+# DiluxOne/.github): the reviewer per risk level (model id as the API names
+# it; effort low, medium, high, xhigh or max), the budget per run and whether
+# qualifying pull requests merge on their own. Uncomment to change it for this
+# repository only.
+#
+# review:
+#   medium: { model: claude-sonnet-5, effort: medium }
+#   high:   { model: claude-opus-5-5, effort: high }
+# budget-usd: 3
+# auto-merge: true

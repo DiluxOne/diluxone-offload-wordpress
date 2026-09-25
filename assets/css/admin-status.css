@@ -1,0 +1,244 @@
+.diluxone-offload-status {
+	max-width: 1200px;
+}
+
+/* Section Headers */
+.section-header-main {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 24px;
+	margin-bottom: 24px;
+}
+
+.section-header-main h2 {
+	margin: 0 0 8px 0;
+	font-size: 24px;
+	color: #1d2327;
+}
+
+.section-header-main .description {
+	margin: 0;
+	color: #646970;
+	font-size: 14px;
+}
+
+/* Section Spacing */
+.status-section {
+	margin-bottom: 50px;
+}
+
+/* State Cards Grid */
+.state-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 20px;
+	margin-bottom: 30px;
+}
+
+.state-card {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 20px;
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+.state-icon {
+	flex-shrink: 0;
+}
+
+.state-icon .dashicons {
+	font-size: 40px;
+	width: 40px;
+	height: 40px;
+	color: #0073aa;
+}
+
+.state-content {
+	flex: 1;
+}
+
+.state-content h3 {
+	margin: 0 0 8px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #646970;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.state-value {
+	margin: 0 0 4px 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.state-details {
+	margin: 4px 0 0 0;
+	font-size: 13px;
+	color: #646970;
+}
+
+/* Status Indicator */
+.status-indicator {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	margin-right: 6px;
+}
+
+.status-indicator.status-success {
+	background: #28a745;
+}
+
+.status-indicator.status-inactive {
+	background: #6c757d;
+}
+
+/* State Badges */
+.state-badge {
+	display: inline-block;
+	padding: 4px 12px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.state-badge.state-gray {
+	background: #f0f0f0;
+	color: #6c757d;
+}
+
+.state-badge.state-blue {
+	background: #e7f3ff;
+	color: #0073aa;
+}
+
+.state-badge.state-yellow {
+	background: #fff8e1;
+	color: #f57c00;
+}
+
+.state-badge.state-green {
+	background: #e8f5e9;
+	color: #2e7d32;
+}
+
+.state-badge.state-purple {
+	background: #f3e5f5;
+	color: #7b1fa2;
+}
+
+/* Greyed-out badge when the connection-health system reports a pause —
+ * the underlying state is preserved but visually de-emphasised because
+ * the feature is not actually working at the moment. */
+.state-badge.is-paused {
+	opacity: 0.5;
+}
+
+/* System Info Section */
+.system-info-section {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 24px;
+}
+
+.system-info-section > h3 {
+	margin: 0 0 20px 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: #1d2327;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.system-info-section > h3 .dashicons {
+	color: #0073aa;
+}
+
+.info-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 20px;
+}
+
+.info-card {
+	background: #f9f9f9;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.info-card h4 {
+	margin: 0 0 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	border-bottom: 2px solid #0073aa;
+	padding-bottom: 8px;
+}
+
+.info-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.info-table tr {
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.info-table tr:last-child {
+	border-bottom: none;
+}
+
+.info-table td {
+	padding: 8px 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.info-table td:first-child {
+	color: #646970;
+	width: 45%;
+}
+
+.info-table td:last-child {
+	color: #1d2327;
+	text-align: right;
+	word-break: break-word;
+}
+
+.info-table code {
+	background: #fff;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+	border: 1px solid #ddd;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+	.state-cards {
+		grid-template-columns: 1fr;
+	}
+
+	.info-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.info-table td:last-child {
+		text-align: left;
+	}
+
+}

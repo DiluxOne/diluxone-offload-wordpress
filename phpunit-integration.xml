@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/bootstrap-integration.php"
+    colors="true"
+    convertErrorsToExceptions="true"
+    convertNoticesToExceptions="false"
+    convertWarningsToExceptions="false"
+    failOnRisky="true"
+    cacheResultFile="build/.phpunit.result.cache.integration"
+    beStrictAboutOutputDuringTests="false"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    executionOrder="default"
+>
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <!-- Same filter as the unit config, so the two clover reports can be
+         merged line for line into one number. Without an include list
+         PHPUnit skips coverage entirely, even when asked for a report. -->
+    <coverage processUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">includes</directory>
+            <directory suffix=".php">templates</directory>
+        </include>
+        <exclude>
+            <file>includes/enhanced-autoloader.php</file>
+        </exclude>
+    </coverage>
+
+    <!--
+        Integration tests run inside the wp-env tests container. WordPress
+        emits notices/warnings under various conditions that are not
+        defects (e.g. headers already sent in CLI context, deprecated
+        function notices in 3rd-party plugins). Unlike the unit suite, we
+        do NOT convert notices/warnings to exceptions here — strict mode
+        for those would fail tests for reasons unrelated to plugin code.
+
+        beStrictAboutOutputDuringTests is also off because integration
+        tests legitimately exercise wp_send_json and similar functions
+        that produce output as part of their normal flow.
+    -->
+</phpunit>

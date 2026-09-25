@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    convertErrorsToExceptions="true"
+    convertNoticesToExceptions="true"
+    convertWarningsToExceptions="true"
+    failOnWarning="true"
+    failOnRisky="true"
+    cacheResultFile="build/.phpunit.result.cache"
+    beStrictAboutOutputDuringTests="true"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    executionOrder="random"
+>
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">includes</directory>
+            <directory suffix=".php">templates</directory>
+        </include>
+        <!--
+            DTOs are IN the report on purpose: they are pure value objects,
+            they are where the plugin's shapes are defined, and leaving them
+            out hid ~2,000 lines of trivially testable code behind a number
+            that looked worse than it was.
+        -->
+        <exclude>
+            <file>includes/enhanced-autoloader.php</file>
+        </exclude>
+    </coverage>
+</phpunit>

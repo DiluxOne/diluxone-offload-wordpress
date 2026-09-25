@@ -1,0 +1,58 @@
+name: CodeQL
+
+# CodeQL semantic security analysis. Scoped to JavaScript only because
+# CodeQL does not support PHP: PHP is covered by Plugin Check (security
+# category), PHPStan and Psalm taint analysis in the shared plugin checks
+# (pull-request.yml). The plugin's JavaScript
+# surface is small (`assets/js/admin.js`) but bundles the admin UI logic
+# that handles credentials and AJAX calls, so it warrants scanning.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/**'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'assets/js/**'
+      - '.github/workflows/codeql.yml'
+  schedule:
+    # Weekly Monday 06:00 UTC — catches new CodeQL queries / rule updates
+    # released between PRs. Independent of `paths` filter; the schedule
+    # always runs.
+    - cron: '0 6 * * 1'
+
+# CodeQL uploads results to GitHub's Code Scanning service. Read-only
+# everywhere except `security-events`, which it writes the SARIF report
+# to.
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze JavaScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          # `security-extended` adds queries beyond the default set —
+          # things like XSS via DOM sinks, prototype pollution, regex
+          # ReDoS. For a small JS surface that handles credentials and
+          # AJAX, the extra rigor is worth it.
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"

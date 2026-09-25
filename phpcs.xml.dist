@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+<ruleset name="DiluxOne Offload">
+    <description>
+        WordPress Coding Standards configuration for the DiluxOne Offload plugin.
+        Strict mode — runs the full WordPress ruleset (Core + Docs + Extra) plus
+        PHP 7.4+ compatibility checks. No baseline.
+    </description>
+
+    <!-- Files / paths to scan -->
+    <file>diluxone-offload.php</file>
+    <file>includes/</file>
+    <file>templates/</file>
+
+    <!-- Files / paths to exclude (mirrors .distignore where applicable) -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <exclude-pattern>*/.wordpress-org/*</exclude-pattern>
+    <exclude-pattern>*/assets/*</exclude-pattern>
+    <exclude-pattern>*.min.js</exclude-pattern>
+    <exclude-pattern>*.min.css</exclude-pattern>
+
+    <!-- CLI behaviour. Cache is intentionally not configured here — PHPCS
+         requires the parent directory to exist before it can write the
+         cache file, which adds friction on fresh clones and cold CI
+         runs. Local devs can opt in by passing the cache flag on the
+         command line after creating the directory manually. -->
+    <arg value="sp"/>
+    <arg name="colors"/>
+    <arg name="parallel" value="8"/>
+    <arg name="extensions" value="php"/>
+
+    <!-- WordPress Coding Standards: Core, Extra, Docs -->
+    <rule ref="WordPress"/>
+
+    <!-- Plugin metadata for naming-convention checks -->
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="diluxone_offload"/>
+                <element value="DILUXONE_OFFLOAD"/>
+                <element value="DiluxOneOffload"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Text domain check -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="diluxone-offload"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- =================================================================
+         RULE EXCLUSIONS — deliberate project choices, NOT a baseline.
+         Each exclusion below is paired with a justification. The goal
+         is to keep WPCS strict on substantive rules (security, deprecated
+         APIs, naming where it matters) while turning off cosmetic
+         preferences that produce noise without making the code better.
+         ================================================================= -->
+
+    <!-- Modern PSR-12 conventions in the OOP layer.
+         DTOs and SyncStatus enum use PascalCase filenames + camelCase
+         methods/properties on purpose. The autoloader handles both
+         naming styles. Renaming would break every callsite. -->
+    <rule ref="WordPress.NamingConventions.ValidFunctionName">
+        <exclude-pattern>*/includes/DTOs/*</exclude-pattern>
+        <exclude-pattern>*/includes/Enums/SyncStatus.php</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.NamingConventions.ValidVariableName">
+        <exclude-pattern>*/includes/DTOs/*</exclude-pattern>
+        <exclude-pattern>*/includes/Enums/SyncStatus.php</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.Files.FileName">
+        <exclude-pattern>*/includes/DTOs/*</exclude-pattern>
+        <exclude-pattern>*/includes/Enums/SyncStatus.php</exclude-pattern>
+    </rule>
+
+    <!-- Yoda conditions are explicitly NOT used in this project (see
+         docs/architecture.md). Modern style is `$x === 5`,
+         not `5 === $x`. -->
+    <rule ref="WordPress.PHP.YodaConditions.NotYoda">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Cosmetic comment formatting rules — these flag missing periods
+         at end of inline comments, missing short descriptions in
+         docblocks, missing comment text on @param tags whose type is
+         already self-explanatory, etc. They produce noise (650+ in this
+         codebase) without making the code clearer. Substantive rules
+         like FunctionComment.MissingParamTag and ClassComment.Missing
+         remain active. -->
+    <rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Squiz.Commenting.FunctionComment.ParamCommentFullStop">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Squiz.Commenting.FunctionComment.MissingParamComment">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Squiz.Commenting.FunctionComment.ThrowsNoFullStop">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Generic.Commenting.DocComment.MissingShort">
+        <severity>0</severity>
+    </rule>
+
+    <!-- base64_encode and base64_decode are required for the AES-256-GCM
+         ciphertext encoding in includes/class-diluxone-offload-crypto.php. The
+         "discouraged for obfuscation" rule applies to using them to hide
+         malicious payloads, not to legitimate cryptographic envelope
+         encoding. -->
+    <rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode">
+        <severity>0</severity>
+    </rule>
+    <rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Unused-parameter detection produces frequent false positives on
+         WordPress callback signatures (filters, actions, REST routes)
+         where the parameter list is dictated by the hook contract, not
+         the implementation. -->
+    <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
+        <severity>0</severity>
+    </rule>
+
+    <!-- PSR-2 underscore-prefix on method names — flagged on internal
+         _wp_die_test_handler-style helpers that follow a legacy PHP
+         convention. Harmless. -->
+    <rule ref="PSR2.Methods.MethodDeclaration.Underscore">
+        <severity>0</severity>
+    </rule>
+
+    <!-- DTO property access ripples across the whole codebase: providers,
+         managers, admin templates all read $dto->camelProp. We already
+         excluded the property *declaration* rule for DTOs/Enums above;
+         excluding the *access* rule globally for symmetry. The naming
+         convention is documented in docs/architecture.md. -->
+    <rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
+        <severity>0</severity>
+    </rule>
+
+    <!-- File naming: this codebase intentionally mixes legacy WP-style
+         (class-diluxone-offload-foo.php for older classes) with modern PSR-12
+         (PascalCase.php for newer DTOs/Enums). The custom autoloader in
+         includes/enhanced-autoloader.php maps both styles to the same
+         namespace tree. Renaming files would break that mapping. -->
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <severity>0</severity>
+    </rule>
+    <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Plugin minimum WordPress version -->
+    <config name="minimum_supported_wp_version" value="5.1"/>
+
+    <!-- PHP compatibility: must run cleanly on PHP 7.4 and up -->
+    <config name="testVersion" value="7.4-"/>
+    <rule ref="PHPCompatibilityWP"/>
+</ruleset>

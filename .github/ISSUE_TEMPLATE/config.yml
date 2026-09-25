@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 End-user support question
+    url: https://wordpress.org/support/plugin/diluxone-offload/
+    about: For "how do I configure this?", "my upload is not working", and other usage questions, please use the official wp.org support forum — that's where most users look for answers.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/DiluxOne/diluxone-offload-wordpress/security/advisories/new
+    about: Security issues must be reported privately via GitHub Security Advisories. Do NOT open a public issue.
