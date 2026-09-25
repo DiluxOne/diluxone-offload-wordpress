@@ -14,20 +14,22 @@ What DiluxOne Offload does, what is paid, what comes next and what it will not d
 
 - **DiluxOne hosted sync service** (in preparation, monthly fee): <https://diluxone.com/plugins-wordpress/dilux-offload/>. The plugin does not need it, never contacts it, and nothing in the plugin is unlocked by it. A report that something "does not work" because it needs this service is not a bug: it is this line.
 
-## Next: 1.1.0 (October and November 2026)
+## Next: 2.0.0 (October to December 2026)
 
-In this order. Each step is its own pull request; `main` stays publishable in between, and a fix found on the way ships as `1.0.1` without waiting.
+In this order. Each step is its own pull request; `main` stays publishable in between, and a fix found on the way ships as `1.0.1` without waiting. The version is 2.0.0 rather than 1.1.0 because the admin changes shape, not only the provider list. The detailed plan is [`plans/2.0.0.md`](plans/2.0.0.md).
 
 1. **Tests for the settings' effects.** Today the suites check that Maximum File Size, Upload Timeout, Force HTTPS and debug logging are saved; they will also check what each one does: a file above the limit is skipped and reported, a transfer slower than the timeout fails cleanly and shows in the connection health, the cloud URLs change scheme with Force HTTPS on an http site, and the log stays empty with logging off and fills with it on.
 2. **An "S3-compatible" provider.** One provider in the code, signing requests with AWS Signature Version 4, and a preset per service that fills in the endpoint, the region rule and the public URL pattern: **Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys)** and **Custom** (MinIO or any other, every field editable). The **public URL** is a field of its own, prefilled by the preset and always editable, which is also how a CDN or a custom domain is used; Cloudflare R2 needs it typed, since R2's public URL cannot be derived from the credentials. **Test Connection** checks both that the keys can write to the bucket and that the written object is readable anonymously at the public URL, the way it refuses a private container on Azure today. Real-storage suites run against Amazon S3 and Cloudflare R2, and against MinIO locally.
 3. **Google Cloud Storage, native** (service-account JSON, the JSON API). Google works through the S3-compatible provider first; the native one adds the way Google users expect to authenticate.
-4. The **DiluxOne hosted sync service** connected to the plugin as a provider, when its API exists.
+4. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Filenames, Settings, Status) and tabs only where a screen has a second level; every screen titled `DiluxOne Offload | Screen`; a column on the right with the state of this site, a note and the related links; the cards, the sync flow and the health banner as they are. With it: a Recent uploads table and honest counts after offloading (live uploads and skipped files are recorded), an estimate before Disconnect, per-service options (Advanced: object ACL, storage class, encryption, access tier, key prefix), a default sync speed, skip patterns, a browser-caching header, an e-mail when the connection fails, a Site Health section, and a Connection Health table with "Check now".
+5. **Filenames**, the Smart Filename plugin as a screen of Offload, off by default: unique names for uploads that would otherwise collide in a bucket or a CDN cache, with the original name kept as the attachment title.
+6. The **DiluxOne hosted sync service** connected to the plugin as a provider, when its API exists.
 
 Requirements stay as they are: WordPress 5.1 and PHP 7.4 minimum, tested up to the current WordPress. No Composer dependency at runtime; the signing code is the plugin's own, like Azure's today.
 
 ## Later
 
-- **Signed URLs** for private buckets or containers, so media can be served without public read access.
+- **Signed URLs** for private buckets or containers, so media can be served without public read access. Every provider supports it (SAS, presigned, signed URLs), but each page render signs every image URL, page and browser caches stop working past the expiry, and an image pasted into an e-mail dies with it; it stays here until someone needs it.
 
 - The **Activity** tab with a real activity log (today it exists only as an empty template).
 - **Import and export** of the plugin's configuration, with validation of what comes in.
