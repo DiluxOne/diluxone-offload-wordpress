@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DiluxOne Offload – Media Storage 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
-"POT-Creation-Date: 2026-09-21T02:14:59+00:00\n"
+"POT-Creation-Date: 2026-09-25T16:52:50+00:00\n"
 "PO-Revision-Date: 2026-04-26 12:00+0000\n"
 "Last-Translator: Pablo Ariel Di Loreto <pablodiloreto@gmail.com>\n"
 "Language-Team: German <pablodiloreto@gmail.com>\n"
@@ -32,8 +32,10 @@ msgstr "https://github.com/DiluxOne/diluxone-offload-wordpress"
 msgid ""
 "Move your WordPress media to cloud object storage and serve it from there. "
 "Replaces /uploads/ transparently via a PHP stream wrapper."
-msgstr "Verschiebe deine WordPress-Medien in einen Cloud-Objektspeicher und liefere sie von dort aus. Ersetzt /uploads/ transparent über einen PHP-Stream-Wrapper."
-
+msgstr ""
+"Verschiebe deine WordPress-Medien in einen Cloud-Objektspeicher und liefere "
+"sie von dort aus. Ersetzt /uploads/ transparent über einen PHP-Stream-"
+"Wrapper."
 
 #. Author of the plugin
 #: diluxone-offload.php
@@ -844,8 +846,8 @@ msgstr "Sicherheitsprüfung fehlgeschlagen."
 #: includes/class-diluxone-offload-admin.php:1372
 #: includes/class-diluxone-offload-admin.php:1487
 #: includes/class-diluxone-offload-admin.php:1562
-#: includes/class-diluxone-offload-admin.php:1616
-#: includes/class-diluxone-offload-admin.php:1639
+#: includes/class-diluxone-offload-admin.php:1619
+#: includes/class-diluxone-offload-admin.php:1642
 msgid "Insufficient permissions"
 msgstr "Unzureichende Berechtigungen"
 
@@ -910,7 +912,7 @@ msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1483
 #: includes/class-diluxone-offload-admin.php:1558
-#: includes/class-diluxone-offload-admin.php:1612
+#: includes/class-diluxone-offload-admin.php:1615
 msgid "Invalid nonce"
 msgstr "Ungültige Nonce."
 
@@ -934,11 +936,7 @@ msgstr "Plugin erfolgreich auf konfigurierten Zustand zurückgesetzt"
 msgid "Error: %s"
 msgstr "Fehler: %s"
 
-#: includes/class-diluxone-offload-admin.php:1595
-msgid "No sync metadata found"
-msgstr "Keine Synchronisations-Metadaten gefunden."
-
-#: includes/class-diluxone-offload-admin.php:1598
+#: includes/class-diluxone-offload-admin.php:1570
 #: includes/class-diluxone-offload-plugin-enhanced.php:217
 #: includes/class-diluxone-offload-plugin-enhanced.php:372
 #: includes/class-diluxone-offload-plugin-enhanced.php:398
@@ -952,14 +950,18 @@ msgstr "Keine Synchronisations-Metadaten gefunden."
 msgid "Sync manager not available"
 msgstr "Sync-Manager nicht verfügbar."
 
+#: includes/class-diluxone-offload-admin.php:1590
+msgid "The sync is not complete"
+msgstr "Die Synchronisierung ist nicht abgeschlossen"
+
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:1603
+#: includes/class-diluxone-offload-admin.php:1606
 #, php-format
 msgid "Error completing sync: %s"
 msgstr "Fehler beim Abschluss der Synchronisation: %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:1626
+#: includes/class-diluxone-offload-admin.php:1629
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Fehler beim Bereinigen fehlgeschlagener Dateien: %s"
@@ -1008,8 +1010,9 @@ msgstr "Cloud-Client nicht konfiguriert."
 msgid ""
 "Could not record the files found in the cloud. Check the database error log "
 "and try again."
-msgstr "Die in der Cloud gefundenen Dateien konnten nicht erfasst werden. Prüfe das Fehlerprotokoll der Datenbank und versuche es erneut."
-
+msgstr ""
+"Die in der Cloud gefundenen Dateien konnten nicht erfasst werden. Prüfe das "
+"Fehlerprotokoll der Datenbank und versuche es erneut."
 
 #. translators: %s: error message
 #: includes/class-diluxone-offload-plugin-enhanced.php:558
@@ -1514,8 +1517,9 @@ msgstr "Maximale Dateigröße (MB)"
 
 #: templates/admin-settings.php:49
 msgid "Files larger than this are skipped by the initial sync (1-500 MB)."
-msgstr "Dateien, die größer sind als dieser Wert, werden bei der ersten Synchronisierung übersprungen (1-500 MB)."
-
+msgstr ""
+"Dateien, die größer sind als dieser Wert, werden bei der ersten "
+"Synchronisierung übersprungen (1-500 MB)."
 
 #: templates/admin-settings.php:56
 msgid "Upload Timeout (seconds)"
