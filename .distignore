@@ -83,6 +83,7 @@ scripts
 # translate.wordpress.org once the plugin is published.
 languages/*.po
 languages/*.mo
+languages/readme/
 
 # Build artifacts and logs
 build
