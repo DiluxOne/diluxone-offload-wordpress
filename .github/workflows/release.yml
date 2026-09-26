@@ -6,7 +6,9 @@ name: Release
 
 on:
   push:
-    tags: ['*']
+    # Only X.Y.Z tags, which only an administrator can create: any other tag
+    # never starts a job that inherits the secrets.
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
 
 # The SVN credentials live in the environment `wordpress-org` (Settings ›
 # Environments), which the shared workflow's deploy job runs in. A called
