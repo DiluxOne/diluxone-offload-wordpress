@@ -577,6 +577,25 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringContainsString('Free disk', $this->render('system'));
     }
 
+    public function test_status_system_shows_the_free_disk_while_offloading_is_active(): void {
+        // While offloading is on, wp_upload_dir() answers with the cloud path,
+        // which has no disk: the row must read the server's own directory.
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        \DiluxOneOffload\CloudStreamWrapper::register();
+        \DiluxOneOffload\CloudStreamWrapper::activate_offloading();
+        try {
+            $this->assertStringStartsWith('diluxoneoffload://', (string) wp_upload_dir()['basedir'], 'the filter is on');
+            $html = $this->render('system');
+        } finally {
+            \DiluxOneOffload\CloudStreamWrapper::deactivate_offloading();
+            \DiluxOneOffload\CloudStreamWrapper::unregister();
+        }
+        $this->assertStringNotContainsString('not available', $html);
+        $this->assertMatchesRegularExpression('/Free disk.*?<strong>[\d.,]+\s?[KMGT]?B<\/strong>/s', $html, 'a size, read from the server\'s uploads directory');
+        $this->assertStringNotContainsString('diluxoneoffload://', substr($html, strpos($html, 'Upload Directory')), 'the rows show the server path, not the cloud one');
+    }
+
 
     public function test_assets_are_enqueued_only_on_our_page(): void {
         $GLOBALS['wp_scripts'] = null;
