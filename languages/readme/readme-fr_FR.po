@@ -1,0 +1,407 @@
+# Translation of Plugins - DiluxOne Offload – Media Storage - Stable Readme (latest release) in Spanish (Spain)
+# This file is distributed under the same license as the Plugins - DiluxOne Offload – Media Storage - Stable Readme (latest release) package.
+msgid ""
+msgstr ""
+"PO-Revision-Date: +0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: GlotPress/4.1.0\n"
+"Language: fr_FR\n"
+
+"Project-Id-Version: Plugins - DiluxOne Offload – Media Storage - Stable Readme (latest release)\n"
+
+#. Short description.
+#, gp-priority: high
+msgid "Move your media to cloud object storage and serve it from there. Replaces /uploads/ transparently, with no URL rewriting."
+msgstr "Déplacez vos fichiers médias vers un stockage d'objets cloud et diffusez-les depuis celui-ci. Remplace /uploads/ de façon transparente, sans réécriture d'URL."
+
+#. Plugin name.
+#, gp-priority: high
+msgid "DiluxOne Offload – Media Storage"
+msgstr "DiluxOne Offload – Media Storage"
+
+#. Found in faq paragraph.
+msgid "Requirements: PHP <code>ext-openssl</code> (enabled by default on virtually every host)."
+msgstr "Prérequis : PHP <code>ext-openssl</code> (activé par défaut sur pratiquement tous les hébergements)."
+
+#. Found in faq paragraph.
+msgid "If you ever rotate the WordPress salts, the existing encrypted credentials become unreadable; the plugin will surface the provider as \"not configured\" and you simply re-enter the credentials in the <em>Cloud Provider</em> tab. There is intentionally no plaintext fallback."
+msgstr "Si vous modifiez un jour les salts de WordPress, les identifiants chiffrés existants deviennent illisibles ; l'extension affichera le fournisseur comme \"not configured\" et il vous suffira de ressaisir les identifiants dans l'onglet <em>Cloud Provider</em>. Il n'existe volontairement aucun repli en texte clair."
+
+#. Found in faq paragraph.
+msgid "The Azure access key is encrypted with AES-256-GCM before it is written to the WordPress options table. The encryption key is derived from your site's WordPress salts (<code>AUTH_KEY</code> / <code>SECURE_AUTH_KEY</code> and the corresponding salts in <code>wp-config.php</code>), so as long as those salts are defined in <code>wp-config.php</code> (as WordPress recommends) a database dump on its own is not enough to recover the credentials — the attacker also needs filesystem access to <code>wp-config.php</code>."
+msgstr "La clé d'accès Azure est chiffrée avec AES-256-GCM avant d'être écrite dans la table d'options de WordPress. La clé de chiffrement est dérivée des salts WordPress de votre site (<code>AUTH_KEY</code> / <code>SECURE_AUTH_KEY</code> et les salts correspondants dans <code>wp-config.php</code>), donc tant que ces salts sont définis dans <code>wp-config.php</code> (comme le recommande WordPress), un simple export de la base de données ne suffit pas à récupérer les identifiants — l'attaquant a aussi besoin d'un accès au système de fichiers à <code>wp-config.php</code>."
+
+#. Found in faq paragraph.
+msgid "Yes. It can be network-activated; each site then has its own Cloud Provider configuration and its own file-tracking table, so different sites can use different containers or accounts — or share one: a site's objects are stored under <code>uploads/sites/&lt;id&gt;/</code> (the main site under <code>uploads/</code>), and each site only ever lists, syncs and restores its own prefix."
+msgstr "Oui. Elle peut être activée pour tout le réseau ; chaque site dispose alors de sa propre configuration Cloud Provider et de sa propre table de suivi des fichiers, si bien que des sites différents peuvent utiliser des conteneurs ou des comptes différents — ou en partager un : les objets d'un site sont stockés sous <code>uploads/sites/&lt;id&gt;/</code> (le site principal sous <code>uploads/</code>), et chaque site ne liste, ne synchronise et ne restaure que son propre préfixe."
+
+#. Found in faq paragraph.
+msgid "With that setting off and <code>WP_DEBUG</code> off, the plugin writes nothing to the PHP error log at all, at any level. With <code>WP_DEBUG</code> on it writes errors and warnings; the setting adds the rest."
+msgstr "Avec ce réglage désactivé et <code>WP_DEBUG</code> désactivé, l'extension n'écrit strictement rien dans le journal d'erreurs PHP, à aucun niveau. Avec <code>WP_DEBUG</code> activé, elle écrit les erreurs et les avertissements ; le réglage ajoute le reste."
+
+#. Found in faq paragraph.
+msgid "Go to <strong>DiluxOne Offload → Settings → Enable detailed debug logging</strong>. Logs are written to the standard PHP <code>error_log</code> destination. Disable it in production unless you are actively troubleshooting — it may impact performance."
+msgstr "Allez dans <strong>DiluxOne Offload → Settings → Enable detailed debug logging</strong>. Les journaux sont écrits dans la destination <code>error_log</code> standard de PHP. Désactivez-le en production, sauf si vous êtes en train de résoudre un problème — cela peut affecter les performances."
+
+#. Found in faq paragraph.
+msgid "Your media files are never touched by uninstalling: whatever is in <code>/wp-content/uploads/</code> stays there, and whatever is in your container stays in your container. If offloading was active and local copies had been deleted, download them first with <strong>Sync &amp; Offloading → Disconnect from Cloud</strong>, otherwise WordPress will be pointing at files that are no longer on the server."
+msgstr "Vos fichiers médias ne sont jamais touchés par la désinstallation : ce qui se trouve dans <code>/wp-content/uploads/</code> y reste, et ce qui se trouve dans votre conteneur y reste aussi. Si l'offloading était actif et que les copies locales avaient été supprimées, téléchargez-les d'abord avec <strong>Sync &amp; Offloading → Disconnect from Cloud</strong>, sinon WordPress pointera vers des fichiers qui ne sont plus sur le serveur."
+
+#. Found in faq paragraph.
+msgid "Deleting the plugin from the Plugins screen removes everything it created in your database: its options (all prefixed <code>diluxone_offload_</code>), its transients and its file-tracking table (<code>diluxone_offload_files</code>, with your table prefix) — on every site of a network. Deactivating alone keeps all of that, so you can deactivate and reactivate without losing your configuration."
+msgstr "Supprimer l'extension depuis l'écran Extensions retire tout ce qu'elle a créé dans votre base de données : ses options (toutes préfixées <code>diluxone_offload_</code>), ses transients et sa table de suivi des fichiers (<code>diluxone_offload_files</code>, avec votre préfixe de table) — sur tous les sites d'un réseau. La simple désactivation conserve tout cela, vous pouvez donc désactiver puis réactiver sans perdre votre configuration."
+
+#. Found in faq paragraph.
+msgid "Yes, while offloading is active: the stream wrapper turns the deletion into a delete on your container, thumbnails included. If you have synced but not yet enabled offloading, WordPress deletes only the local copy; the copy already in your container is not removed automatically."
+msgstr "Oui, tant que l'offloading est actif : le stream wrapper transforme la suppression en suppression sur votre conteneur, miniatures comprises. Si vous avez synchronisé mais pas encore activé l'offloading, WordPress ne supprime que la copie locale ; la copie déjà présente dans votre conteneur n'est pas retirée automatiquement."
+
+#. Found in faq paragraph.
+msgid "Only if you explicitly opt in. After a successful sync you can click <strong>Delete Local Files</strong> in the Sync &amp; Offloading tab. Until you do that, files are kept in both locations. A file that is empty (0 bytes) when the sync scans it is skipped: it is neither uploaded nor tracked, so <strong>Delete Local Files</strong> leaves it alone."
+msgstr "Seulement si vous le choisissez explicitement. Après une synchronisation réussie, vous pouvez cliquer sur <strong>Delete Local Files</strong> dans l'onglet Sync &amp; Offloading. Tant que vous ne le faites pas, les fichiers sont conservés aux deux emplacements. Un fichier vide (0 octet) au moment où la synchronisation l'analyse est ignoré : il n'est ni téléversé ni suivi, donc <strong>Delete Local Files</strong> n'y touche pas."
+
+#. Found in faq paragraph.
+msgid "Yes. Because the stream wrapper operates at the filesystem layer, any plugin that reads or writes files under <code>/uploads/</code> using standard PHP functions works unchanged."
+msgstr "Oui. Comme le stream wrapper opère au niveau du système de fichiers, toute extension qui lit ou écrit des fichiers sous <code>/uploads/</code> avec les fonctions PHP standard fonctionne sans modification."
+
+#. Found in faq paragraph.
+msgid "Yes. Remove the current provider configuration from the admin, enter the new account and container, run a full resync, and the plugin starts serving from the new location. No URL rewriting required."
+msgstr "Oui. Retirez la configuration du fournisseur actuel dans l'administration, saisissez le nouveau compte et le nouveau conteneur, lancez une resynchronisation complète, et l'extension commence à diffuser depuis le nouvel emplacement. Aucune réécriture d'URL n'est nécessaire."
+
+#. Found in faq paragraph.
+msgid "The one operation that writes to the server is <strong>Sync &amp; Offloading → Disconnect from Cloud</strong>. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with <code>wp_upload_dir()</code>), so the Media Library works again without the plugin. It restores only what sits under the <code>uploads/</code> prefix of your own container, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it there, and it runs only when you click it."
+msgstr "La seule opération qui écrit sur le serveur est <strong>Sync &amp; Offloading → Disconnect from Cloud</strong>. Elle recopie vos médias depuis le conteneur vers les chemins exacts du répertoire uploads que WordPress a enregistrés (résolus à l'exécution avec <code>wp_upload_dir()</code>), afin que la bibliothèque de médias refonctionne sans l'extension. Elle ne restaure que ce qui se trouve sous le préfixe <code>uploads/</code> de votre propre conteneur, jamais un nom de fichier de script ou exécutable (PHP, JavaScript, HTML, shell ou exécutables Windows) quel qu'en soit l'auteur, et elle ne s'exécute que lorsque vous cliquez dessus."
+
+#. Found in faq paragraph.
+msgid "Not for itself: it has no cache, log or data files on disk; everything it needs lives in the WordPress options table and its own database table. Your media is written by WordPress core through the plugin's stream wrapper to the cloud, passing through a temporary file in the PHP temp directory that is deleted right after the upload."
+msgstr "Pas pour elle-même : elle n'a aucun fichier de cache, de journal ou de données sur le disque ; tout ce dont elle a besoin réside dans la table d'options de WordPress et dans sa propre table de base de données. Vos médias sont écrits par le noyau de WordPress, via le stream wrapper de l'extension, vers le cloud, en passant par un fichier temporaire dans le répertoire temporaire de PHP qui est supprimé juste après le téléversement."
+
+#. Found in faq paragraph.
+msgid "The plugin monitors connection health. While the cloud is unreachable, a new upload fails with WordPress's own \"could not be moved\" error and nothing is saved anywhere, so you never end up with a file that looks uploaded but isn't. A banner on the plugin's admin pages explains the failure. Files already in the cloud keep being served from the storage account URL. The plugin re-checks the connection at most every five minutes and uploads resume on their own once it is back."
+msgstr "L'extension surveille l'état de la connexion. Tant que le cloud est inaccessible, un nouveau téléversement échoue avec l'erreur propre à WordPress \"could not be moved\" et rien n'est enregistré nulle part, si bien que vous ne vous retrouvez jamais avec un fichier qui semble téléversé mais ne l'est pas. Une bannière sur les pages d'administration de l'extension explique l'échec. Les fichiers déjà présents dans le cloud continuent d'être servis depuis l'URL du compte de stockage. L'extension revérifie la connexion au maximum toutes les cinq minutes et les téléversements reprennent d'eux-mêmes dès qu'elle est rétablie."
+
+#. Found in faq paragraph.
+msgid "No. The stream wrapper intercepts filesystem calls transparently — your post content, the <code>wp_posts</code> table, and the <code>wp_postmeta</code> table are never rewritten."
+msgstr "Non. Le stream wrapper intercepte les appels au système de fichiers de façon transparente — le contenu de vos publications, la table <code>wp_posts</code> et la table <code>wp_postmeta</code> ne sont jamais réécrits."
+
+#. Found in faq header.
+msgid "How are my Azure credentials stored?"
+msgstr "Comment mes identifiants Azure sont-ils stockés ?"
+
+#. Found in faq header.
+msgid "Is the plugin multisite compatible?"
+msgstr "L'extension est-elle compatible multisite ?"
+
+#. Found in faq header.
+msgid "How do I enable verbose debug logging?"
+msgstr "Comment activer la journalisation de débogage détaillée ?"
+
+#. Found in faq header.
+msgid "What happens when I uninstall the plugin?"
+msgstr "Que se passe-t-il lorsque je désinstalle l'extension ?"
+
+#. Found in faq header.
+msgid "If I delete a file from the Media Library, is it deleted from the cloud too?"
+msgstr "Si je supprime un fichier de la bibliothèque de médias, est-il aussi supprimé du cloud ?"
+
+#. Found in faq header.
+msgid "Does the plugin delete my local files automatically?"
+msgstr "L'extension supprime-t-elle automatiquement mes fichiers locaux ?"
+
+#. Found in faq header.
+msgid "Will this work with WooCommerce / Elementor / image editors?"
+msgstr "Cela fonctionne-t-il avec WooCommerce / Elementor / les éditeurs d'images ?"
+
+#. Found in faq header.
+msgid "Can I move to another storage account or container later?"
+msgstr "Puis-je passer à un autre compte de stockage ou conteneur plus tard ?"
+
+#. Found in faq header.
+msgid "Does the plugin write any files to my server?"
+msgstr "L'extension écrit-elle des fichiers sur mon serveur ?"
+
+#. Found in faq header.
+msgid "What happens if the cloud is temporarily unreachable?"
+msgstr "Que se passe-t-il si le cloud est temporairement inaccessible ?"
+
+#. Found in faq header.
+msgid "Does this plugin modify my existing media URLs in the database?"
+msgstr "Cette extension modifie-t-elle les URL de médias existantes dans la base de données ?"
+
+#. Found in installation list item.
+msgid "An Azure Blob Storage account, a container whose public access level is <strong>Blob</strong> (anonymous read access for blobs, so browsers can load your media straight from it), and the account's access key. <strong>Test Connection</strong> refuses a private container and says so."
+msgstr "Un compte Azure Blob Storage, un conteneur dont le niveau d'accès public est <strong>Blob</strong> (accès en lecture anonyme aux blobs, pour que les navigateurs puissent charger vos médias directement depuis celui-ci), et la clé d'accès du compte. <strong>Test Connection</strong> refuse un conteneur privé et l'indique."
+
+#. Found in installation list item.
+msgid "A writable uploads directory only for <strong>Disconnect from Cloud</strong>, when your media is copied back. Transfers use the PHP temporary directory for their scratch files, never <code>uploads/</code>."
+msgstr "Un répertoire uploads accessible en écriture, uniquement pour <strong>Disconnect from Cloud</strong>, lorsque vos médias sont recopiés. Les transferts utilisent le répertoire temporaire de PHP pour leurs fichiers de travail, jamais <code>uploads/</code>."
+
+#. Found in installation list item.
+msgid "<code>ext-curl</code> and <code>ext-openssl</code> enabled."
+msgstr "<code>ext-curl</code> et <code>ext-openssl</code> activés."
+
+#. Found in installation list item.
+msgid "PHP 7.4 or higher."
+msgstr "PHP 7.4 ou supérieur."
+
+#. Found in installation list item.
+msgid "WordPress 5.1 or higher."
+msgstr "WordPress 5.1 ou supérieur."
+
+#. Found in installation list item.
+msgid "Go to <strong>Sync &amp; Offloading</strong>, run the initial sync, and enable offloading when sync is complete."
+msgstr "Allez dans <strong>Sync &amp; Offloading</strong>, lancez la synchronisation initiale, puis activez l'offloading une fois la synchronisation terminée."
+
+#. Found in installation list item.
+msgid "Save the configuration."
+msgstr "Enregistrez la configuration."
+
+#. Found in installation list item.
+msgid "Go to <strong>Cloud Provider</strong>, select Microsoft Azure Blob Storage, enter the storage account, container and access key, and click <strong>Test Connection</strong>."
+msgstr "Allez dans <strong>Cloud Provider</strong>, sélectionnez Microsoft Azure Blob Storage, saisissez le compte de stockage, le conteneur et la clé d'accès, puis cliquez sur <strong>Test Connection</strong>."
+
+#. Found in installation list item.
+msgid "Open the new <strong>DiluxOne Offload</strong> menu in the admin sidebar."
+msgstr "Ouvrez le nouveau menu <strong>DiluxOne Offload</strong> dans la barre latérale d'administration."
+
+#. Found in installation list item.
+msgid "Activate the plugin through the <strong>Plugins</strong> screen in WordPress."
+msgstr "Activez l'extension depuis l'écran <strong>Extensions</strong> de WordPress."
+
+#. Found in installation list item.
+msgid "Upload the <code>diluxone-offload</code> folder to <code>/wp-content/plugins/</code>, or install via the WordPress Plugins screen."
+msgstr "Téléversez le dossier <code>diluxone-offload</code> dans <code>/wp-content/plugins/</code>, ou installez-le depuis l'écran Extensions de WordPress."
+
+#. Found in installation header.
+msgid "Requirements"
+msgstr "Prérequis"
+
+#. Found in description paragraph.
+msgid "This is <strong>your own Azure account</strong>, under your own agreement with Microsoft. Neither DiluxOne nor the plugin's author is a party to it and neither has any access to your data. Your use of the service is subject to Microsoft's terms:"
+msgstr "Il s'agit de <strong>votre propre compte Azure</strong>, dans le cadre de votre propre contrat avec Microsoft. Ni DiluxOne ni l'auteur de l'extension n'y sont parties, et aucun des deux n'a accès à vos données. Votre utilisation du service est soumise aux conditions de Microsoft :"
+
+#. Found in description paragraph.
+msgid "When requests happen:"
+msgstr "Quand les requêtes ont lieu :"
+
+#. Found in description paragraph.
+msgid "What data is sent: your media files themselves, together with their relative path, size and MIME type. The storage account key you entered never leaves your server — it is used locally to compute the signature that authenticates each request. No personal data about your visitors or your site's users is sent, and nothing at all about your site reaches the plugin's author."
+msgstr "Quelles données sont envoyées : vos fichiers médias eux-mêmes, avec leur chemin relatif, leur taille et leur type MIME. La clé de compte de stockage que vous avez saisie ne quitte jamais votre serveur — elle est utilisée localement pour calculer la signature qui authentifie chaque requête. Aucune donnée personnelle sur vos visiteurs ou les utilisateurs de votre site n'est envoyée, et rien concernant votre site n'atteint l'auteur de l'extension."
+
+#. Found in description paragraph.
+msgid "Where requests go: the Azure Blob REST API at blob.core.windows.net — specifically your own account's host, <code>https://ACCOUNT.blob.core.windows.net</code>, where ACCOUNT is the storage account name you enter in the settings."
+msgstr "Où vont les requêtes : l'API REST Azure Blob sur blob.core.windows.net — plus précisément l'hôte de votre propre compte, <code>https://ACCOUNT.blob.core.windows.net</code>, où ACCOUNT est le nom du compte de stockage que vous saisissez dans les réglages."
+
+#. Found in description paragraph.
+msgid "What it is used for: storing your WordPress media files outside your server and serving them from the cloud."
+msgstr "À quoi cela sert : stocker les fichiers médias de votre WordPress en dehors de votre serveur et les diffuser depuis le cloud."
+
+#. Found in description paragraph.
+msgid "This plugin connects to Azure Blob Storage, a third-party cloud storage service, to store and serve your media files. <strong>Nothing is sent anywhere until you configure it yourself</strong> in the <em>Cloud Provider</em> tab, with an account and credentials you supply. The plugin contacts no other service: it sends no telemetry, no usage data and no licence check to the author or to anyone else."
+msgstr "Cette extension se connecte à Azure Blob Storage, un service de stockage cloud tiers, pour stocker et diffuser vos fichiers médias. <strong>Rien n'est envoyé nulle part tant que vous ne l'avez pas configuré vous-même</strong> dans l'onglet <em>Cloud Provider</em>, avec un compte et des identifiants que vous fournissez. L'extension ne contacte aucun autre service : elle n'envoie ni télémétrie, ni données d'usage, ni vérification de licence à l'auteur ou à quiconque d'autre."
+
+#. Found in description paragraph.
+msgid "Most offload plugins rewrite media URLs in post content, which breaks when you switch providers, move domains, or restore from a backup. DiluxOne Offload leaves URLs alone and rewrites reads/writes at the filesystem layer, so your content stays portable."
+msgstr "La plupart des extensions d'offload réécrivent les URL de médias dans le contenu des publications, ce qui pose problème quand vous changez de fournisseur, de domaine, ou restaurez une sauvegarde. DiluxOne Offload ne touche pas aux URL et réécrit les lectures/écritures au niveau du système de fichiers, si bien que votre contenu reste portable."
+
+#. Found in description paragraph.
+msgid "The plugin uses a custom PHP stream wrapper to intercept every read and write to <code>/wp-content/uploads/</code>, so WordPress, WooCommerce, page builders, image editors, and any plugin that calls standard filesystem functions (<code>fopen</code>, <code>file_get_contents</code>, <code>unlink</code>, etc.) keep working unchanged."
+msgstr "L'extension utilise un stream wrapper PHP personnalisé pour intercepter chaque lecture et écriture vers <code>/wp-content/uploads/</code>, si bien que WordPress, WooCommerce, les constructeurs de pages, les éditeurs d'images et toute extension qui appelle les fonctions standard du système de fichiers (<code>fopen</code>, <code>file_get_contents</code>, <code>unlink</code>, etc.) continuent de fonctionner sans modification."
+
+#. Found in description paragraph.
+msgid "DiluxOne Offload moves your WordPress media library to Azure Blob Storage and serves files directly from the cloud — without breaking the Media Library UI, plugins, or existing content."
+msgstr "DiluxOne Offload déplace la bibliothèque de médias de votre WordPress vers Azure Blob Storage et diffuse les fichiers directement depuis le cloud — sans casser l'interface de la bibliothèque de médias, les extensions ou le contenu existant."
+
+#. Found in description list item.
+msgid "Privacy Policy: <a href=\"https://www.microsoft.com/privacy/privacystatement\">Microsoft Privacy Statement</a> (https://www.microsoft.com/privacy/privacystatement)"
+msgstr "Politique de confidentialité : <a href=\"https://www.microsoft.com/privacy/privacystatement\">Microsoft Privacy Statement</a> (https://www.microsoft.com/privacy/privacystatement)"
+
+#. Found in description list item.
+msgid "Terms of Service: <a href=\"https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure\">Microsoft Online Services Terms</a> (https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)"
+msgstr "Conditions d'utilisation : <a href=\"https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure\">Microsoft Online Services Terms</a> (https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)"
+
+#. Found in description list item.
+msgid "Service: <a href=\"https://azure.microsoft.com/services/storage/blobs/\">Azure Blob Storage</a> (https://azure.microsoft.com/services/storage/blobs/)"
+msgstr "Service : <a href=\"https://azure.microsoft.com/services/storage/blobs/\">Azure Blob Storage</a> (https://azure.microsoft.com/services/storage/blobs/)"
+
+#. Found in description list item.
+msgid "During <strong>Disconnect from Cloud</strong> — downloading your files back to the server."
+msgstr "Pendant <strong>Disconnect from Cloud</strong> — lors du téléchargement de vos fichiers vers le serveur."
+
+#. Found in description list item.
+msgid "A connection-health check — a small GET for your container's properties — when you open one of the plugin's admin pages, at most once every 5 minutes, and again from a write that follows three consecutive failures, so uploads resume on their own when the cloud is back. Nothing runs via cron."
+msgstr "Une vérification de l'état de la connexion — un petit GET sur les propriétés de votre conteneur — quand vous ouvrez l'une des pages d'administration de l'extension, au maximum une fois toutes les 5 minutes, et à nouveau lors d'une écriture qui suit trois échecs consécutifs, pour que les téléversements reprennent d'eux-mêmes une fois le cloud de retour. Rien ne s'exécute via cron."
+
+#. Found in description list item.
+msgid "When the plugin lists your container — for the Overview statistics (cached for five minutes) and for the scan that precedes <strong>Disconnect from Cloud</strong>."
+msgstr "Quand l'extension liste votre conteneur — pour les statistiques de l'Overview (mises en cache pendant cinq minutes) et pour l'analyse qui précède <strong>Disconnect from Cloud</strong>."
+
+#. Found in description list item.
+msgid "On read or delete — when WordPress, or any plugin using filesystem APIs against <code>/uploads/</code>, reads or deletes a file. This is also the only front-end traffic: a form or a review that uploads a file goes through the same stream wrapper."
+msgstr "En lecture ou en suppression — quand WordPress, ou toute extension utilisant les API de système de fichiers sur <code>/uploads/</code>, lit ou supprime un fichier. C'est aussi le seul trafic côté front-end : un formulaire ou un avis qui téléverse un fichier passe par le même stream wrapper."
+
+#. Found in description list item.
+msgid "On every new media upload — writing the file to the cloud through the stream wrapper."
+msgstr "À chaque nouveau téléversement de média — lors de l'écriture du fichier vers le cloud via le stream wrapper."
+
+#. Found in description list item.
+msgid "During the initial sync — uploading existing files from <code>/wp-content/uploads/</code> to your container."
+msgstr "Pendant la synchronisation initiale — lors du téléversement des fichiers existants de <code>/wp-content/uploads/</code> vers votre conteneur."
+
+#. Found in description list item.
+msgid "<strong>Disconnect from Cloud</strong> needs a writable uploads directory and enough disk for your media."
+msgstr "<strong>Disconnect from Cloud</strong> nécessite un répertoire uploads accessible en écriture et suffisamment d'espace disque pour vos médias."
+
+#. Found in description list item.
+msgid "No CDN or custom-domain option: media is served from your storage account's URL."
+msgstr "Aucune option de CDN ou de domaine personnalisé : les médias sont diffusés depuis l'URL de votre compte de stockage."
+
+#. Found in description list item.
+msgid "While the cloud is unreachable, new uploads fail. There is deliberately no local fallback."
+msgstr "Tant que le cloud est inaccessible, les nouveaux téléversements échouent. Il n'existe volontairement aucun repli local."
+
+#. Found in description list item.
+msgid "Files above the <strong>Maximum File Size</strong> setting (20 MB by default, up to 500 MB) are skipped by the initial sync."
+msgstr "Les fichiers dépassant le réglage <strong>Maximum File Size</strong> (20 Mo par défaut, jusqu'à 500 Mo) sont ignorés par la synchronisation initiale."
+
+#. Found in description list item.
+msgid "The initial sync runs in your browser tab and stops if you close it; it resumes where it left off. Nothing runs in the background or via cron."
+msgstr "La synchronisation initiale s'exécute dans l'onglet de votre navigateur et s'arrête si vous le fermez ; elle reprend là où elle s'était arrêtée. Rien ne s'exécute en arrière-plan ou via cron."
+
+#. Found in description list item.
+msgid "One provider: Azure Blob Storage. The container must allow anonymous read of blobs (public access level <em>Blob</em>); a private container is refused."
+msgstr "Un seul fournisseur : Azure Blob Storage. Le conteneur doit autoriser la lecture anonyme des blobs (niveau d'accès public <em>Blob</em>) ; un conteneur privé est refusé."
+
+#. Found in description list item.
+msgid "<strong>Quiet by default</strong> — with <code>WP_DEBUG</code> off and the Settings toggle off the plugin writes nothing to the PHP error log, at any level. <code>WP_DEBUG</code> turns on errors and warnings; the toggle adds the informational lines."
+msgstr "<strong>Silencieux par défaut</strong> — avec <code>WP_DEBUG</code> désactivé et l'interrupteur des Settings désactivé, l'extension n'écrit rien dans le journal d'erreurs PHP, à aucun niveau. <code>WP_DEBUG</code> active les erreurs et avertissements ; l'interrupteur ajoute les lignes informatives."
+
+#. Found in description list item.
+msgid "<strong>Multisite aware</strong> — network activation supported; each site keeps its own configuration and file tracking, and its objects live under their own prefix in the container (<code>uploads/</code> for the main site, <code>uploads/sites/&lt;id&gt;/</code> for the others, the same layout WordPress uses on disk), so several sites can share one container without ever sharing a key."
+msgstr "<strong>Compatible multisite</strong> — l'activation réseau est prise en charge ; chaque site conserve sa propre configuration et son propre suivi des fichiers, et ses objets vivent sous leur propre préfixe dans le conteneur (<code>uploads/</code> pour le site principal, <code>uploads/sites/&lt;id&gt;/</code> pour les autres, la même disposition que WordPress utilise sur le disque), si bien que plusieurs sites peuvent partager un conteneur sans jamais partager une clé."
+
+#. Found in description list item.
+msgid "<strong>Large files don't need large memory</strong> — a download goes straight to disk, and an upload is sent in 4 MiB blocks, so PHP never holds more than one block of a file at a time and a video does not trip <code>memory_limit</code>."
+msgstr "<strong>Les gros fichiers n'ont pas besoin de beaucoup de mémoire</strong> — un téléchargement va directement sur le disque, et un téléversement est envoyé par blocs de 4 Mio, si bien que PHP ne conserve jamais plus d'un bloc de fichier à la fois et qu'une vidéo ne dépasse pas la <code>memory_limit</code>."
+
+#. Found in description list item.
+msgid "<strong>No plugin data on disk</strong> — no cache, log or data files anywhere on the server. The one time the plugin writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it."
+msgstr "<strong>Aucune donnée de l'extension sur le disque</strong> — aucun fichier de cache, de journal ou de données nulle part sur le serveur. La seule fois où l'extension écrit dans le répertoire uploads, c'est lors de la déconnexion, pour recopier vos propres médias là où WordPress les attend."
+
+#. Found in description list item.
+msgid "<strong>Connection health monitoring</strong> — when the cloud is unreachable, new uploads are refused with a clear error instead of landing somewhere else, and a banner on the plugin's admin pages says why until it recovers."
+msgstr "<strong>Surveillance de l'état de la connexion</strong> — quand le cloud est inaccessible, les nouveaux téléversements sont refusés avec une erreur claire au lieu d'atterrir ailleurs, et une bannière sur les pages d'administration de l'extension explique pourquoi jusqu'au rétablissement."
+
+#. Found in description list item.
+msgid "<strong>Offloading mode</strong> — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working."
+msgstr "<strong>Mode offloading</strong> — après une synchronisation réussie, vous pouvez supprimer les copies locales pour libérer de l'espace disque ; le stream wrapper garde tout fonctionnel."
+
+#. Found in description list item.
+msgid "<strong>Sync with resumable state machine</strong> — start, cancel, resume after an interruption, retry failed files, resync from scratch."
+msgstr "<strong>Synchronisation avec machine à états reprenable</strong> — démarrer, annuler, reprendre après une interruption, réessayer les fichiers en échec, resynchroniser depuis le début."
+
+#. Found in description list item.
+msgid "<strong>Transparent stream wrapper</strong> — no URL rewriting, no regex on post content, no database migration required for URLs."
+msgstr "<strong>Stream wrapper transparent</strong> — aucune réécriture d'URL, aucune regex sur le contenu des publications, aucune migration de base de données requise pour les URL."
+
+#. Found in description list item.
+msgid "<strong>Azure Blob Storage</strong> — bring your own storage account; nothing is shared with anyone else."
+msgstr "<strong>Azure Blob Storage</strong> — utilisez votre propre compte de stockage ; rien n'est partagé avec qui que ce soit d'autre."
+
+#. Found in description header.
+msgid "Azure Blob Storage"
+msgstr "Azure Blob Storage"
+
+#. Found in description header.
+msgid "External services"
+msgstr "Services externes"
+
+#. Found in description header.
+msgid "Known limitations"
+msgstr "Limitations connues"
+
+#. Found in description header.
+msgid "Why a stream wrapper instead of URL rewriting"
+msgstr "Pourquoi un stream wrapper plutôt qu'une réécriture d'URL"
+
+#. Found in description header.
+msgid "Key features"
+msgstr "Fonctionnalités principales"
+
+#. Screenshot description.
+msgid "Status: plugin state, environment and provider at a glance."
+msgstr "Status : état de l'extension, environnement et fournisseur en un coup d'œil."
+
+#. Screenshot description.
+msgid "Settings: file-size limit, upload timeout, HTTPS for cloud URLs, debug logging."
+msgstr "Settings : limite de taille de fichier, délai de téléversement, HTTPS pour les URL cloud, journalisation de débogage."
+
+#. Screenshot description.
+msgid "Offloading active: disconnect from the cloud, or delete the local copies."
+msgstr "Offloading actif : se déconnecter du cloud, ou supprimer les copies locales."
+
+#. Screenshot description.
+msgid "Sync complete: enable offloading now or later."
+msgstr "Synchronisation terminée : activer l'offloading maintenant ou plus tard."
+
+#. Screenshot description.
+msgid "The first sync, file by file, in the browser."
+msgstr "La première synchronisation, fichier par fichier, dans le navigateur."
+
+#. Screenshot description.
+msgid "Provider saved and ready to sync."
+msgstr "Fournisseur enregistré et prêt à synchroniser."
+
+#. Screenshot description.
+msgid "Cloud Provider: entering the storage account, key and container, and testing the connection."
+msgstr "Cloud Provider : saisie du compte de stockage, de la clé et du conteneur, et test de la connexion."
+
+#. Screenshot description.
+msgid "Cloud Provider: choosing Azure Blob Storage."
+msgstr "Cloud Provider : choix d'Azure Blob Storage."
+
+#. Screenshot description.
+msgid "Overview: provider configured, media synced, offloading active."
+msgstr "Overview : fournisseur configuré, médias synchronisés, offloading actif."
+
+#. Found in changelog paragraph.
+#, gp-priority: low
+msgid "First public release."
+msgstr "Première version publique."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Uninstalling removes the plugin's options, transients and table; media files are never touched."
+msgstr "La désinstallation supprime les options, les transients et la table de l'extension ; les fichiers médias ne sont jamais touchés."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "\"Force HTTPS for cloud storage URLs\" option; multisite with per-site configuration; credentials encrypted at rest (AES-256-GCM, key derived from the site's salts); quiet unless <code>WP_DEBUG</code> or the debug toggle is on."
+msgstr "Option \"Force HTTPS for cloud storage URLs\" ; multisite avec configuration par site ; identifiants chiffrés au repos (AES-256-GCM, clé dérivée des salts du site) ; silencieux sauf si <code>WP_DEBUG</code> ou l'interrupteur de débogage est activé."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Streaming transfers: downloads go straight to disk and uploads go in 4 MiB blocks, so large files do not need large memory."
+msgstr "Transferts en streaming : les téléchargements vont directement sur le disque et les téléversements se font par blocs de 4 Mio, si bien que les gros fichiers n'ont pas besoin de beaucoup de mémoire."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Connection health: when the cloud is unreachable an upload fails with a clear error and nothing is written elsewhere."
+msgstr "État de la connexion : quand le cloud est inaccessible, un téléversement échoue avec une erreur claire et rien n'est écrit ailleurs."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Sync with cancel, resume and retry; optional deletion of the local copies once synced; <strong>Disconnect from Cloud</strong> brings everything back."
+msgstr "Synchronisation avec annulation, reprise et nouvelle tentative ; suppression facultative des copies locales une fois synchronisées ; <strong>Disconnect from Cloud</strong> ramène tout."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Transparent PHP stream wrapper on <code>/wp-content/uploads/</code>: no URL rewriting, no database migration."
+msgstr "Stream wrapper PHP transparent sur <code>/wp-content/uploads/</code> : aucune réécriture d'URL, aucune migration de base de données."
+
+#. Found in changelog list item.
+#, gp-priority: low
+msgid "Azure Blob Storage provider with your own account and key; media served from <code>https://&lt;account&gt;.blob.core.windows.net</code>."
+msgstr "Fournisseur Azure Blob Storage avec votre propre compte et clé ; médias diffusés depuis <code>https://&lt;account&gt;.blob.core.windows.net</code>."
