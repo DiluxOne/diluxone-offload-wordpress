@@ -1,27 +1,32 @@
 name: Release
 
-# Pushing a tag X.Y.Z publishes DiluxOne Offload to wordpress.org, through the
-# shared workflow in DiluxOne/.github. Release tags are permanent: a failed
-# deploy is fixed and re-run, never re-tagged. See docs/release.md.
+# Publishes DiluxOne Offload to wordpress.org as a deployment the maintainer
+# approves, through the shared workflow in DiluxOne/.github: every push to
+# main computes the next version from the type:* labels of what merged, and
+# when something is pending the job waits for approval in the environment
+# `wordpress-org`, then stamps, deploys, tags and creates the release. A tag
+# X.Y.Z an administrator pushes by hand goes through the same job and must
+# be that computed version. Release tags are permanent: a failed deploy is
+# fixed and re-run, never re-tagged. See docs/release.md.
 
 on:
   push:
-    # Only X.Y.Z tags, which only an administrator can create: any other tag
-    # never starts a job that inherits the secrets.
+    branches: [main]
+    # X.Y.Z tags only: an administrator's, or the release App's.
     tags: ['[0-9]+.[0-9]+.[0-9]+']
 
-# The SVN credentials live in the environment `wordpress-org` (Settings ›
-# Environments), which the shared workflow's deploy job runs in. A called
-# workflow only sees the secrets its caller hands over, and an environment's
-# secrets can only be handed over with `secrets: inherit`, which passes every
-# repository and organisation secret too (the Anthropic key, the bot's key,
-# the Azure test account). That is why this workflow runs only on X.Y.Z
-# tags, which only an administrator can create, and calls the shared
+# The SVN credentials and the release App's key live in the environment
+# `wordpress-org` (Settings › Environments), which the shared workflow's
+# release job runs in. A called workflow only sees the secrets its caller
+# hands over, and an environment's secrets can only be handed over with
+# `secrets: inherit`, which passes every repository and organisation secret
+# too (the Anthropic key, the bot's key, the Azure test account). That is why
+# this workflow runs only on main and on X.Y.Z tags, and calls the shared
 # workflow at a fixed commit: what runs with all those secrets is exactly
 # the reviewed code at that commit. A Dependabot bump of that pin is a
 # secret-bearing change and is reviewed as one (`.github/**` is high risk).
 #
-# The shared workflow is pinned to a commit, not to the moving `v1` tag:
+# The shared workflow is pinned to a commit, not to the moving `v2` tag:
 # this is the one workflow that runs with the publishing credentials, and
 # what it does must not change under it without a pull request here.
 # Dependabot keeps the pin current.
@@ -31,8 +36,12 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@38e656ac5e79eb237bf989a5653a04768a2a8d85 # v1.2.0
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@PIN_SHA # v2.0.0
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
+      # Rehearsal of the new pipeline: everything but the SVN commit and the
+      # tag; the GitHub release stays a draft. Set to false once a rehearsal
+      # was approved and inspected.
+      dry-run: true
     secrets: inherit
