@@ -46,70 +46,205 @@ class Admin {
 	}
 
 	/**
-	 * The tabs, in order: slug => [label, dashicon, aliases, hidden].
+	 * The screens, in the order a person walks through them: what you connect
+	 * to, what you move, what you tune, what you check. Each one is a submenu
+	 * of the plugin's menu (`page`), and the ones with a second level carry
+	 * their tabs (slug => label); a screen with fewer than two tabs shows no
+	 * tab strip. The menu, the tab strip, the browser title, the routing, the
+	 * redirects of the old `&tab=` URLs and the rail all walk this list, so a
+	 * screen cannot exist in one and be missing from another.
 	 *
-	 * The tab bar, the browser title and the routing all walk this list, so a
-	 * tab cannot exist in one and be missing from another. A hidden tab still
-	 * answers to its URL and gets its own title, it just is not offered in the
-	 * bar.
-	 *
-	 * @return array<string, array{label: string, icon: string, aliases: string[], hidden: bool}>
+	 * @return array<string, array{label: string, page: string, tabs: array<string, string>}>
 	 */
-	public static function tabs(): array {
+	public static function screens(): array {
 		return array(
 			'overview'        => array(
-				'label'   => \__( 'Overview', 'diluxone-offload' ),
-				'icon'    => 'dashicons-dashboard',
-				'aliases' => array(),
-				'hidden'  => false,
+				'label' => \__( 'Overview', 'diluxone-offload' ),
+				'page'  => self::MENU,
+				'tabs'  => array(),
 			),
 			'cloud-provider'  => array(
-				'label'   => \__( 'Cloud Provider', 'diluxone-offload' ),
-				'icon'    => 'dashicons-cloud-upload',
-				'aliases' => array(),
-				'hidden'  => false,
+				'label' => \__( 'Cloud Provider', 'diluxone-offload' ),
+				'page'  => self::MENU . '-provider',
+				'tabs'  => array(
+					'connection'  => \__( 'Connection', 'diluxone-offload' ),
+					'credentials' => \__( 'Credentials', 'diluxone-offload' ),
+				),
 			),
 			'sync-offloading' => array(
-				'label'   => \__( 'Sync & Offloading', 'diluxone-offload' ),
-				'icon'    => 'dashicons-update',
-				'aliases' => array( 'sync' ),
-				'hidden'  => false,
+				'label' => \__( 'Sync & Offloading', 'diluxone-offload' ),
+				'page'  => self::MENU . '-sync',
+				'tabs'  => array(
+					'sync'       => \__( 'Sync', 'diluxone-offload' ),
+					'offloading' => \__( 'Offloading', 'diluxone-offload' ),
+					'disconnect' => \__( 'Disconnect', 'diluxone-offload' ),
+				),
 			),
 			'settings'        => array(
-				'label'   => \__( 'Settings', 'diluxone-offload' ),
-				'icon'    => 'dashicons-admin-settings',
-				'aliases' => array(),
-				'hidden'  => false,
+				'label' => \__( 'Settings', 'diluxone-offload' ),
+				'page'  => self::MENU . '-settings',
+				'tabs'  => array(
+					'transfers' => \__( 'Transfers', 'diluxone-offload' ),
+					'serving'   => \__( 'Serving', 'diluxone-offload' ),
+					'logging'   => \__( 'Logging', 'diluxone-offload' ),
+				),
 			),
 			'status'          => array(
-				'label'   => \__( 'Status', 'diluxone-offload' ),
-				'icon'    => 'dashicons-info',
-				'aliases' => array( 'status-tools' ),
-				'hidden'  => false,
+				'label' => \__( 'Status', 'diluxone-offload' ),
+				'page'  => self::MENU . '-status',
+				'tabs'  => array(
+					'health' => \__( 'Health', 'diluxone-offload' ),
+					'system' => \__( 'System', 'diluxone-offload' ),
+				),
 			),
 		);
 	}
 
 	/**
-	 * The name of the tab currently open, resolved through its aliases.
+	 * The screen a submenu slug belongs to; unknown slugs land on Overview.
 	 *
-	 * @param string $tab The raw `tab` parameter.
-	 * @return string The canonical tab slug.
+	 * @param string $page The `page` query argument.
+	 * @return string The screen key.
 	 */
-	public static function current_tab( string $tab ): string {
-		$tabs = self::tabs();
+	public static function screen_for_page( string $page ): string {
+		foreach ( self::screens() as $screen => $meta ) {
+			if ( $meta['page'] === $page ) {
+				return $screen;
+			}
+		}
+
+		return 'overview';
+	}
+
+	/**
+	 * The tab to show on a screen: the requested one when the screen has it,
+	 * else the screen's first tab, else none.
+	 *
+	 * @param string $screen The screen key.
+	 * @param string $tab    The raw `tab` query argument.
+	 * @return string The tab slug, or '' for a screen without tabs.
+	 */
+	public static function tab_for( string $screen, string $tab ): string {
+		$tabs = self::screens()[ $screen ]['tabs'] ?? array();
 
 		if ( isset( $tabs[ $tab ] ) ) {
 			return $tab;
 		}
 
-		foreach ( $tabs as $slug => $meta ) {
-			if ( in_array( $tab, $meta['aliases'], true ) ) {
-				return $slug;
+		return $tabs === array() ? '' : (string) array_key_first( $tabs );
+	}
+
+	/**
+	 * Where an old `admin.php?page=diluxone-offload&tab=…` URL goes now.
+	 *
+	 * Until 2.0.0 every screen was a tab of the top-level page. Bookmarks,
+	 * the health banner's links and the redirects after a save still carry
+	 * those URLs, so each old tab (and its older aliases) maps to a screen
+	 * and a tab; anything unknown lands on Overview.
+	 *
+	 * @param string $tab The old `tab` value.
+	 * @return array{0: string, 1: string} Screen key and tab slug.
+	 */
+	public static function legacy_tab( string $tab ): array {
+		switch ( $tab ) {
+			case 'cloud-provider':
+				return array( 'cloud-provider', 'connection' );
+			case 'sync-offloading':
+			case 'sync':
+				return array( 'sync-offloading', 'sync' );
+			case 'settings':
+				return array( 'settings', 'transfers' );
+			case 'status':
+			case 'status-tools':
+				return array( 'status', 'health' );
+			default:
+				return array( 'overview', '' );
+		}
+	}
+
+	/**
+	 * The URL of a screen, or of one of its tabs.
+	 *
+	 * @param string               $screen The screen key.
+	 * @param string               $tab    A tab of that screen; '' for the screen's first (or only) view.
+	 * @param array<string, mixed> $args   Extra query arguments (`auto-start`, for one).
+	 * @return string
+	 */
+	public static function screen_url( string $screen, string $tab = '', array $args = array() ): string {
+		$screens = self::screens();
+		$meta    = $screens[ $screen ] ?? $screens['overview'];
+		$query   = array( 'page' => $meta['page'] );
+
+		if ( $tab !== '' && isset( $meta['tabs'][ $tab ] ) ) {
+			$query['tab'] = $tab;
+		}
+
+		return \add_query_arg( $query + $args, \admin_url( 'admin.php' ) );
+	}
+
+	/**
+	 * Every screen and tab URL, for the scripts: they redirect and rewrite
+	 * the address bar with these instead of building URLs of their own.
+	 *
+	 * @return array<string, string> `overview`, then one entry per tab slug.
+	 */
+	public static function screen_urls(): array {
+		$urls = array();
+
+		foreach ( self::screens() as $screen => $meta ) {
+			if ( $meta['tabs'] === array() ) {
+				$urls[ $screen ] = self::screen_url( $screen );
+				continue;
+			}
+			foreach ( array_keys( $meta['tabs'] ) as $tab ) {
+				$urls[ $tab ] = self::screen_url( $screen, $tab );
 			}
 		}
 
-		return 'overview';
+		return $urls;
+	}
+
+	/**
+	 * The screen and tab the request is for, from `page` and `tab`.
+	 *
+	 * @return array{0: string, 1: string}
+	 */
+	private static function requested(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing parameters, no state change.
+		$page = isset( $_GET['page'] ) ? \sanitize_key( \wp_unslash( $_GET['page'] ) ) : self::MENU;
+		$tab  = isset( $_GET['tab'] ) ? \sanitize_key( \wp_unslash( $_GET['tab'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		$screen = self::screen_for_page( $page );
+
+		return array( $screen, self::tab_for( $screen, $tab ) );
+	}
+
+	/**
+	 * Send an old `&tab=` URL of the top-level page to its screen.
+	 *
+	 * Runs on `load-toplevel_page_diluxone-offload`, before any output. The
+	 * other query arguments travel along, so the "Sync Files to Cloud" link
+	 * with `auto-start=1` keeps starting the sync.
+	 *
+	 * @return void
+	 */
+	public static function redirect_legacy_tab(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing parameters, no state change.
+		if ( ! isset( $_GET['tab'] ) ) {
+			return;
+		}
+
+		list( $screen, $tab ) = self::legacy_tab( \sanitize_key( \wp_unslash( $_GET['tab'] ) ) );
+
+		$args = array();
+		if ( isset( $_GET['auto-start'] ) ) {
+			$args['auto-start'] = '1';
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		\wp_safe_redirect( self::screen_url( $screen, $tab, $args ) );
+		exit;
 	}
 
 	/**
@@ -129,19 +264,29 @@ class Admin {
 			return $admin_title;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
-		$tab     = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
-		$tabs    = self::tabs();
-		$abierta = $tabs[ self::current_tab( $tab ) ]['label'];
+		list( $current ) = self::requested();
 
-		$nuevo = sprintf(
+		return str_replace( $title, self::screen_title( $current ), $admin_title );
+	}
+
+	/**
+	 * "DiluxOne Offload | Overview": the heading of a screen, and its browser
+	 * title. The plugin's name once, a vertical bar, the screen's name; the
+	 * tab is not part of it.
+	 *
+	 * @param string $screen The screen key.
+	 * @return string
+	 */
+	public static function screen_title( string $screen ): string {
+		$screens = self::screens();
+		$label   = $screens[ $screen ]['label'] ?? $screens['overview']['label'];
+
+		return sprintf(
 			/* translators: 1: plugin name, 2: name of the screen */
 			\_x( '%1$s | %2$s', 'a dashboard screen title', 'diluxone-offload' ),
 			self::plugin_name(),
-			$abierta
+			$label
 		);
-
-		return str_replace( $title, $nuevo, $admin_title );
 	}
 
 	/**
@@ -167,14 +312,17 @@ class Admin {
 	}
 
 	/**
-	 * Register the top-level admin menu.
+	 * Register the menu: one top-level entry and a submenu per screen.
 	 *
-	 * Standalone menu — no shared "DiluxOne" parent.
+	 * Standalone menu — no shared "DiluxOne" parent. The first submenu reuses
+	 * the top-level slug, which is how WordPress labels that entry "Overview"
+	 * instead of repeating the menu's name. The old `&tab=` URLs of the
+	 * top-level page are redirected on load, before anything is printed.
 	 *
 	 * @return void
 	 */
 	public static function add_admin_menu() {
-		\add_menu_page(
+		$hook = \add_menu_page(
 			self::plugin_name(),                     // Page title.
 			self::plugin_name(),                     // Menu label.
 			'manage_options',                        // Capability.
@@ -183,68 +331,65 @@ class Admin {
 			'dashicons-cloud',                       // Icon.
 			81                                       // Position (below the Settings block).
 		);
+
+		foreach ( self::screens() as $meta ) {
+			\add_submenu_page(
+				self::MENU,
+				$meta['label'],
+				$meta['label'],
+				'manage_options',
+				$meta['page'],
+				array( __CLASS__, 'render_admin_page' )
+			);
+		}
+
+		if ( is_string( $hook ) && $hook !== '' ) {
+			\add_action( 'load-' . $hook, array( __CLASS__, 'redirect_legacy_tab' ) );
+		}
 	}
 
 	/**
-	 * Render the admin page.
+	 * Render a screen: the heading, the tab strip when the screen has one,
+	 * the queued notice, the health banner, then the screen's content beside
+	 * the rail.
 	 */
 	public static function render_admin_page(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
-		$requested   = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
-		$current_tab = self::current_tab( $requested );
-
-		// Check configuration states
-		$is_configured         = ConfigManager::is_configured();
-		$current_state         = ConfigManager::get_state();
-		$is_synced             = ( $current_state === 'synced' || $current_state === 'offloading_active' );
-		$is_offloading_enabled = ( $current_state === 'offloading_active' );
+		list( $screen, $tab ) = self::requested();
+		$meta                 = self::screens()[ $screen ];
 
 		?>
-		<div class="wrap diluxone-offload-admin">
-			<h1>
-				<span class="dashicons dashicons-cloud"></span>
-				<?php echo \esc_html( self::plugin_name() ); ?>
-			</h1>
+		<div class="wrap diluxone-offload-admin" data-screen="<?php echo \esc_attr( $screen ); ?>" data-tab="<?php echo \esc_attr( $tab ); ?>">
+			<h1><?php echo \esc_html( self::screen_title( $screen ) ); ?></h1>
 
-			<!-- Tabs Navigation -->
-			<nav class="nav-tab-wrapper">
-				<?php foreach ( self::tabs() as $slug => $meta ) : ?>
-					<?php
-					if ( $meta['hidden'] ) {
-						continue; }
-					?>
-					<a href="
-					<?php
-					echo \esc_url(
-						\add_query_arg(
-							array(
-								'page' => self::MENU,
-								'tab'  => $slug,
-							),
-							\admin_url( 'admin.php' )
-						)
-					);
-					?>
-								"
-						class="nav-tab <?php echo esc_attr( $current_tab === $slug ? 'nav-tab-active' : '' ); ?>">
-						<span class="dashicons <?php echo \esc_attr( $meta['icon'] ); ?>"></span>
-						<?php echo \esc_html( $meta['label'] ); ?>
+			<?php if ( count( $meta['tabs'] ) > 1 ) : ?>
+			<nav class="nav-tab-wrapper" aria-label="<?php echo \esc_attr( $meta['label'] ); ?>">
+				<?php foreach ( $meta['tabs'] as $slug => $label ) : ?>
+					<a href="<?php echo \esc_url( self::screen_url( $screen, $slug ) ); ?>"
+						class="nav-tab<?php echo $tab === $slug ? ' nav-tab-active' : ''; ?>"
+						<?php echo $tab === $slug ? 'aria-current="page"' : ''; ?>>
+						<?php echo \esc_html( $label ); ?>
 					</a>
 				<?php endforeach; ?>
 			</nav>
+			<?php endif; ?>
 
-			<!-- Tab Content -->
-			<div class="tab-content" style="margin-top: 20px;">
-				<?php
-				self::render_flash_notice();
+			<?php
+			self::render_flash_notice();
 
-				// Connection health check (5-min TTL)
-				$health = ConfigManager::check_connection_health();
-				if ( $health['status'] === 'unhealthy' ) {
-					self::render_connection_health_banner( $health );
-				}
-				?>
-				<?php self::render_tab_content( $current_tab ); ?>
+			// Connection health check (5-min TTL)
+			$health = ConfigManager::check_connection_health();
+			if ( $health['status'] === 'unhealthy' ) {
+				self::render_connection_health_banner( $health );
+			}
+			?>
+
+			<div class="diluxone-offload-studio">
+				<div class="diluxone-offload-studio__main">
+					<?php self::render_screen_content( $screen, $tab ); ?>
+				</div>
+				<aside class="diluxone-offload-studio__aside">
+					<?php self::render_rail( $screen, $tab, $health ); ?>
+				</aside>
 			</div>
 		</div>
 		<?php
@@ -338,20 +483,13 @@ class Admin {
 	}
 
 	/**
-	 * Redirect back to a plugin tab after an admin_post handler.
+	 * Redirect back to a screen (and tab) after an admin_post handler.
 	 *
-	 * @param string $tab Tab slug.
+	 * @param string $screen Screen key.
+	 * @param string $tab    Tab slug, '' for the screen's first view.
 	 */
-	private static function redirect_to_tab( string $tab ): void {
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page' => self::MENU,
-					'tab'  => $tab,
-				),
-				admin_url( 'admin.php' )
-			)
-		);
+	private static function redirect_to_screen( string $screen, string $tab = '' ): void {
+		wp_safe_redirect( self::screen_url( $screen, $tab ) );
 		exit;
 	}
 
@@ -401,6 +539,14 @@ class Admin {
 			array(),
 			self::asset_version( 'assets/css/admin.css' )
 		);
+		// The open tab is marked by a 3 px top border in the accent colour of
+		// the user's admin colour scheme, the way WordPress marks its own
+		// current items, so the plugin follows the scheme instead of bringing
+		// a colour of its own.
+		wp_add_inline_style(
+			'diluxone-offload-admin',
+			sprintf( '.diluxone-offload-admin .nav-tab-active { border-top-color: %s; }', self::accent_color() )
+		);
 
 		// Enqueue JS
 		wp_enqueue_script(
@@ -426,6 +572,31 @@ class Admin {
 				'autoRefresh'     => true,
 			)
 		);
+	}
+
+	/**
+	 * The accent colour of the current user's admin colour scheme.
+	 *
+	 * WordPress registers each scheme's palette in `$_wp_admin_css_colors`;
+	 * the third colour is the one it uses for the current menu item and for
+	 * links. Falls back to the default scheme's blue.
+	 *
+	 * @return string A CSS colour.
+	 */
+	public static function accent_color(): string {
+		global $_wp_admin_css_colors;
+
+		$scheme  = (string) get_user_option( 'admin_color' );
+		$palette = $_wp_admin_css_colors[ $scheme ]->colors ?? null;
+
+		if ( is_array( $palette ) && $palette !== array() ) {
+			$colour = $palette[2] ?? end( $palette );
+			if ( is_string( $colour ) && preg_match( '/^#[0-9a-fA-F]{3,8}$/', $colour ) ) {
+				return $colour;
+			}
+		}
+
+		return '#2271b1';
 	}
 
 	/**
@@ -460,14 +631,15 @@ class Admin {
 	}
 
 	/**
-	 * Per-tab stylesheet and script, by tab slug.
+	 * Per-screen stylesheet and script, by screen key.
 	 *
-	 * Each admin tab used to carry its own <style>/<script> block inline in its
-	 * template. They now live in assets/ and are registered here so WordPress
-	 * can cache, version, defer and dequeue them like any other asset — and so
-	 * a page only pays for the tab it is showing.
+	 * Each admin screen used to carry its own <style>/<script> block inline in
+	 * its template. They now live in assets/ and are registered here so
+	 * WordPress can cache, version, defer and dequeue them like any other
+	 * asset — and so a page only pays for the screen it is showing. The tabs
+	 * of a screen share its assets.
 	 *
-	 * @return array<string, string> Tab slug => asset basename in assets/{css,js}/.
+	 * @return array<string, string> Screen key => asset basename in assets/{css,js}/.
 	 */
 	private static function tab_assets(): array {
 		return array(
@@ -486,8 +658,8 @@ class Admin {
 	 * Keeping them here means the JS files are static and cacheable, the
 	 * strings stay in the .pot, and nothing is echoed into a script tag.
 	 *
-	 * @param string               $tab           Resolved tab slug.
-	 * @param array<string, mixed> $template_data Data the tab's template renders with, if known yet.
+	 * @param string               $tab           Screen key.
+	 * @param array<string, mixed> $template_data Data the screen's template renders with, if known yet.
 	 * @return array{payload: array<string, mixed>, object: string, handle: string}|null
 	 */
 	private static function tab_payload( string $tab, array $template_data = array() ): ?array {
@@ -516,6 +688,7 @@ class Admin {
 					),
 					'data' => array(
 						'config_cloud_provider' => $template_data['config']['cloud_provider'] ?? '',
+						'urls'                  => self::screen_urls(),
 					),
 				);
 				$object  = 'DiluxOneOffloadProvider';
@@ -536,7 +709,9 @@ class Admin {
 						'total_files'   => __( 'Total Files', 'diluxone-offload' ),
 						'request_timed_out_try_again_later' => __( 'Request timed out. Try again later.', 'diluxone-offload' ),
 					),
-					'data' => array(),
+					'data' => array(
+						'urls' => self::screen_urls(),
+					),
 				);
 				$object  = 'DiluxOneOffloadOverview';
 				$handle  = 'diluxone-offload-admin-overview';
@@ -652,6 +827,7 @@ class Admin {
 					),
 					'data' => array(
 						'current_state' => $template_data['current_state'] ?? null,
+						'urls'          => self::screen_urls(),
 					),
 				);
 				$object  = 'DiluxOneOffloadSync';
@@ -676,9 +852,7 @@ class Admin {
 	 * @return void
 	 */
 	private static function enqueue_tab_assets(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter, no state change.
-		$requested = isset( $_GET['tab'] ) ? \sanitize_text_field( \wp_unslash( $_GET['tab'] ) ) : 'overview';
-		$tab       = self::current_tab( $requested );
+		list( $tab ) = self::requested();
 
 		$assets = self::tab_assets();
 		if ( ! isset( $assets[ $tab ] ) ) {
@@ -719,8 +893,8 @@ class Admin {
 	/**
 	 * Merge the tab's render-time data into its already-localized object.
 	 *
-	 * @param string               $tab           Resolved tab slug.
-	 * @param array<string, mixed> $template_data Data the tab's template renders with.
+	 * @param string               $tab           Screen key.
+	 * @param array<string, mixed> $template_data Data the screen's template renders with.
 	 * @return void
 	 */
 	private static function merge_tab_data( string $tab, array $template_data ): void {
@@ -742,132 +916,57 @@ class Admin {
 	}
 
 	/**
-	 * Render tab content based on current tab
+	 * Render the content of a screen's tab: gather the data the template
+	 * needs (no business logic in templates) and include it.
 	 *
-	 * @param mixed $current_tab
+	 * @param string $screen Screen key.
+	 * @param string $tab    Tab slug, '' for a screen without tabs.
 	 */
-	private static function render_tab_content( $current_tab ): void {
-		$template_path = '';
-		$template_data = array();
+	private static function render_screen_content( string $screen, string $tab ): void {
+		$template_path           = '';
+		$config                  = ConfigManager::get_config();
+		$config['is_configured'] = ConfigManager::is_configured();
+		$template_data           = array( 'config' => $config );
 
-		switch ( $current_tab ) {
+		switch ( $screen ) {
 			case 'overview':
-				$template_path           = 'admin-overview.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
+				$template_path = 'admin-overview.php';
 
 				// Cached stats only — never fetch here. See
 				// ConfigManager::get_cached_cloud_stats() for why. On a cold
 				// cache this is null and the template paints a skeleton that
-				// the tab's script fills in.
+				// the screen's script fills in.
 				$current_state_ov = ConfigManager::get_state();
 				$is_configured_ov = ! in_array( $current_state_ov, array( 'not_configured', '' ), true );
-				$cloud_stats_ov   = $is_configured_ov ? ConfigManager::get_cached_cloud_stats() : null;
 
-				$template_data = array(
-					'config'      => $config,
-					'cloud_stats' => $cloud_stats_ov,
-					'stats'       => self::get_basic_stats(),
-				);
+				$template_data['cloud_stats'] = $is_configured_ov ? ConfigManager::get_cached_cloud_stats() : null;
+				$template_data['stats']       = self::get_basic_stats();
 				break;
 
 			case 'settings':
-				$template_path           = 'admin-settings.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
-				$template_data           = array(
-					'config' => $config,
-				);
+				$template_path = 'admin-settings-' . $tab . '.php';
 				break;
 
 			case 'cloud-provider':
-				$template_path           = 'admin-cloud-provider.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
+				$template_path = 'admin-provider-' . $tab . '.php';
 
-				// Prepare cloud stats and DB data for template (no business logic in templates)
-				$current_state_cp   = ConfigManager::get_state();
-				$is_configured_cp   = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
-				$has_files_in_db_cp = false;
+				$current_state_cp = ConfigManager::get_state();
 
-				if ( $is_configured_cp ) {
-					// Check files in DB (table name from trusted source, no user input)
-					require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-					global $wpdb;
-					$table_name_cp = DiluxOneOffloadDB::get_table_name();
-                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name()
-					$has_files_in_db_cp = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name_cp}" ) > 0;
-				}
-
-				$template_data = array(
-					'config'          => $config,
-					'current_state'   => $current_state_cp,
-					'is_configured'   => $is_configured_cp,
-					'has_files_in_db' => $has_files_in_db_cp,
-				);
+				$template_data['current_state'] = $current_state_cp;
+				$template_data['is_configured'] = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
+				$template_data['health']        = ConfigManager::get_connection_health();
+				// Delete Provider is offered before offloading is active (disconnect first via Sync & Offloading › Disconnect).
+				$template_data['can_delete_provider'] = in_array( $current_state_cp, array( 'configured', 'syncing', 'synced' ), true );
+				$template_data['screen_urls']         = self::screen_urls();
 				break;
 
-			case 'sync':
 			case 'sync-offloading':
-				// Check if sync tab is accessible
-				$is_configured = ConfigManager::is_configured();
-				if ( ! $is_configured ) {
-					// Distinguish "credentials cannot be decrypted" from
-					// "never configured": the recovery path is different
-					// (re-enter creds vs initial setup) and the existing
-					// "Steps to Enable Sync" copy misleads the user when the
-					// real problem is unreadable credentials.
-					$health             = ConfigManager::get_connection_health();
-					$is_decrypt_failure = $health['status'] === 'unhealthy'
-						&& $health['error_code'] === 'decrypt_failed';
-
-					if ( $is_decrypt_failure ) {
-						?>
-						<div class="wrap">
-							<div class="notice notice-error">
-								<h3><?php \esc_html_e( 'Stored Credentials Unreadable', 'diluxone-offload' ); ?></h3>
-								<p><?php \esc_html_e( 'Sync is paused because the saved cloud credentials cannot be decrypted. This is not the same as "never configured" — the cloud provider details are still in the database, but the WordPress salts changed since they were saved (commonly after restoring a database from a different environment).', 'diluxone-offload' ); ?></p>
-								<p><?php \esc_html_e( 'Re-enter the credentials in the Cloud Provider tab. Everything else (provider selection, container name, sync state) is preserved.', 'diluxone-offload' ); ?></p>
-								<p>
-									<a href="<?php echo \esc_url( \admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary">
-										<?php \esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
-									</a>
-								</p>
-							</div>
-						</div>
-						<?php
-						return;
-					}
-					?>
-					<div class="wrap">
-						<div class="notice notice-warning is-dismissible">
-							<h3><?php esc_html_e( 'Sync & Offloading Not Available', 'diluxone-offload' ); ?></h3>
-							<p><?php esc_html_e( 'Please configure a cloud provider in the Cloud Provider tab first.', 'diluxone-offload' ); ?></p>
-							<p>
-								<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary">
-									<?php esc_html_e( 'Go to Cloud Provider', 'diluxone-offload' ); ?>
-								</a>
-							</p>
-						</div>
-
-						<div class="card" style="max-width: 600px; margin-top: 20px;">
-							<h2><?php esc_html_e( 'Steps to Enable Sync', 'diluxone-offload' ); ?></h2>
-							<ol>
-								<li><?php esc_html_e( 'Go to the Cloud Provider tab', 'diluxone-offload' ); ?></li>
-								<li><?php esc_html_e( 'Configure your cloud storage provider', 'diluxone-offload' ); ?></li>
-								<li><?php esc_html_e( 'Test the connection', 'diluxone-offload' ); ?></li>
-								<li><?php esc_html_e( 'Save your configuration', 'diluxone-offload' ); ?></li>
-								<li><?php esc_html_e( 'Return to this tab to sync files', 'diluxone-offload' ); ?></li>
-							</ol>
-						</div>
-					</div>
-					<?php
+				if ( ! ConfigManager::is_configured() ) {
+					self::render_sync_unavailable();
 					return;
 				}
 
-				$template_path           = 'admin-sync.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
+				$template_path = 'admin-sync-' . $tab . '.php';
 
 				$current_state_sync = ConfigManager::get_state();
 
@@ -888,60 +987,38 @@ class Admin {
 				// Get failed files from DB
 				require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 				$failed_files_sync = DiluxOneOffloadDB::get_failed_files();
+				$counts            = self::tracking_counts();
 
-				// Get file counts from DB for continuation detection (table name from trusted source)
-				global $wpdb;
-				$table_name_sync = DiluxOneOffloadDB::get_table_name();
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name()
-				$has_files_in_db_sync = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name_sync}" ) > 0;
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$synced_count_sync = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name_sync} WHERE synced=1" );
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$pending_count_sync = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name_sync} WHERE synced=0 AND deleted=0" );
-
-				$template_data = array(
-					'config'          => $config,
-					'current_state'   => $current_state_sync,
-					'sync_progress'   => ConfigManager::get_sync_progress(),
-					'stats'           => self::get_basic_stats(),
-					'failed_files'    => $failed_files_sync,
-					'failed_count'    => count( $failed_files_sync ),
-					'has_files_in_db' => $has_files_in_db_sync,
-					'synced_count'    => $synced_count_sync,
-					'pending_count'   => $pending_count_sync,
-				);
+				$template_data['current_state']   = $current_state_sync;
+				$template_data['sync_progress']   = ConfigManager::get_sync_progress();
+				$template_data['stats']           = self::get_basic_stats();
+				$template_data['failed_files']    = $failed_files_sync;
+				$template_data['failed_count']    = count( $failed_files_sync );
+				$template_data['has_files_in_db'] = $counts['total'] > 0;
+				$template_data['synced_count']    = $counts['synced'];
+				$template_data['pending_count']   = $counts['pending'];
+				$template_data['screen_urls']     = self::screen_urls();
 				break;
 
 			case 'status':
-			case 'status-tools':  // legacy alias — keep for old bookmarked URLs
-				$template_path           = 'admin-status.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
-				$template_data           = array(
-					'config'        => $config,
-					'storage_stats' => self::get_basic_stats(),
-				);
-				break;
+				$template_path = 'admin-status-' . $tab . '.php';
 
-			default:
-				$template_path           = 'admin-overview.php';
-				$config                  = ConfigManager::get_config();
-				$config['is_configured'] = ConfigManager::is_configured();
-				$template_data           = array(
-					'config' => $config,
-					'stats'  => self::get_basic_stats(),
-				);
+				$template_data['storage_stats'] = self::get_basic_stats();
+				$template_data['health']        = ConfigManager::get_connection_health();
+				$template_data['tracking_rows'] = ConfigManager::is_configured() ? self::tracking_counts()['total'] : 0;
+				$template_data['screen_urls']   = self::screen_urls();
+				break;
 		}
 
 		$full_template_path = DILUXONE_OFFLOAD_DIR . 'templates/' . $template_path;
 
 		// The strings were localized when the script was enqueued, so the object
-		// exists even on the early-return branches below. Only the data depends
-		// on $template_data, so merge that in now. Footer scripts have not been
+		// exists even on the early-return branches. Only the data depends on
+		// $template_data, so merge that in now. Footer scripts have not been
 		// printed yet at this point, so this still reaches the browser.
-		self::merge_tab_data( $current_tab, $template_data );
+		self::merge_tab_data( $screen, $template_data );
 
-		if ( file_exists( $full_template_path ) ) {
+		if ( $template_path !== '' && file_exists( $full_template_path ) ) {
 			// Templates expect each value of $template_data to be available as
 			// a local variable. The keys are static (set in this method) and
 			// never derived from user input, so the documented extract() risk
@@ -955,6 +1032,387 @@ class Admin {
 				\sprintf( \__( 'Template not found: %s', 'diluxone-offload' ), $template_path )
 			) . '</p>';
 		}
+	}
+
+	/**
+	 * The Sync & Offloading screen before a provider is connected: what to
+	 * do first, or, when the saved credentials cannot be read, where to
+	 * re-enter them. The recovery path is different (re-enter credentials vs
+	 * initial setup), and the "steps to enable sync" copy misleads when the
+	 * real problem is unreadable credentials.
+	 */
+	private static function render_sync_unavailable(): void {
+		$health             = ConfigManager::get_connection_health();
+		$is_decrypt_failure = $health['status'] === 'unhealthy' && $health['error_code'] === 'decrypt_failed';
+
+		if ( $is_decrypt_failure ) {
+			?>
+			<div class="notice notice-error inline">
+				<h3><?php \esc_html_e( 'Stored Credentials Unreadable', 'diluxone-offload' ); ?></h3>
+				<p><?php \esc_html_e( 'Sync is paused because the saved cloud credentials cannot be decrypted. This is not the same as "never configured" — the cloud provider details are still in the database, but the WordPress salts changed since they were saved (commonly after restoring a database from a different environment).', 'diluxone-offload' ); ?></p>
+				<p><?php \esc_html_e( 'Re-enter the credentials in Cloud Provider › Credentials. Everything else (provider selection, container name, sync state) is preserved.', 'diluxone-offload' ); ?></p>
+				<p>
+					<a href="<?php echo \esc_url( self::screen_url( 'cloud-provider', 'credentials' ) ); ?>" class="button button-primary">
+						<?php \esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
+					</a>
+				</p>
+			</div>
+			<?php
+			return;
+		}
+		?>
+		<div class="notice notice-warning inline">
+			<h3><?php esc_html_e( 'Sync & Offloading Not Available', 'diluxone-offload' ); ?></h3>
+			<p><?php esc_html_e( 'Connect a cloud provider in Cloud Provider › Connection first.', 'diluxone-offload' ); ?></p>
+			<p>
+				<a href="<?php echo esc_url( self::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary">
+					<?php esc_html_e( 'Go to Cloud Provider', 'diluxone-offload' ); ?>
+				</a>
+			</p>
+		</div>
+
+		<div class="diluxone-offload-section">
+			<h3><?php esc_html_e( 'Steps to Enable Sync', 'diluxone-offload' ); ?></h3>
+			<ol>
+				<li><?php esc_html_e( 'Go to Cloud Provider › Connection', 'diluxone-offload' ); ?></li>
+				<li><?php esc_html_e( 'Configure your cloud storage provider', 'diluxone-offload' ); ?></li>
+				<li><?php esc_html_e( 'Test the connection', 'diluxone-offload' ); ?></li>
+				<li><?php esc_html_e( 'Save your configuration', 'diluxone-offload' ); ?></li>
+				<li><?php esc_html_e( 'Return to this screen to sync files', 'diluxone-offload' ); ?></li>
+			</ol>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Counts from the tracking table: every row, the synced ones, the ones
+	 * still pending, and the synced ones that still have a local copy.
+	 *
+	 * @return array{total: int, synced: int, pending: int, local: int}
+	 */
+	private static function tracking_counts(): array {
+		global $wpdb;
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+		$table = DiluxOneOffloadDB::get_table_name();
+
+		// Table name from trusted DiluxOneOffloadDB::get_table_name(); a one-shot admin read (the DB sniffs are off for this file, see its header).
+		$row = $wpdb->get_row(
+			"SELECT COUNT(*) AS total,
+				COALESCE(SUM(synced = 1), 0) AS synced,
+				COALESCE(SUM(synced = 0 AND deleted = 0), 0) AS pending,
+				COALESCE(SUM(synced = 1 AND deleted = 0), 0) AS local
+			FROM {$table}",
+			ARRAY_A
+		);
+
+		return array(
+			'total'   => (int) ( $row['total'] ?? 0 ),
+			'synced'  => (int) ( $row['synced'] ?? 0 ),
+			'pending' => (int) ( $row['pending'] ?? 0 ),
+			'local'   => (int) ( $row['local'] ?? 0 ),
+		);
+	}
+
+	/**
+	 * The rail beside a screen: "Right now" (this site's state, one line and
+	 * a pill), a note on what the screen is for, and the related screens.
+	 *
+	 * Everything in it is read from data the plugin already keeps: the
+	 * state, the connection health and the tracking table.
+	 *
+	 * @param string               $screen Screen key.
+	 * @param string               $tab    Tab slug.
+	 * @param array<string, mixed> $health The connection health, as checked for the banner.
+	 */
+	private static function render_rail( string $screen, string $tab, array $health ): void {
+		$rail = self::rail_content( $screen, $tab, $health );
+
+		// phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- One static key; the partial depends on this contract.
+		extract( array( 'rail' => $rail ) );
+		include DILUXONE_OFFLOAD_DIR . 'templates/partials/rail.php';
+	}
+
+	/**
+	 * What the rail says on a screen: state line and pill, note, links.
+	 *
+	 * @param string               $screen Screen key.
+	 * @param string               $tab    Tab slug.
+	 * @param array<string, mixed> $health The connection health.
+	 * @return array{state: array{line: string, pill: string, label: string, why: string}, note: array{title: string, body: string[]}, links: array<int, array{label: string, url: string}>}
+	 */
+	private static function rail_content( string $screen, string $tab, array $health ): array {
+		$state         = ConfigManager::get_state();
+		$is_configured = ConfigManager::is_configured();
+		$paused        = ( $health['status'] ?? '' ) === 'unhealthy';
+		$counts        = $is_configured ? self::tracking_counts() : array(
+			'total'   => 0,
+			'synced'  => 0,
+			'pending' => 0,
+			'local'   => 0,
+		);
+		$config        = ConfigManager::get_config();
+		$container     = (string) ( $config['provider_config']['container_name'] ?? '' );
+		$where         = $container !== ''
+			/* translators: %s: the name of the storage container */
+			? sprintf( \__( 'the Azure Blob Storage container %s', 'diluxone-offload' ), $container )
+			: \__( 'Azure Blob Storage', 'diluxone-offload' );
+
+		// ── Right now ──
+		if ( ! $is_configured ) {
+			$now = array(
+				'line'  => \__( 'No cloud provider is connected. Media is served from this server.', 'diluxone-offload' ),
+				'pill'  => 'off',
+				'label' => \__( 'Off', 'diluxone-offload' ),
+				'why'   => '',
+			);
+		} elseif ( $paused ) {
+			$now = array(
+				'line'  => sprintf(
+					/* translators: 1: short reason for the pause, 2: number of consecutive failures */
+					\__( 'Paused (%1$s): %2$d consecutive failures. Uploads are refused until the next successful connection.', 'diluxone-offload' ),
+					self::pause_reason_short( (string) ( $health['error_code'] ?? '' ) ),
+					(int) ( $health['consecutive_failures'] ?? 0 )
+				),
+				'pill'  => 'pending',
+				'label' => \__( 'Pending', 'diluxone-offload' ),
+				'why'   => self::pause_reason_short( (string) ( $health['error_code'] ?? '' ) ),
+			);
+		} elseif ( $state === 'offloading_active' ) {
+			$now = array(
+				'line'  => sprintf(
+					/* translators: 1: number of files synced, 2: where they are, 3: number of files that still have a local copy */
+					\__( '%1$s files synced to %2$s; %3$s still have a copy on this server.', 'diluxone-offload' ),
+					number_format_i18n( $counts['synced'] ),
+					$where,
+					number_format_i18n( $counts['local'] )
+				),
+				'pill'  => 'active',
+				'label' => \__( 'Active', 'diluxone-offload' ),
+				'why'   => '',
+			);
+		} elseif ( $state === 'synced' ) {
+			$now = array(
+				'line'  => sprintf(
+					/* translators: 1: number of files synced, 2: where they are */
+					\__( '%1$s files synced to %2$s; still served from this server until offloading is enabled.', 'diluxone-offload' ),
+					number_format_i18n( $counts['synced'] ),
+					$where
+				),
+				'pill'  => 'active',
+				'label' => \__( 'Synced', 'diluxone-offload' ),
+				'why'   => \__( 'offloading off', 'diluxone-offload' ),
+			);
+		} elseif ( $state === 'syncing' ) {
+			$now = array(
+				'line'  => sprintf(
+					/* translators: 1: number of files synced so far, 2: number of files pending */
+					\__( 'A sync is in progress: %1$s files done, %2$s pending.', 'diluxone-offload' ),
+					number_format_i18n( $counts['synced'] ),
+					number_format_i18n( $counts['pending'] )
+				),
+				'pill'  => 'pending',
+				'label' => \__( 'Syncing', 'diluxone-offload' ),
+				'why'   => '',
+			);
+		} else {
+			$now = array(
+				'line'  => $counts['total'] > 0
+					? sprintf(
+						/* translators: 1: where the files go, 2: number of files synced so far, 3: number pending */
+						\__( 'Configured for %1$s. A sync was interrupted: %2$s files done, %3$s pending.', 'diluxone-offload' ),
+						$where,
+						number_format_i18n( $counts['synced'] ),
+						number_format_i18n( $counts['pending'] )
+					)
+					/* translators: %s: where the files go */
+					: sprintf( \__( 'Configured for %s. Nothing synced yet.', 'diluxone-offload' ), $where ),
+				'pill'  => 'pending',
+				'label' => \__( 'Pending', 'diluxone-offload' ),
+				'why'   => \__( 'not synced', 'diluxone-offload' ),
+			);
+		}
+
+		// ── Note and links, per screen and tab ──
+		$link    = static function ( string $label, string $s, string $t = '' ): array {
+			return array(
+				'label' => $label,
+				'url'   => self::screen_url( $s, $t ),
+			);
+		};
+		$support = array(
+			'label' => \__( 'Support forum', 'diluxone-offload' ),
+			'url'   => 'https://wordpress.org/support/plugin/diluxone-offload/',
+		);
+
+		switch ( $screen . '/' . $tab ) {
+			case 'cloud-provider/connection':
+				$note  = array(
+					'title' => \__( 'Where the keys come from', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'Azure portal › your storage account › Access keys. The container must allow anonymous read of blobs (public access level Blob); a private container is refused.', 'diluxone-offload' ),
+						\__( 'Test Connection checks the credentials and the container\'s public access level. Both must pass before Save is enabled.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Credentials: rotate the key, or remove the provider', 'diluxone-offload' ), 'cloud-provider', 'credentials' ),
+					$link( \__( 'Status › Health', 'diluxone-offload' ), 'status', 'health' ),
+					$link( \__( 'Settings › Serving (Force HTTPS)', 'diluxone-offload' ), 'settings', 'serving' ),
+				);
+				break;
+
+			case 'cloud-provider/credentials':
+				$note  = array(
+					'title' => \__( 'What can change here', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'A new access key is tested against the same account and container before it replaces the saved one; the media in the cloud is not touched.', 'diluxone-offload' ),
+						\__( 'Deleting the provider forgets the credentials and the tracking table. The files stay in the cloud. While offloading is active, disconnect first.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Connection', 'diluxone-offload' ), 'cloud-provider', 'connection' ),
+					$link( \__( 'Status › Health', 'diluxone-offload' ), 'status', 'health' ),
+					$link( \__( 'Sync & Offloading › Disconnect', 'diluxone-offload' ), 'sync-offloading', 'disconnect' ),
+				);
+				break;
+
+			case 'sync-offloading/sync':
+				$note  = array(
+					'title' => \__( 'How the sync runs', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'The initial sync runs in this browser tab and stops if you close it; it resumes where it left off. Files already in the cloud are skipped, files over the size limit are left out.', 'diluxone-offload' ),
+						\__( 'A file that fails is listed with its error and can be retried; the rest of the library is not held back by it.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Settings › Transfers (size limit, timeout)', 'diluxone-offload' ), 'settings', 'transfers' ),
+					$link( \__( 'Offloading', 'diluxone-offload' ), 'sync-offloading', 'offloading' ),
+					$link( \__( 'Status › Health', 'diluxone-offload' ), 'status', 'health' ),
+				);
+				break;
+
+			case 'sync-offloading/offloading':
+				$note  = array(
+					'title' => \__( 'What it changes', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'With offloading on, WordPress hands out the cloud address for every file and new uploads go straight to the cloud. Nothing in your posts or your database changes.', 'diluxone-offload' ),
+						\__( 'Deleting the local copies frees the disk; the files keep being served from the cloud. Disconnect brings them back.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Sync', 'diluxone-offload' ), 'sync-offloading', 'sync' ),
+					$link( \__( 'Disconnect', 'diluxone-offload' ), 'sync-offloading', 'disconnect' ),
+					$link( \__( 'Settings › Serving (Force HTTPS)', 'diluxone-offload' ), 'settings', 'serving' ),
+				);
+				break;
+
+			case 'sync-offloading/disconnect':
+				$note  = array(
+					'title' => \__( 'What a disconnect does', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'Every file is downloaded from the cloud back to this server, then offloading is turned off. The files in the cloud are left as they are.', 'diluxone-offload' ),
+						\__( 'It needs enough free disk for the whole library; Status › System shows what is free.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Status › System', 'diluxone-offload' ), 'status', 'system' ),
+					$link( \__( 'Cloud Provider › Credentials (delete the provider afterwards)', 'diluxone-offload' ), 'cloud-provider', 'credentials' ),
+				);
+				break;
+
+			case 'settings/transfers':
+				$note  = array(
+					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'The size limit decides which files the initial sync takes; the timeout decides how long each transfer request may take. Both apply to every provider.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Sync & Offloading › Sync', 'diluxone-offload' ), 'sync-offloading', 'sync' ),
+					$link( \__( 'Status › System (PHP limits)', 'diluxone-offload' ), 'status', 'system' ),
+				);
+				break;
+
+			case 'settings/serving':
+				$note  = array(
+					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'How the media is handed out once it is in the cloud. Force HTTPS keeps the cloud URLs on https even when the site itself runs on http.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Cloud Provider › Connection', 'diluxone-offload' ), 'cloud-provider', 'connection' ),
+					$link( \__( 'Sync & Offloading › Offloading', 'diluxone-offload' ), 'sync-offloading', 'offloading' ),
+				);
+				break;
+
+			case 'settings/logging':
+				$note  = array(
+					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'The plugin is quiet by default. Debug logging writes one line per operation to the PHP error log while you troubleshoot; credentials are never logged.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Status › System', 'diluxone-offload' ), 'status', 'system' ),
+					$support,
+				);
+				break;
+
+			case 'status/health':
+				$note  = array(
+					'title' => \__( 'How health works', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'Every upload and every check of the connection records a success or a failure. After three consecutive failures the plugin refuses new uploads instead of writing them anywhere else, and says so on every screen until the next success.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Cloud Provider › Credentials', 'diluxone-offload' ), 'cloud-provider', 'credentials' ),
+					array(
+						'label' => \__( 'Tools › Site Health', 'diluxone-offload' ),
+						'url'   => \admin_url( 'site-health.php' ),
+					),
+					$support,
+				);
+				break;
+
+			case 'status/system':
+				$note  = array(
+					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'The environment the plugin runs in, as a support request wants it: WordPress, PHP, the plugin build and the provider. Copy it into a report.', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Health', 'diluxone-offload' ), 'status', 'health' ),
+					array(
+						'label' => \__( 'Report an issue on GitHub', 'diluxone-offload' ),
+						'url'   => 'https://github.com/DiluxOne/diluxone-offload-wordpress/issues/new/choose',
+					),
+					$support,
+				);
+				break;
+
+			default: // overview
+				$note  = array(
+					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
+					'body'  => array(
+						\__( 'The four cards are the plugin\'s state as a person sees it: whether a provider is connected, whether the library is in the cloud, whether the site serves it from there.', 'diluxone-offload' ),
+						\__( 'Storage Overview shows the last reading of the container, kept for five minutes; Refresh lists it again (a few seconds on a large library).', 'diluxone-offload' ),
+					),
+				);
+				$links = array(
+					$link( \__( 'Cloud Provider › Connection', 'diluxone-offload' ), 'cloud-provider', 'connection' ),
+					$link( \__( 'Sync & Offloading › Sync', 'diluxone-offload' ), 'sync-offloading', 'sync' ),
+					$link( \__( 'Status › Health', 'diluxone-offload' ), 'status', 'health' ),
+					$support,
+				);
+		}
+
+		return array(
+			'state' => $now,
+			'note'  => $note,
+			'links' => $links,
+		);
 	}
 
 	/**
@@ -991,7 +1449,9 @@ class Admin {
 	 * recorded `error_code`. Each branch maps a known failure mode to a
 	 * tailored message so the user knows exactly what to do.
 	 *
-	 * Returns an array with keys: title, detail, cta_label and cta_tab, the
+	 * Returns an array with keys: title, detail, cta_label and cta_tab (a tab
+	 * slug of screen_urls(): credentials for a credential problem, transfers
+	 * for a timeout), the
 	 * plugin tab the call to action opens.
 	 *
 	 * @param string $error_code    Code from connection_health (e.g. 'decrypt_failed', '403', 'exception')
@@ -1000,7 +1460,7 @@ class Admin {
 	 */
 	private static function health_banner_copy( string $error_code, string $error_message ): array {
 		$copy = self::health_banner_copy_for( $error_code, $error_message );
-		return $copy + array( 'cta_tab' => 'cloud-provider' );
+		return $copy + array( 'cta_tab' => 'credentials' );
 	}
 
 	/**
@@ -1043,7 +1503,7 @@ class Admin {
 						(int) ( ConfigManager::get_config()['timeout'] ?? 60 )
 					),
 					'cta_label' => __( 'Open Settings', 'diluxone-offload' ),
-					'cta_tab'   => 'settings',
+					'cta_tab'   => 'transfers',
 				);
 
 			case 'exception':
@@ -1125,7 +1585,7 @@ class Admin {
 					</p>
 					<?php endif; ?>
 					<p style="margin: 8px 0 0; font-size: 13px;">
-						<a href="<?php echo \esc_url( \admin_url( 'admin.php?page=diluxone-offload&tab=' . $copy['cta_tab'] ) ); ?>" style="color: #721c24; text-decoration: underline;">
+						<a href="<?php echo \esc_url( self::screen_urls()[ $copy['cta_tab'] ] ?? self::screen_url( 'overview' ) ); ?>" style="color: #721c24; text-decoration: underline;">
 							<?php echo \esc_html( $copy['cta_label'] ); ?>
 						</a>
 					</p>
@@ -1188,33 +1648,25 @@ class Admin {
 			wp_die( esc_html__( 'Insufficient permissions', 'diluxone-offload' ) );
 		}
 
-		// Get redirect tab from form (cloud-provider or settings)
-		$redirect_tab = sanitize_text_field( wp_unslash( $_POST['redirect_tab'] ?? 'settings' ) );
+		// The form says which screen (and tab) it belongs to: that decides
+		// what is being saved, because disabled fields are not sent in POST.
+		$screen = sanitize_key( wp_unslash( $_POST['screen'] ?? '' ) );
+		$tab    = sanitize_key( wp_unslash( $_POST['tab'] ?? '' ) );
 
-		// ========================================================================
-		// NEW ARCHITECTURE: Detect what's being saved based on tab + fields
-		// ========================================================================
-		// Key insight: disabled fields are NOT sent in POST, so we use redirect_tab
-		// to determine intent, then check which fields were actually sent
-
-		$is_from_settings_tab       = ( $redirect_tab === 'settings' );
-		$is_from_cloud_provider_tab = ( $redirect_tab === 'cloud-provider' );
-
-		if ( $is_from_settings_tab ) {
-			// Settings-only save: Use PluginSettings::fromPost()
+		if ( $screen === 'settings' ) {
+			// One form per Settings tab, each carrying only its own fields:
+			// the posted group is merged into the saved settings, so a save on
+			// Transfers never resets a checkbox that lives on Serving.
 			try {
-				// Only the five fields of the Settings form ever reach the DTO,
-				// already unslashed and sanitized by posted_fields(); fromPost()
-				// validates each one for its type. The superglobal itself is
-				// never handed to another function.
-				$settings = \DiluxOneOffload\DTOs\PluginSettings::fromPost(
+				$tab      = self::tab_for( 'settings', $tab );
+				$settings = \DiluxOneOffload\DTOs\PluginSettings::fromArray( ConfigManager::get_plugin_settings() )->withPostedGroup(
+					$tab,
 					self::posted_fields(
 						array(
 							'enable_debug_logging',
 							'force_https_on_cloud',
 							'timeout',
 							'max_file_size',
-							'allowed_file_types',
 						)
 					)
 				);
@@ -1228,16 +1680,13 @@ class Admin {
 				self::flash_notice( 'error', 'Failed to save settings: ' . $e->getMessage() );
 			}
 
-			self::redirect_to_tab( $redirect_tab );
+			self::redirect_to_screen( 'settings', $tab );
 
-		} elseif ( $is_from_cloud_provider_tab ) {
-			// Cloud Provider tab: Could be full provider save OR custom domain only
-
+		} elseif ( $screen === 'cloud-provider' ) {
 			// Check if provider credentials were sent (not disabled)
 			$has_provider_credentials = isset( $_POST['cloud_provider'] ) && isset( $_POST['account_name'] );
 
 			if ( $has_provider_credentials ) {
-				// Full provider save: credentials + custom domain
 				try {
 					// Only the four fields of the provider form ever reach the
 					// DTO, already unslashed and sanitized by posted_fields();
@@ -1268,12 +1717,12 @@ class Admin {
 			}
 			// No credentials sent (fields were disabled) — nothing to save.
 
-			self::redirect_to_tab( $redirect_tab );
+			self::redirect_to_screen( 'cloud-provider', 'connection' );
 
 		} else {
-			// Unknown tab - shouldn't happen
+			// Unknown screen - shouldn't happen
 			self::flash_notice( 'error', 'Invalid save request' );
-			self::redirect_to_tab( 'overview' );
+			self::redirect_to_screen( 'overview' );
 		}
 	}
 

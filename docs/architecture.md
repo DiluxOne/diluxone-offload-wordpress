@@ -52,7 +52,7 @@ handles both.
 | `includes/Enums/SyncStatus.php` | `Enums\SyncStatus`. |
 | `includes/DTOs/*.php` | Value objects with `->toArray()` — `PluginConfig`, `AzureConfig`, `ConnectionResult`, `FileInfo`, `OperationResult`, `UploadResult`, `SyncProgress`, etc. |
 | `includes/class-diluxone-offload-image-editor-{gd,imagick}.php` | Image-editor adapters that play nicely with the stream wrapper. |
-| `templates/admin-*.php` | Admin views (rendered by `Admin`). One file per tab: Overview, Cloud Provider, Sync & Offloading, Settings, Status. |
+| `templates/admin-*.php` | Admin views (rendered by `Admin::render_screen_content()`). One file per screen or tab: `admin-overview.php`; `admin-provider-{connection,credentials}.php`; `admin-sync-{sync,offloading,disconnect}.php`; `admin-settings-{transfers,serving,logging}.php`; `admin-status-{health,system}.php`. `templates/partials/` holds the rail beside every screen and the sync modal the three Sync & Offloading tabs share. The screens, their submenu slugs and their tabs are one list, `Admin::screens()`; the old `&tab=` URLs redirect through `Admin::legacy_tab()`. |
 | `assets/css/admin.css`, `assets/js/admin.js` | Plugin runtime assets bundled with the plugin. |
 | `languages/*.{po,mo,pot}` | Text domain `diluxone-offload`. Only the `.pot` ships; the `.po`/`.mo` for `es_AR`, `es_ES`, `es_MX`, `pt_BR`, `pt_PT`, `fr_FR`, `de_DE`, `it_IT` stay in the repo as the source for translate.wordpress.org (see `.distignore`). |
 | `languages/readme/` | The wordpress.org readme in the same eight locales (`readme.pot`, `readme-<locale>.po`), imported by hand into the Stable Readme project on translate.wordpress.org. Never ships (`.distignore`). |

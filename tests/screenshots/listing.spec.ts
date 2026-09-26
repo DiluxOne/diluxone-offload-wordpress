@@ -10,7 +10,7 @@ import * as ui from '../E2E-real/helpers/plugin';
  * The nine screenshots of the wordpress.org listing, in the order and with
  * the captions of readme.txt's == Screenshots ==. One journey on the dev
  * site: pick the provider, connect, save, sync, enable offloading, then
- * the Overview, Settings and Status tabs. The container is created for the
+ * the Overview, Settings and Status screens. The container is created for the
  * run and deleted after it; the site is left unconfigured and empty, the
  * state the other suites expect.
  */
@@ -111,7 +111,7 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await expect( page ).toHaveURL( /wp-admin/ );
 
 		// 2. Cloud Provider selection.
-		await ui.goTab( page, base, 'cloud-provider' );
+		await ui.goTab( page, base, 'connection' );
 		await page.locator( '#cloud_provider' ).selectOption( 'azure' );
 		await expect( page.locator( '#azure-config' ) ).toBeVisible();
 		await page.locator( '#cloud_provider' ).focus();
@@ -128,7 +128,7 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await shot( page, 4 );
 
 		// 5. Syncing in real time (first time).
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		await page.locator( '#start-sync-btn' ).click();
 		await ui.confirmSyncOptions( page, 'scratch' );
 		await expect( page.locator( '#sync-modal-progress' ) ).toBeVisible();
@@ -140,9 +140,9 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		expect( await ui.waitForSyncSummary( page ) ).toBe( 'success' );
 		await shot( page, 6 );
 
-		// 7. Offloading enabled.
+		// 7. Offloading enabled: the Offloading tab, with Delete Local Files.
 		await ui.enableOffloadingFromModal( page );
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'offloading' );
 		await shot( page, 7 );
 
 		// 1. Overview with offloading configured in Microsoft Azure Storage.
@@ -150,12 +150,12 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await ui.refreshStats( page );
 		await shot( page, 1 );
 
-		// 8. Plugin settings.
-		await ui.goTab( page, base, 'settings' );
+		// 8. Settings › Transfers.
+		await ui.goTab( page, base, 'transfers' );
 		await shot( page, 8 );
 
-		// 9. Plugin status.
-		await ui.goTab( page, base, 'status' );
+		// 9. Status › Health.
+		await ui.goTab( page, base, 'health' );
 		await shot( page, 9 );
 	} );
 } );

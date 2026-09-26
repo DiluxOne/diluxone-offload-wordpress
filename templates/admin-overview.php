@@ -3,7 +3,7 @@
  * Admin: Overview tab template.
  *
  * Local variables in this template (e.g. $config, $is_configured, $cloud_stats)
- * are populated by Admin::render_tab_content() in the calling scope and are
+ * are populated by Admin::render_screen_content() in the calling scope and are
  * intentionally unprefixed because the include() puts them in the same local
  * scope as this template — they are not globals. Suppress the prefix sniff
  * for the whole template:
@@ -34,7 +34,7 @@ $is_synced     = in_array( $plugin_state, array( PluginState::SYNCED, PluginStat
 $is_offloading = $plugin_state === PluginState::OFFLOADING_ACTIVE;
 $cloud_stats   = $cloud_stats ?? null;
 
-// Health context (mirrors admin-status.php) — when the cloud connection
+// Health context (mirrors admin-status-health.php) — when the cloud connection
 // is unhealthy, every card below shows a "paused" sub-state so the user
 // doesn't see contradictory greens like "Configured / Active" while the
 // banner above reports unreadable credentials. We do NOT mutate the
@@ -67,7 +67,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 		//
 		// NOTE: vocabulary is intentionally identical to the Status tab —
 		// "Awaiting Re-entry" for decrypt failures, "Paused (X)" for other
-		// paused states. Keep these strings in sync with admin-status.php.
+		// paused states. Keep these strings in sync with admin-status-health.php.
 		$config_card_mode   = ( ! $is_configured || $is_paused ) ? 'status-warning' : 'status-success';
 		$config_card_icon   = ( ! $is_configured || $is_paused ) ? 'dashicons-warning' : 'dashicons-yes-alt';
 		$is_decrypt_failure = $is_paused && $pause_cause === 'decrypt_failed';
@@ -113,7 +113,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-details" style="color:#856404;">
 						<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 					</p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
+					<a href="<?php echo esc_url( Admin::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary button-small">
 						<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 					</a>
 				<?php elseif ( $is_configured && $is_paused ) : ?>
@@ -134,7 +134,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-details">
 						<?php esc_html_e( 'Connect a cloud provider to get started', 'diluxone-offload' ); ?>
 					</p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
+					<a href="<?php echo esc_url( Admin::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary button-small">
 						<?php esc_html_e( 'Configure Now', 'diluxone-offload' ); ?>
 					</a>
 				<?php endif; ?>
@@ -181,7 +181,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						?>
 					</p>
 					<?php if ( $is_configured && ! $is_paused ) : ?>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=sync' ) ); ?>" class="button button-primary button-small">
+						<a href="<?php echo esc_url( Admin::screen_url( 'sync-offloading', 'sync' ) ); ?>" class="button button-primary button-small">
 							<?php esc_html_e( 'Start Sync', 'diluxone-offload' ); ?>
 						</a>
 					<?php endif; ?>
@@ -483,7 +483,7 @@ endif;
 				<li>
 					<strong><?php esc_html_e( 'Configure Cloud Provider', 'diluxone-offload' ); ?></strong>
 					<p><?php esc_html_e( 'Choose your cloud provider and enter your credentials', 'diluxone-offload' ); ?></p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary">
+					<a href="<?php echo esc_url( Admin::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Go to Cloud Provider', 'diluxone-offload' ); ?>
 					</a>
 				</li>

@@ -127,23 +127,44 @@ class AdminPostTest extends IntegrationTestCase {
         }
     }
 
-    // ── save_config: settings tab ───────────────────────────
+    // ── save_config: the Settings screen, one form per tab ──
 
-    public function test_settings_tab_saves_the_plugin_settings(): void {
+    public function test_transfers_tab_saves_its_two_numbers_and_nothing_else(): void {
+        ConfigManager::save_plugin_settings(['force_https_on_cloud' => false, 'debug_enabled' => true, 'timeout' => 60, 'max_file_size' => 20 * MB_IN_BYTES]);
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-            'redirect_tab'         => 'settings',
-            'max_file_size'        => '256',
-            'timeout'              => '45',
-            'allowed_file_types'   => 'jpg, png',
-            'enable_debug_logging' => '1',
-            'force_https_on_cloud' => '1',
+            'screen'        => 'settings',
+            'tab'           => 'transfers',
+            'max_file_size' => '256',
+            'timeout'       => '45',
         ]);
-        $this->assertSame('settings', $q['tab']);
+        $this->assertSame('diluxone-offload-settings', $q['page']);
+        $this->assertSame('transfers', $q['tab']);
         $this->assertArrayHasKey('success', $q);
         $cfg = ConfigManager::get_config();
         $this->assertSame(256 * MB_IN_BYTES, (int) $cfg['max_file_size'], 'stored in bytes');
         $this->assertSame(45, (int) $cfg['timeout']);
-        $this->assertTrue((bool) $cfg['debug_enabled']);
+        $this->assertFalse((bool) $cfg['force_https_on_cloud'], 'a checkbox of another tab is not reset by this form');
+        $this->assertTrue((bool) $cfg['debug_enabled'], 'nor is this one');
+    }
+
+    public function test_serving_and_logging_tabs_save_their_checkbox_both_ways(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'serving', 'force_https_on_cloud' => '1']);
+        $this->assertSame('serving', $q['tab']);
+        $this->assertTrue((bool) ConfigManager::get_config()['force_https_on_cloud']);
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'serving']);
+        $this->assertFalse((bool) ConfigManager::get_config()['force_https_on_cloud'], 'absent from its own form means unchecked');
+
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'logging', 'enable_debug_logging' => '1']);
+        $this->assertSame('logging', $q['tab']);
+        $this->assertTrue((bool) ConfigManager::get_config()['debug_enabled']);
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'logging']);
+        $this->assertFalse((bool) ConfigManager::get_config()['debug_enabled']);
+    }
+
+    public function test_an_unknown_settings_tab_falls_back_to_transfers(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'nope', 'timeout' => '90']);
+        $this->assertSame('transfers', $q['tab']);
+        $this->assertSame(90, (int) ConfigManager::get_config()['timeout']);
     }
 
     public function keepOldOption($value, $old) {
@@ -153,11 +174,11 @@ class AdminPostTest extends IntegrationTestCase {
     public function test_settings_tab_reports_a_refused_write(): void {
         add_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10, 2);
         try {
-            $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['redirect_tab' => 'settings', 'timeout' => '77']);
+            $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'transfers', 'timeout' => '77']);
         } finally {
             remove_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10);
         }
-        $this->assertSame('settings', $q['tab']);
+        $this->assertSame('transfers', $q['tab']);
         $this->assertStringContainsString('Failed to save settings', $q['error']);
     }
 
@@ -166,7 +187,7 @@ class AdminPostTest extends IntegrationTestCase {
         add_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10, 2);
         try {
             $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-                'redirect_tab'   => 'cloud-provider',
+                'screen'         => 'cloud-provider',
                 'cloud_provider' => 'azure',
                 'account_name'   => 'refusedacct',
                 'account_key'    => base64_encode(random_bytes(32)),
@@ -178,19 +199,20 @@ class AdminPostTest extends IntegrationTestCase {
         $this->assertStringContainsString('Failed to save configuration', $q['error']);
     }
 
-    // ── save_config: cloud-provider tab ─────────────────────
+    // ── save_config: the Cloud Provider screen ──────────────
 
     public function test_provider_tab_saves_azure_credentials_and_moves_to_configured(): void {
         $this->useFakeClient();
         $key = base64_encode(random_bytes(32));
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-            'redirect_tab'   => 'cloud-provider',
+            'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
             'account_name'   => 'posttestacct',
             'account_key'    => $key,
             'container_name' => 'media',
         ]);
-        $this->assertSame('cloud-provider', $q['tab']);
+        $this->assertSame('diluxone-offload-provider', $q['page']);
+        $this->assertSame('connection', $q['tab']);
         $this->assertArrayHasKey('success', $q, print_r($q, true));
         $cfg = ConfigManager::get_config();
         $this->assertSame('azure', $cfg['cloud_provider']);
@@ -202,7 +224,7 @@ class AdminPostTest extends IntegrationTestCase {
 
     public function test_provider_tab_rejects_an_invalid_storage_account_name(): void {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-            'redirect_tab'   => 'cloud-provider',
+            'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
             'account_name'   => 'Has Spaces',
             'account_key'    => 'k',
@@ -214,7 +236,7 @@ class AdminPostTest extends IntegrationTestCase {
 
     public function test_provider_tab_rejects_missing_fields(): void {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-            'redirect_tab'   => 'cloud-provider',
+            'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
             'account_name'   => 'acct',
             'account_key'    => '',
@@ -226,7 +248,7 @@ class AdminPostTest extends IntegrationTestCase {
     public function test_provider_tab_saves_even_when_the_account_is_unreachable_and_health_records_it(): void {
         $this->useFakeClient()->connection_ok = false;
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
-            'redirect_tab'   => 'cloud-provider',
+            'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
             'account_name'   => 'unreachable',
             'account_key'    => base64_encode(random_bytes(32)),
@@ -237,16 +259,18 @@ class AdminPostTest extends IntegrationTestCase {
         $this->assertSame('unhealthy', ConfigManager::check_connection_health()['status']);
     }
 
-    public function test_provider_tab_without_credentials_just_returns_to_the_tab(): void {
-        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['redirect_tab' => 'cloud-provider']);
-        $this->assertSame('cloud-provider', $q['tab']);
+    public function test_provider_tab_without_credentials_just_returns_to_the_connection(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'cloud-provider']);
+        $this->assertSame('diluxone-offload-provider', $q['page']);
+        $this->assertSame('connection', $q['tab']);
         $this->assertArrayNotHasKey('error', $q);
         $this->assertArrayNotHasKey('success', $q);
     }
 
-    public function test_unknown_tab_is_an_invalid_save_request(): void {
-        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['redirect_tab' => 'tools']);
-        $this->assertSame('overview', $q['tab']);
+    public function test_unknown_screen_is_an_invalid_save_request(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'tools']);
+        $this->assertSame('diluxone-offload', $q['page']);
+        $this->assertArrayNotHasKey('tab', $q);
         $this->assertStringContainsString('Invalid save request', $q['error']);
     }
 }

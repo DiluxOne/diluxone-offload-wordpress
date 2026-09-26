@@ -111,7 +111,7 @@ Yes. Because the stream wrapper operates at the filesystem layer, any plugin tha
 
 = Does the plugin delete my local files automatically? =
 
-Only if you explicitly opt in. After a successful sync you can click **Delete Local Files** in the Sync & Offloading tab. Until you do that, files are kept in both locations. A file that is empty (0 bytes) when the sync scans it is skipped: it is neither uploaded nor tracked, so **Delete Local Files** leaves it alone.
+Only if you explicitly opt in. After a successful sync you can click **Delete Local Files** in Sync & Offloading › Offloading. Until you do that, files are kept in both locations. A file that is empty (0 bytes) when the sync scans it is skipped: it is neither uploaded nor tracked, so **Delete Local Files** leaves it alone.
 
 = If I delete a file from the Media Library, is it deleted from the cloud too? =
 
@@ -144,20 +144,22 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 == Screenshots ==
 
 1. Overview: provider configured, media synced, offloading active.
-2. Cloud Provider: choosing Azure Blob Storage.
-3. Cloud Provider: entering the storage account, key and container, and testing the connection.
+2. Cloud Provider › Connection: choosing Azure Blob Storage.
+3. Cloud Provider › Connection: entering the storage account, key and container, and testing the connection.
 4. Provider saved and ready to sync.
-5. The first sync, file by file, in the browser.
+5. Sync & Offloading › Sync: the first sync, file by file, in the browser.
 6. Sync complete: enable offloading now or later.
-7. Offloading active: disconnect from the cloud, or delete the local copies.
-8. Settings: file-size limit, transfer timeout, HTTPS for cloud URLs, debug logging.
-9. Status: plugin state, environment and provider at a glance.
+7. Sync & Offloading › Offloading: offloading active, with the local copies to delete.
+8. Settings › Transfers: file-size limit and transfer timeout.
+9. Status › Health: plugin state and connection health at a glance.
 
 == Changelog ==
 
 = 2.0.0 =
 Unreleased.
 
+* The admin is one menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen needs a second level: Connection and Credentials; Sync, Offloading and Disconnect; Transfers, Serving and Logging; Health and System. Every screen is headed "DiluxOne Offload | Screen", shows the site's state at a glance in a column beside the content, and the open tab follows your admin colour scheme. Old links to the tabs keep working.
+* Status › Health shows the connection health the plugin already recorded (status, last check, last success, consecutive failures) and how many files the tracking table knows; Status › System shows the free disk.
 * The "Upload Timeout" setting is now "Transfer Timeout" and governs every upload request: the single upload, each block and its commit, and the sync's parallel transfers. Before, block commits waited a fixed 300 seconds whatever the setting said. Downloads keep waiting at least the 300 seconds they always had; a higher setting raises that too.
 * A transfer that runs past the timeout is reported as such: the connection-health banner says "Cloud Transfer Timed Out" and links to Settings, instead of showing a made-up error code.
 * With debug logging on, every successful upload through the stream wrapper writes one line (path and size).

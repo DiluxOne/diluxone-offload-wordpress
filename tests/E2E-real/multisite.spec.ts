@@ -39,7 +39,7 @@ test.describe.serial( 'multisite journey', () => {
 
 	test( 'both sites are configured against the same container', async ( { page } ) => {
 		for ( const home of [ base, other ] ) {
-			await ui.goTab( page, home, 'cloud-provider' );
+			await ui.goTab( page, home, 'connection' );
 			expect( await ui.testConnection( page, { account: run.account, key: run.key, container: run.container } ) ).toMatch( /success/i );
 			await ui.saveProvider( page );
 		}
@@ -51,7 +51,7 @@ test.describe.serial( 'multisite journey', () => {
 		mainSeeded = seedMediaLibrary( site, SHARED );
 		otherSeeded = seedMediaLibrary( site, SHARED, other );
 		for ( const home of [ base, other ] ) {
-			await ui.goTab( page, home, 'sync-offloading' );
+			await ui.goTab( page, home, 'sync' );
 			expect( await ui.runSyncToCompletion( page, 'scratch' ) ).toBe( 'success' );
 			await ui.enableOffloadingFromModal( page );
 		}
@@ -96,30 +96,30 @@ test.describe.serial( 'multisite journey', () => {
 
 	test( 'deleting local copies on one site does not touch the other', async ( { page } ) => {
 		const mainOwnBefore = filesUnder( site, mainUploads ).filter( ( f ) => ! f.startsWith( 'sites/' ) );
-		await ui.goTab( page, other, 'sync-offloading' );
+		await ui.goTab( page, other, 'offloading' );
 		await ui.deleteLocalFiles( page );
 		expect( filesUnder( site, otherUploads ).length ).toBe( 0 );
 		expect( filesUnder( site, mainUploads ).filter( ( f ) => ! f.startsWith( 'sites/' ) ) ).toEqual( mainOwnBefore );
 
 		// And the other way round: Delete Local Files on the main site leaves the other site's directory alone.
-		await ui.goTab( page, other, 'sync-offloading' );
+		await ui.goTab( page, other, 'disconnect' );
 		await ui.disconnectToCompletion( page );
 		const otherBefore = filesUnder( site, otherUploads );
 		expect( otherBefore.length ).toBeGreaterThan( 0 );
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'offloading' );
 		await ui.deleteLocalFiles( page );
 		expect( filesUnder( site, mainUploads ).filter( ( f ) => ! f.startsWith( 'sites/' ) ).length ).toBe( 0 );
 		expect( filesUnder( site, otherUploads ) ).toEqual( otherBefore );
 		// Back to where the next step expects the other site: its files are all
 		// in the cloud already (SYNCED), so offloading is one click away.
-		await ui.goTab( page, other, 'sync-offloading' );
+		await ui.goTab( page, other, 'sync' );
 		await ui.completeSyncAndEnable( page );
 		expect( pluginState( site, other ) ).toBe( 'offloading_active' );
 	} );
 
 	test( 'disconnecting one site restores only its files and leaves the other offloading', async ( { page } ) => {
 		const mainKeysBefore = ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) );
-		await ui.goTab( page, other, 'sync-offloading' );
+		await ui.goTab( page, other, 'disconnect' );
 		await ui.disconnectToCompletion( page );
 		expect( pluginState( site, other ) ).toBe( 'configured' );
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
@@ -133,7 +133,7 @@ test.describe.serial( 'multisite journey', () => {
 	test( 'disconnecting the main site ignores the other site\'s objects', async ( { page } ) => {
 		const otherKeysBefore = await listKeys( run, `uploads/sites/${ blogId }/` );
 		const otherFilesBefore = filesUnder( site, otherUploads );
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'disconnect' );
 		await ui.disconnectToCompletion( page );
 		expect( pluginState( site ) ).toBe( 'configured' );
 		expect( filesUnder( site, otherUploads ), 'the other site\'s directory is untouched by the main site\'s Disconnect' ).toEqual( otherFilesBefore );
