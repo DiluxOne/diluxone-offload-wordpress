@@ -120,6 +120,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SyncManager {
 
+	/** How many skipped paths the scan keeps for the Sync screen; the counts per reason are always complete. */
+	const SKIPPED_PATHS_CAP = 500;
+
 	/** @var mixed */
 	private $cloud_client;
 	/** @var mixed */
@@ -761,6 +764,8 @@ class SyncManager {
 		$files_passed_filter = 0;
 		$skipped_files       = array();
 		$skip_reasons        = array();
+		$skipped_paths       = array(); // reason => relative paths, the first SKIPPED_PATHS_CAP in all
+		$skipped_kept        = 0;
 
 		foreach ( $iterator as $file ) {
 			++$total_files_found;
@@ -779,33 +784,26 @@ class SyncManager {
 
 				// Skip files with size 0 (empty files) - checked before filter
 				if ( $file_size === 0 ) {
-					$skipped_files[] = basename( $local_path );
-					if ( ! isset( $skip_reasons['empty_file'] ) ) {
-						$skip_reasons['empty_file'] = 0;
-					}
-					++$skip_reasons['empty_file'];
-					continue;
+					$skip_reason = 'empty_file';
+				} elseif ( ! DiluxOneOffloadDB::fits_key( $relative_path ) ) {
+					// A path the tracking table cannot hold is skipped here, and
+					// counted, rather than dropped later without a trace.
+					$skip_reason = 'path_too_long';
+				} else {
+					// Apply filtering (including file type, max size, hidden files)
+					$skip_reason = $this->should_sync_file( $local_path, $file_size );
 				}
-
-				// A path the tracking table cannot hold is skipped here, and
-				// counted, rather than dropped later without a trace.
-				if ( ! DiluxOneOffloadDB::fits_key( $relative_path ) ) {
-					$skipped_files[] = basename( $local_path );
-					if ( ! isset( $skip_reasons['path_too_long'] ) ) {
-						$skip_reasons['path_too_long'] = 0;
-					}
-					++$skip_reasons['path_too_long'];
-					continue;
-				}
-
-				// Apply filtering (including file type, max size, hidden files)
-				$skip_reason = $this->should_sync_file( $local_path, $file_size );
 				if ( $skip_reason !== true ) {
 					$skipped_files[] = basename( $local_path );
 					if ( ! isset( $skip_reasons[ $skip_reason ] ) ) {
-						$skip_reasons[ $skip_reason ] = 0;
+						$skip_reasons[ $skip_reason ]  = 0;
+						$skipped_paths[ $skip_reason ] = array();
 					}
 					++$skip_reasons[ $skip_reason ];
+					if ( $skipped_kept < self::SKIPPED_PATHS_CAP ) {
+						$skipped_paths[ $skip_reason ][] = '/' . ltrim( $relative_path, '/' );
+						++$skipped_kept;
+					}
 					continue;
 				}
 
@@ -829,13 +827,32 @@ class SyncManager {
 		Logger::info( '[DiluxOne Offload SyncManager] Total files found by iterator: ' . $total_files_found );
 		Logger::info( '[DiluxOne Offload SyncManager] Files passed filter: ' . $files_passed_filter );
 
-		// Report what the filter left out.
+		// Report what the filter left out, in the log and in one option the
+		// Sync screen reads ("as of the last scan"): the counts per reason are
+		// complete, the paths stop at SKIPPED_PATHS_CAP so the option stays
+		// small on a library that skips thousands of cache files.
 		if ( ! empty( $skip_reasons ) ) {
 			Logger::info( '[DiluxOne Offload SyncManager] Files skipped by reason:' );
 			foreach ( $skip_reasons as $reason => $count ) {
 				Logger::info( '[DiluxOne Offload SyncManager]   ' . $reason . ': ' . $count . ' files' );
 			}
 		}
+		$reasons = array();
+		foreach ( $skip_reasons as $reason => $count ) {
+			$reasons[ $reason ] = array(
+				'count' => $count,
+				'paths' => $skipped_paths[ $reason ] ?? array(),
+			);
+		}
+		update_option(
+			ConfigManager::SKIPPED_OPTION,
+			array(
+				'time'    => time(),
+				'total'   => array_sum( $skip_reasons ),
+				'reasons' => $reasons,
+			),
+			false
+		);
 
 		Logger::info( '[DiluxOne Offload SyncManager] Found ' . count( $files ) . ' files to sync' );
 

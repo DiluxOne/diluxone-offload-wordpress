@@ -24,13 +24,10 @@ $is_configured = ConfigManager::is_configured();
 
 // The uploads directory on this server: while offloading is on, wp_upload_dir()
 // answers with the cloud path, which has no disk. The Free disk row is about
-// the disk a disconnect would fill.
+// the disk a disconnect would fill (Admin::free_disk(), null when the host
+// does not allow reading it).
 $diluxone_offload_upload_dir = CloudStreamWrapper::native_upload_basedir();
-$diluxone_offload_free_disk  = null;
-if ( $diluxone_offload_upload_dir !== '' && function_exists( 'disk_free_space' ) ) {
-	// Some hosts disable the function; false means "not available", never 0.
-	$diluxone_offload_free_disk = @disk_free_space( $diluxone_offload_upload_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A disabled function raises a warning; the row says "not available" instead.
-}
+$diluxone_offload_free_disk  = $free_disk ?? null;
 ?>
 
 <div class="diluxone-offload-status">
@@ -61,7 +58,7 @@ if ( $diluxone_offload_upload_dir !== '' && function_exists( 'disk_free_space' )
 						<tr>
 							<td><?php esc_html_e( 'Free disk', 'diluxone-offload' ); ?></td>
 							<td>
-								<?php if ( is_float( $diluxone_offload_free_disk ) ) : ?>
+								<?php if ( is_int( $diluxone_offload_free_disk ) ) : ?>
 									<strong><?php echo esc_html( (string) size_format( (int) $diluxone_offload_free_disk ) ); ?></strong>
 									<span class="description"><?php esc_html_e( '(what a disconnect can bring back)', 'diluxone-offload' ); ?></span>
 								<?php else : ?>

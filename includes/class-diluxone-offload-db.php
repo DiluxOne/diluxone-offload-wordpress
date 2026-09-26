@@ -574,20 +574,82 @@ class DiluxOneOffloadDB {
 	/**
 	 * Get failed files (ALL files not synced, regardless of error count)
 	 *
+	 * @param int $limit The first rows only (the ones with most attempts first); 0 for all of them. count_failed_files() has the total.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function get_failed_files() {
+	public static function get_failed_files( int $limit = 0 ) {
 		global $wpdb;
 
-		return $wpdb->get_results(
-			'
+		$sql = '
             SELECT file, size, errors, error_message
             FROM ' . self::get_table_name() . '
             WHERE synced = 0 AND deleted = 0
-            ORDER BY errors DESC, file ASC
-        ',
-			ARRAY_A
+            ORDER BY errors DESC, file ASC';
+		if ( $limit > 0 ) {
+			$sql = $wpdb->prepare( $sql . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the query above has no input; the limit is the placeholder.
+		}
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * How many files are not synced (failed or pending), the whole list
+	 * get_failed_files() pages through.
+	 */
+	public static function count_failed_files(): int {
+		global $wpdb;
+
+		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE synced = 0 AND deleted = 0' );
+	}
+
+	/**
+	 * Record a file that just went to the cloud through the stream wrapper:
+	 * synced, and with no local copy, because with offloading on the bytes
+	 * never touched the disk. A row that exists (a thumbnail regenerated
+	 * under the same name, an image edited in place) is updated and keeps
+	 * its created_at; a new one is inserted.
+	 *
+	 * @param string $file_path Tracking-row path, e.g. `/2026/09/photo.jpg`.
+	 * @param int    $size      Bytes uploaded.
+	 */
+	public static function record_live_upload( string $file_path, int $size ): bool {
+		global $wpdb;
+
+		// The wrapper runs wherever WordPress does, the unit suite included,
+		// where there is no database: recording is best effort, never a
+		// reason for an upload that succeeded to report otherwise.
+		if ( ! $wpdb instanceof \wpdb || ! self::fits_key( $file_path ) ) {
+			return false;
+		}
+
+		$table  = self::get_table_name();
+		$fields = array(
+			'size'          => $size,
+			'synced'        => 1,
+			'deleted'       => 1,
+			'transferred'   => $size,
+			'errors'        => 0,
+			'error_message' => null,
+			'upload_id'     => null,
 		);
+		// The table name is the plugin's own, as in every query of this class.
+		// @phpstan-ignore-next-line
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT file FROM ' . self::get_table_name() . ' WHERE file = %s', $file_path ) );
+
+		if ( null !== $exists ) {
+			// Updated in place: the row keeps its created_at.
+			$result = $wpdb->update( $table, $fields, array( 'file' => $file_path ), array( '%d', '%d', '%d', '%d', '%d', '%s', '%s' ), array( '%s' ) );
+		} else {
+			$result = $wpdb->insert( $table, array( 'file' => $file_path ) + $fields, array( '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s' ) );
+		}
+
+		if ( $result === false ) {
+			Logger::error( '[DiluxOne Offload DB] Error recording live upload: ' . $wpdb->last_error );
+		}
+
+		return $result !== false;
 	}
 
 	/**

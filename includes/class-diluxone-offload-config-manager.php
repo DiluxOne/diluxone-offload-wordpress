@@ -81,6 +81,15 @@ class ConfigManager {
 	/** @var string Option name for connection health status */
 	const HEALTH_OPTION = 'diluxone_offload_connection_health';
 
+	/** When things happened: connected_at, state_changed_at, offloading_since (Unix times, or null). */
+	const TIMESTAMPS_OPTION = 'diluxone_offload_timestamps';
+
+	/** The last upload made through the stream wrapper: path, size, time. Written by CloudStreamWrapper. */
+	const LAST_UPLOAD_OPTION = 'diluxone_offload_last_upload';
+
+	/** What the last scan left out and why: time, total, reasons => paths (capped). Written by SyncManager. */
+	const SKIPPED_OPTION = 'diluxone_offload_skipped';
+
 	/** @var array<string, mixed> Default connection health values */
 	const DEFAULT_HEALTH = array(
 		'status'               => 'unknown',
@@ -378,6 +387,13 @@ class ConfigManager {
 			}
 		}
 
+		// The connection is new when the provider, the account or the
+		// container changed; a key rotation keeps the date it was connected.
+		$before         = $current_plugin_config->toArray();
+		$before_id      = self::connection_identity( $before );
+		$after_id       = self::connection_identity( $new_plugin_config->toArray() );
+		$new_connection = $after_id !== '' && $after_id !== $before_id;
+
 		// Save merged config (with credentials encrypted at rest)
 		$payload = self::encrypt_credentials( $new_plugin_config->toArray() );
 		$saved   = self::persist_option( self::CONFIG_OPTION, $payload, true );
@@ -385,11 +401,101 @@ class ConfigManager {
 		if ( $saved ) {
 			Logger::info( '[DiluxOne Offload ConfigManager] Provider configuration saved successfully' );
 
+			if ( $new_connection ) {
+				$stamps                 = self::get_timestamps();
+				$stamps['connected_at'] = time();
+				self::persist_option( self::TIMESTAMPS_OPTION, $stamps, false );
+			}
+
 			// Update plugin state
 			self::update_state_from_config( $new_plugin_config->toArray() );
 		}
 
 		return $saved;
+	}
+
+	/**
+	 * What identifies a connection: the provider, the account and the
+	 * container. The key is not part of it, so rotating it is not a new
+	 * connection.
+	 *
+	 * @param array<string, mixed> $config A plugin config array.
+	 * @return string '' when no provider is set.
+	 */
+	private static function connection_identity( array $config ): string {
+		$provider = (string) ( $config['cloud_provider'] ?? '' );
+		if ( $provider === '' ) {
+			return '';
+		}
+		$pc = is_array( $config['provider_config'] ?? null ) ? $config['provider_config'] : array();
+
+		return $provider . '|' . (string) ( $pc['storage_account'] ?? '' ) . '|' . (string) ( $pc['container_name'] ?? '' );
+	}
+
+	/**
+	 * When things happened, as Unix times or null: `connected_at` (the
+	 * provider, account or container last changed), `state_changed_at` (the
+	 * state last changed) and `offloading_since` (offloading was entered;
+	 * null while it is off).
+	 *
+	 * @return array{connected_at: int|null, state_changed_at: int|null, offloading_since: int|null}
+	 */
+	public static function get_timestamps(): array {
+		$stored = get_option( self::TIMESTAMPS_OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$read   = static function ( string $key ) use ( $stored ): ?int {
+			return isset( $stored[ $key ] ) && (int) $stored[ $key ] > 0 ? (int) $stored[ $key ] : null;
+		};
+
+		return array(
+			'connected_at'     => $read( 'connected_at' ),
+			'state_changed_at' => $read( 'state_changed_at' ),
+			'offloading_since' => $read( 'offloading_since' ),
+		);
+	}
+
+	/**
+	 * The last upload made through the stream wrapper, or null.
+	 *
+	 * @return array{path: string, size: int, time: int}|null
+	 */
+	public static function get_last_upload(): ?array {
+		$last = get_option( self::LAST_UPLOAD_OPTION, null );
+		if ( ! is_array( $last ) || empty( $last['time'] ) ) {
+			return null;
+		}
+
+		return array(
+			'path' => (string) ( $last['path'] ?? '' ),
+			'size' => (int) ( $last['size'] ?? 0 ),
+			'time' => (int) $last['time'],
+		);
+	}
+
+	/**
+	 * What the last scan left out: when it ran, how many files, and the
+	 * paths per reason (capped by the scan, the counts are not).
+	 *
+	 * @return array{time: int, total: int, reasons: array<string, array{count: int, paths: string[]}>}|null
+	 */
+	public static function get_skipped(): ?array {
+		$skipped = get_option( self::SKIPPED_OPTION, null );
+		if ( ! is_array( $skipped ) || empty( $skipped['time'] ) ) {
+			return null;
+		}
+		$reasons = array();
+		foreach ( (array) ( $skipped['reasons'] ?? array() ) as $reason => $entry ) {
+			$reasons[ (string) $reason ] = array(
+				'count' => (int) ( $entry['count'] ?? 0 ),
+				'paths' => array_values( array_map( 'strval', (array) ( $entry['paths'] ?? array() ) ) ),
+			);
+		}
+
+		return array(
+			'time'    => (int) $skipped['time'],
+			'total'   => (int) ( $skipped['total'] ?? 0 ),
+			'reasons' => $reasons,
+		);
 	}
 
 	/**
@@ -455,6 +561,20 @@ class ConfigManager {
 
 		// Save with autoload=true (state checked frequently in admin UI)
 		$updated = self::persist_option( self::STATE_OPTION, $state, true );
+
+		if ( $updated && $old_state !== $state ) {
+			// When it happened. Offloading's own clock starts when the state
+			// is entered and stops when it is left, so a key rotation or a
+			// re-sync in between does not move it.
+			$stamps                     = self::get_timestamps();
+			$stamps['state_changed_at'] = time();
+			if ( PluginState::OFFLOADING_ACTIVE === $state ) {
+				$stamps['offloading_since'] = time();
+			} elseif ( PluginState::OFFLOADING_ACTIVE === $old_state ) {
+				$stamps['offloading_since'] = null;
+			}
+			self::persist_option( self::TIMESTAMPS_OPTION, $stamps, false );
+		}
 
 		if ( $updated ) {
 			// Get caller information for debugging — only when verbose logging is on,
@@ -818,16 +938,18 @@ class ConfigManager {
 
 	/**
 	 * Check connection health with 5-minute TTL cache.
-	 * Performs actual test_connection() if stale.
+	 * Performs actual test_connection() if stale, or always when forced
+	 * (the "Check now" button).
 	 *
+	 * @param bool $force Check even if the last check is recent.
 	 * @return array<string, mixed> Connection health data
 	 */
-	public static function check_connection_health(): array {
+	public static function check_connection_health( bool $force = false ): array {
 		$health = self::get_connection_health();
 		$now    = time();
 
 		// If checked within last 5 minutes, return cached
-		if ( $health['last_check'] > 0 && ( $now - $health['last_check'] ) < 300 ) {
+		if ( ! $force && $health['last_check'] > 0 && ( $now - $health['last_check'] ) < 300 ) {
 			return $health;
 		}
 
@@ -946,6 +1068,9 @@ class ConfigManager {
 		$deleted_state    = delete_option( self::STATE_OPTION );
 		$deleted_progress = delete_option( self::SYNC_META_OPTION );
 		delete_option( self::HEALTH_OPTION );
+		delete_option( self::TIMESTAMPS_OPTION );
+		delete_option( self::LAST_UPLOAD_OPTION );
+		delete_option( self::SKIPPED_OPTION );
 
 		if ( $deleted_config || $deleted_state || $deleted_progress ) {
 			Logger::info( '[DiluxOne Offload ConfigManager] Plugin reset completed' );

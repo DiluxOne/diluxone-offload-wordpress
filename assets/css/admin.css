@@ -152,6 +152,90 @@
 	margin-left: 6px;
 }
 
+/* Big numbers: a row of equal cards, label / value / detail. */
+.diluxone-offload-bignums {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-auto-rows: 1fr;
+	gap: 16px;
+	margin: 0 0 20px;
+}
+
+@media (max-width: 1400px) {
+	.diluxone-offload-bignums {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.diluxone-offload-bignum {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 14px 16px;
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.diluxone-offload-bignum__k {
+	font-size: 12px;
+	color: #646970;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.diluxone-offload-bignum__v {
+	font-size: 24px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+	margin: 4px 0 2px;
+	overflow-wrap: anywhere;
+}
+
+.diluxone-offload-bignum__d {
+	font-size: 12px;
+	color: #646970;
+}
+
+/* One bar, one number: how much of something is where. */
+.diluxone-offload-bar-head {
+	display: flex;
+	justify-content: space-between;
+	font-size: 14px;
+	margin: 0 0 8px;
+}
+
+.diluxone-offload-progress {
+	height: 18px;
+	border-radius: 4px;
+	background: #f0f0f1;
+	overflow: hidden;
+	border: 1px solid #dcdcde;
+	margin: 0 0 8px;
+}
+
+.diluxone-offload-progress i {
+	display: block;
+	height: 100%;
+	background: #2271b1;
+}
+
+.diluxone-offload-skipped {
+	margin: 12px 0 0;
+}
+
+.diluxone-offload-skipped summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.diluxone-offload-skipped__list {
+	margin: 4px 0 12px 18px;
+	max-height: 240px;
+	overflow: auto;
+	font-size: 12px;
+}
+
 /* A callout: one message and its action, inside a section. */
 .diluxone-offload-callout {
 	border-left: 4px solid #2271b1;

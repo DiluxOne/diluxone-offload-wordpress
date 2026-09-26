@@ -987,6 +987,25 @@ class CloudStreamWrapper {
 		self::clear_write_failure( $this->path );
 		Logger::info( '[DiluxOne Offload CloudStreamWrapper] uploaded: ' . $this->path . ' (' . $size . ' bytes)' );
 
+		// The tracking table learns of it (synced, no local copy), so the
+		// counts on the screens include the files uploaded while offloading
+		// is on, not only the ones the initial sync moved; and the screens
+		// can say what was uploaded last. Best effort: the wrapper also runs
+		// where the plugin's other classes are not loaded (the unit suite).
+		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) && function_exists( 'update_option' ) ) {
+			$row_path = \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $this->path );
+			\DiluxOneOffload\DiluxOneOffloadDB::record_live_upload( $row_path, (int) $size );
+			\update_option(
+				\DiluxOneOffload\ConfigManager::LAST_UPLOAD_OPTION,
+				array(
+					'path' => $row_path,
+					'size' => (int) $size,
+					'time' => time(),
+				),
+				false
+			);
+		}
+
 		// Auto-recovery: if was unhealthy and upload succeeded, mark healthy
 		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
 		if ( $health['status'] === 'unhealthy' ) {

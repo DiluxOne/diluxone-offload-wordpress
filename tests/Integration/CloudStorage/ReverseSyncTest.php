@@ -299,7 +299,8 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertTrue($del['json']['success'] ?? false, $del['raw']);
         $this->assertFileDoesNotExist($p);
         $this->assertSame('completed', $del['json']['data']['status']);
-        $this->assertSame(0, DB::get_total_count(), 'the catalogue is cleared once nothing is left to delete');
+        $this->assertSame(1, DB::get_total_count(), 'the row stays: it is what the screens count and what a Disconnect downloads');
+        $this->assertSame(1, DB::count_deleted_files(), 'as cloud-only');
     }
 
     // ── Plugin plumbing ─────────────────────────────────────

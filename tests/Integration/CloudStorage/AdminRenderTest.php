@@ -609,7 +609,7 @@ class AdminRenderTest extends IntegrationTestCase {
     public function test_each_tab_gets_its_own_script_and_localized_strings(): void {
         $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'connection' => 'DiluxOneOffloadProvider', 'credentials' => 'DiluxOneOffloadProvider', 'sync' => 'DiluxOneOffloadSync', 'offloading' => 'DiluxOneOffloadSync', 'disconnect' => 'DiluxOneOffloadSync'];
+        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'connection' => 'DiluxOneOffloadProvider', 'credentials' => 'DiluxOneOffloadProvider', 'sync' => 'DiluxOneOffloadSync', 'offloading' => 'DiluxOneOffloadSync', 'disconnect' => 'DiluxOneOffloadSync', 'health' => 'DiluxOneOffloadStatus', 'system' => 'DiluxOneOffloadStatus'];
         foreach ($with_js as $view => $object) {
             $this->render($view);
             $handles = array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0);
@@ -618,7 +618,7 @@ class AdminRenderTest extends IntegrationTestCase {
             $this->assertStringContainsString($object, (string) $data, "$view localizes $object");
             $this->assertStringContainsString('"urls"', (string) $data, "$view hands the screen URLs to the script");
         }
-        foreach (['transfers', 'serving', 'logging', 'health', 'system'] as $css_only) {
+        foreach (['transfers', 'serving', 'logging'] as $css_only) {
             $this->render($css_only);
             $this->assertCount(0, array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0), "$css_only has css only");
         }
