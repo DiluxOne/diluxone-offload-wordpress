@@ -58,7 +58,7 @@ The full list, with the architecture and the review priorities, is in [`docs/arc
 
 ## Versions and releases
 
-Versions follow [Semantic Versioning](https://semver.org/). `main` carries `X.Y.Z-dev` between releases; never bump the version in a feature pull request. The release flow, for maintainers, is in [`docs/release.md`](docs/release.md).
+Versions follow [Semantic Versioning](https://semver.org/). `main` keeps the last released version in its markers; the next version is computed from the `type:*` labels the review sets on merged pull requests (a breaking change → major, a feature → minor, a fix → patch), development builds stamp themselves `<next>-dev.<N>`, and a release is a deployment the maintainer approves. Never bump the version in a pull request. The flow, for maintainers, is in [`docs/release.md`](docs/release.md).
 
 ## Code of Conduct and licence
 

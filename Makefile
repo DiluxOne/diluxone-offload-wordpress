@@ -135,7 +135,9 @@ DIST_DIR := build/diluxone-offload
 # <next>-dev.<N>: <next> from the type labels of what merged since the last
 # tag (the organisation's next-version.py), N the commits since it. The
 # working tree is never touched; main stays at the last released version.
-# STAMP=0 leaves the copy as the tree is (Plugin Check runs that way, like CI).
+# STAMP=0 leaves the copy as the tree is (Plugin Check runs that way, like
+# CI) and needs neither the script nor the network. The stamp uses GNU sed
+# (Linux, WSL); on macOS install gnu-sed or build with STAMP=0.
 DX_CENTRAL   ?= $(HOME)/repos/diluxone-github
 NEXT_VERSION := $(if $(wildcard $(DX_CENTRAL)/scripts/next-version.py),$(DX_CENTRAL)/scripts/next-version.py,build/next-version.py)
 STAMP        ?= 1
@@ -163,7 +165,7 @@ define stamp
 endef
 
 .PHONY: dist
-dist: $(NEXT_VERSION) ## Build build/diluxone-offload/ — what gets published, stamped <next>-dev.<N> (STAMP=0: as is).
+dist: $(if $(filter 0,$(STAMP)),,$(NEXT_VERSION)) ## Build build/diluxone-offload/ — what gets published, stamped <next>-dev.<N> (STAMP=0: as is).
 	@mkdir -p "$(DIST_DIR)"
 	@# --delete, never `rm -rf` the directory itself: wp-env bind-mounts it, and
 	@# replacing the inode leaves the container looking at a mount that is gone.
@@ -333,7 +335,7 @@ SITE_PLUGIN := $(SITE)/wp-content/plugins/diluxone-offload
 SITE_LANGS  := $(SITE)/wp-content/languages/plugins
 
 .PHONY: deploy-test
-deploy-test: $(NEXT_VERSION) ## Copy the working tree into a real site for manual smoke-testing, stamped <next>-dev.<N>.
+deploy-test: $(if $(filter 0,$(STAMP)),,$(NEXT_VERSION)) ## Copy the working tree into a real site for manual smoke-testing, stamped <next>-dev.<N>.
 	@if [ ! -d "$(SITE)/wp-content/plugins" ]; then \
 	  echo "no site at $(SITE). Override with SITE=/path/to/wordpress"; \
 	  exit 1; \

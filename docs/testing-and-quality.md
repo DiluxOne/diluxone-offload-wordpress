@@ -137,4 +137,4 @@ make check     # the fast gates: lint + stan + psalm + unit tests
 make release   # make check + version-alignment dry-run
 ```
 
-`make check` is the pre-push habit; it does not replace CI. Integration, E2E, i18n and Plugin Check have their own targets, and the real-storage suite needs credentials. `make release` is what the maintainer runs before a release-prep PR.
+`make check` is the pre-push habit; it does not replace CI. Integration, E2E, i18n and Plugin Check have their own targets, and the real-storage suite needs credentials. `make release` is what the maintainer runs on `main` before approving a release (see [`release.md`](release.md)); there is no release-prep pull request.
