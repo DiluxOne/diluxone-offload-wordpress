@@ -6,11 +6,13 @@ name: Real-storage suite (Azure)
 #
 # It runs with the repository's Azure secrets, so it runs only on events the
 # maintainer owns: pull requests from branches of this repository that are
-# not drafts, pushes to main, and the manual button. A pull request from a
-# fork gets every other check and is skipped here on purpose; nothing
-# external ever runs with the key. A draft (the bot's reproduction pull
-# requests are drafts) runs it once it is marked ready for review. A maintainer who wants this suite on a contributed change brings the
-# branch into the repository first (see CONTRIBUTING.md).
+# not drafts and that change code (the What changed job, on the
+# organisation's `code` list), pushes to main, and the manual button. A
+# pull request from a fork gets every other check and is skipped here on
+# purpose; nothing external ever runs with the key. A draft (the bot's
+# reproduction pull requests are drafts) runs it once it is marked ready
+# for review. A maintainer who wants this suite on a contributed change
+# brings the branch into the repository first (see CONTRIBUTING.md).
 #
 # Each run creates its own containers (e2e-<run id>-single, -network and
 # -php-* for PHPUnit) and deletes them at the end. A run that is cancelled
@@ -37,14 +39,48 @@ permissions:
   pull-requests: write
 
 jobs:
+  changes:
+    name: What changed
+    # The organisation's rule, applied to this repository's own workflow:
+    # the suite runs on a pull request only when it changes code (the
+    # `code` list of the policy, defaults plus .github/review-policy.yml).
+    # The gate below runs on !cancelled() and treats a missing answer as
+    # "run", so this job failing never skips the suite.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Runs the central's script from the mutable v1 tag: nothing beyond
+    # reading the checkout, whatever the workflow as a whole may write.
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DiluxOne/.github
+          ref: v1
+          path: .dx-central
+          persist-credentials: false
+      - id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          DEFAULT_POLICY: .dx-central/policy/review-policy.default.yml
+        run: bash .dx-central/scripts/changes.sh
+
   real:
     name: Real Azure end-to-end (single site + network)
+    needs: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    # Never with a fork's code (the secrets are the maintainer's), and never
-    # on a draft: the bot's reproduction pull requests are drafts, and a fix
-    # a person pushes on top runs the suite the moment it is marked ready.
-    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)
+    # Never with a fork's code (the secrets are the maintainer's), never on
+    # a draft (the bot's reproduction pull requests are drafts, and a fix a
+    # person pushes on top runs the suite the moment it is marked ready),
+    # and on a pull request only when code changed.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && needs.changes.outputs.code != 'false')) }}
     env:
       AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}
       AZURE_E2E_KEY: ${{ secrets.AZURE_E2E_KEY }}
