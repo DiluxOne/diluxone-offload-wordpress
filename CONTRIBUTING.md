@@ -11,7 +11,7 @@ Thanks for helping. This page covers issues, pull requests and what CI enforces.
 ## Pull requests
 
 1. Branch from `main`: in your fork if you are an outside contributor, in the repository if you are a maintainer. Name it `<type>/<kebab-case>`, for example `fix/sync-retry-count`.
-2. Make the change with its tests, and update any doc that describes what you changed. A change a user notices adds one bullet to the newest `= X.Y.Z =` entry of `readme.txt`, under its `Unreleased.` line; leave that line alone ([`docs/release.md`](docs/release.md)).
+2. Make the change with its tests at every layer it touches (unit, integration, end-to-end, the real-storage suite on a single site and on a network, and the listing screenshots when a screen changes; see [`docs/testing-and-quality.md`](docs/testing-and-quality.md)), and update any doc that describes what you changed. A change a user notices adds one bullet to the newest `= X.Y.Z =` entry of `readme.txt`, under its `Unreleased.` line; leave that line alone ([`docs/release.md`](docs/release.md)).
 3. Run `make check` (PHPCS, PHPStan, Psalm, unit tests). Integration, end-to-end, i18n and Plugin Check have their own targets; CI runs all of them.
 4. Open the pull request and fill in the template: 📝 What changes and 💡 Why are required, 🧪 How I tested it and 📸 Screenshots help the review. The description becomes the commit body on `main`, word for word, so write it for the person who reads the history in a year: plain words, short paragraphs.
 5. If AI took part, end the description with one line: `🤖 AI-assisted · <model> (<maker>)`. The rules for contributing with AI are in [`docs/ai.md`](docs/ai.md).

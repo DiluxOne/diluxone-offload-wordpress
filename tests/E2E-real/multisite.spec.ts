@@ -81,6 +81,18 @@ test.describe.serial( 'multisite journey', () => {
 		expect( await ui.refreshStats( page ) ).toBe( keys.filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ).length );
 		await ui.goTab( page, other, 'overview' );
 		expect( await ui.refreshStats( page ) ).toBe( keys.filter( ( k ) => k.startsWith( `uploads/sites/${ blogId }/` ) ).length );
+
+		// The figures are per site too, and so is the health check.
+		const mainCount = keys.filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ).length;
+		const otherCount = keys.filter( ( k ) => k.startsWith( `uploads/sites/${ blogId }/` ) ).length;
+		for ( const [ home, count ] of [ [ base, mainCount ], [ other, otherCount ] ] as [ string, number ][] ) {
+			await ui.goTab( page, home, 'sync' );
+			expect( await ui.bignumCount( page, 'Synced' ) ).toBe( count );
+			expect( await ui.bignumCount( page, 'Local copies left' ) ).toBe( count );
+			expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
+			await ui.goTab( page, home, 'health' );
+			expect( await ui.checkHealthNow( page ) ).toMatch( /Healthy/ );
+		}
 	} );
 
 	test( 'a Media Library upload on the other site lands under its prefix', async ( { page } ) => {
@@ -100,6 +112,15 @@ test.describe.serial( 'multisite journey', () => {
 		await ui.deleteLocalFiles( page );
 		expect( filesUnder( site, otherUploads ).length ).toBe( 0 );
 		expect( filesUnder( site, mainUploads ).filter( ( f ) => ! f.startsWith( 'sites/' ) ) ).toEqual( mainOwnBefore );
+		// Each site's figures describe that site only.
+		const otherInCloud = ( await listKeys( run, `uploads/sites/${ blogId }/` ) ).length;
+		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( 0 );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( otherInCloud );
+		await ui.goTab( page, other, 'disconnect' );
+		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( otherInCloud );
+		await ui.goTab( page, base, 'offloading' );
+		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( mainOwnBefore.length );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 
 		// And the other way round: Delete Local Files on the main site leaves the other site's directory alone.
 		await ui.goTab( page, other, 'disconnect' );

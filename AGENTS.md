@@ -46,6 +46,12 @@ make test-integration    # needs make env
 make plugin-check        # wordpress.org's Plugin Check on the built dist
 ```
 
+A change carries its tests at every layer it touches, in the same pull
+request: unit, integration, end-to-end without a cloud account, the
+real-storage suite on a single site and on a network, and the listing
+screenshots (`make screenshots`) when a screen changes
+([`docs/testing-and-quality.md`](docs/testing-and-quality.md)).
+
 Every job that runs on a pull request is a required check on `main`, except
 CodeQL, which only runs when JavaScript changes (`release.yml` runs on
 pushes to `main` and on release tags, never on a pull request). Every pull
