@@ -67,7 +67,7 @@ Once the work for the next version is merged into `main` and CI is green:
    git push origin X.Y.Z
    ```
 
-6. **The release workflow takes it from there.** [`.github/workflows/release.yml`](../.github/workflows/release.yml) fires on tag push and calls the shared [`plugin-release-wp`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/plugin-release-wp.yml) workflow, which:
+6. **The release workflow takes it from there.** [`.github/workflows/release.yml`](../.github/workflows/release.yml) fires on tag push and calls the shared [`plugin-release-wp`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/plugin-release-wp.yml) workflow, which: The call is pinned to a commit of `DiluxOne/.github` (not to the moving `v1` tag), because this is the one workflow that runs with the publishing credentials; Dependabot proposes the bump when the central releases. After rotating the SVN password, run **SVN credentials check** from the Actions tab: it authenticates from the environment without committing anything.
    - Strict tag-format validation (`^[0-9]+\.[0-9]+\.[0-9]+$`).
    - Strict version-alignment of all three markers — PHP `Version:`, `DILUXONE_OFFLOAD_VERSION`, readme `Stable tag:` — against the git tag.
    - Extracts the `= X.Y.Z =` block from the readme changelog (before touching SVN: a release without its changelog stops here) and appends what was merged since the previous release, grouped by type (✨ Features, 🐛 Fixes…).
@@ -84,22 +84,22 @@ Once the work for the next version is merged into `main` and CI is green:
 
 ## Required secrets
 
-The release workflow needs two secrets, set once at the DiluxOne organisation level:
+The release workflow needs two secrets. They live in the repository environment `wordpress-org`, which the deploy job runs in. Its deployment policy admits `X.Y.Z` tags and `main` (the by-hand credentials check runs from `main`), so a job of a pull request or of any other branch can never read them (Settings › Environments › wordpress-org):
 
 | Secret | What it's for |
 | --- | --- |
 | `SVN_USERNAME` | wp.org account username (the same one used for the plugin submission). |
 | `SVN_PASSWORD` | wp.org SVN-specific password (set it at <https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password>, **not** the regular login password). |
 
-If either is missing or wrong the deploy step prints a clear error and exits non-zero. Fix the secret and use **Re-run jobs** on the failed run: it deploys the same tag again.
+If either is missing or wrong the deploy step prints a clear error and exits non-zero. Fix the secret (`gh secret set SVN_PASSWORD --env wordpress-org`) and use **Re-run jobs** on the failed run: it deploys the same tag again.
 
 ## Release tags are permanent
 
-A tag-protection ruleset covers every tag shaped `X.Y.Z`: nobody can delete it or move it, the maintainer included. That is deliberate — the tag is the record of what went to every WordPress site. So:
+Two rulesets cover every tag shaped `X.Y.Z`: only an administrator can create one, and nobody can delete or move it, the maintainer included. That is deliberate — the tag is the record of what went to every WordPress site. So:
 
 - **A deploy that failed before SVN** (a secret, a network error): fix the cause and **Re-run jobs**.
 - **A tag on the wrong commit, or with misaligned version markers**: the tag stays. Fix it in a PR and release the next patch version.
-- **A tag in the wrong shape** (`v1.2.0`, `1.2`): it is not protected and the deploy refuses it; delete it and push the right one.
+- **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the deploy refuses it; delete it and push the right one. `v1.2.0` matches the `*.*.*` pattern and is as permanent as a real release tag, so never push one.
 
 ## Rolling back
 
