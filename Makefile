@@ -142,7 +142,7 @@ STAMP        ?= 1
 
 build/next-version.py:
 	@mkdir -p build
-	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v1/scripts/next-version.py -o "$@"
+	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v2/scripts/next-version.py -o "$@"
 
 # stamp <dir>: the three version markers of the copy under <dir> become the
 # development version, and a `Build:` header line (absent in the tree)

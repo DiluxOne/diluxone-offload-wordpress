@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@PIN_SHA # v2.0.0
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@789913f46f0cba8762cc1a898bb107beb34abfe2 # v2.0.1
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION

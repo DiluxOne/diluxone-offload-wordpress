@@ -19,7 +19,7 @@ jobs:
     permissions:
       contents: read
       actions: read # the runs of this head, for the base-branch check
-    uses: DiluxOne/.github/.github/workflows/conventions.yml@v1
+    uses: DiluxOne/.github/.github/workflows/conventions.yml@v2
     with:
       retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
 
@@ -29,7 +29,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    uses: DiluxOne/.github/.github/workflows/claude-review.yml@v1
+    uses: DiluxOne/.github/.github/workflows/claude-review.yml@v2
     with:
       profile: plugin-wp
     secrets:
@@ -39,7 +39,7 @@ jobs:
   auto-merge:
     needs: review
     if: always() && needs.review.result != 'skipped'
-    uses: DiluxOne/.github/.github/workflows/auto-merge.yml@v1
+    uses: DiluxOne/.github/.github/workflows/auto-merge.yml@v2
     with:
       risk: ${{ needs.review.outputs.risk }}
       complexity: ${{ needs.review.outputs.complexity }}
