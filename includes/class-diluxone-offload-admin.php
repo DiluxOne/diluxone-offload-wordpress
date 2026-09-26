@@ -373,6 +373,17 @@ class Admin {
 	}
 
 	/**
+	 * The commit a development build was made from, or '' for a release.
+	 *
+	 * `make dist` and `make deploy-test` add a `Build:` header line to the
+	 * main file of the copy they produce; the committed file has none.
+	 */
+	public static function get_plugin_build(): string {
+		$data = \get_file_data( DILUXONE_OFFLOAD_FILE, array( 'build' => 'Build' ) );
+		return isset( $data['build'] ) ? (string) $data['build'] : '';
+	}
+
+	/**
 	 * Enqueue admin assets (CSS/JS)
 	 *
 	 * @param mixed $hook_suffix

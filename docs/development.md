@@ -47,9 +47,9 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make check` | The fast gates: lint + stan + psalm + unit tests. CI also runs integration, E2E, i18n, Plugin Check and the real-storage suite, once per change: a pull request runs them when it changes code, the push to `main` skips them when its tree is the one the pull request tested, and a weekly run (or *Run workflow*) runs everything. |
 | `make test-e2e` | Playwright end-to-end suite against `wp-env` (fake cloud client). |
 | `make test-real` | The real-storage suite against a real Azure account (see `CONTRIBUTING.md`). |
-| `make dist` | Build `build/diluxone-offload/`, exactly what wordpress.org receives. |
+| `make dist` | Build `build/diluxone-offload/`, what wordpress.org receives, stamped with the development version (`<next>-dev.<N>`, see [`release.md`](release.md#version-markers-and-development-builds)) and the commit it was built from. `STAMP=0` leaves the tree's own version. |
 | `make plugin-check` | wordpress.org's Plugin Check on the built dist. |
-| `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
+| `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, stamped like `make dist`, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
 | `make release` | `make check` plus a version-alignment dry-run; fails if the PHP `Version:` header and the `readme.txt` `Stable tag:` would not match at tag time. |
 | `make clean` | Wipe caches and build artefacts. |
 

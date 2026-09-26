@@ -14,29 +14,19 @@ We follow [Semantic Versioning](https://semver.org/) for the plugin's public ver
 
 Repository-only changes (CI, dev tooling, this `docs/` directory, …) **do not** trigger a version bump. Those files are excluded from the wp.org deploy via [`.distignore`](../.distignore) and are invisible to end users.
 
-## The `-dev` suffix
+## Version markers and development builds
 
-The PHP `Version:` header in `diluxone-offload.php` and the `DILUXONE_OFFLOAD_VERSION` constant carry a `-dev` suffix on `main` between releases. The `Stable tag:` in `readme.txt` does **not** — it always holds the last published release, or before any release the next intended one.
+Three markers carry the version: the `Version:` header and the `DILUXONE_OFFLOAD_VERSION` constant in `diluxone-offload.php`, and `Stable tag:` in `readme.txt`. On `main` all three hold the **last released version**, always; no commit moves them between releases. What moves is the build:
 
-From the first release on, `main` cycles through these states (the example is the step after `1.0.0`):
+| Build | `Version:` / constant / `Stable tag:` | `Build:` header |
+| --- | --- | --- |
+| `main` as committed | `1.0.0` (last released) | none |
+| `make dist`, `make deploy-test` | `1.1.0-dev.14` | `a1b2c3d`, `a1b2c3d-dirty` with uncommitted changes |
+| the release | `1.1.0` | none |
 
-| State | PHP `Version:` | `DILUXONE_OFFLOAD_VERSION` | readme `Stable tag:` |
-| --- | --- | --- | --- |
-| `main` between releases | `1.1.0-dev` | `1.1.0-dev` | `1.0.0` (last released) |
-| Release-prep PR open | `1.1.0` | `1.1.0` | `1.1.0` |
-| Tag `1.1.0` pushed | snapshot of the release-prep state | | |
-| `main` after release | `1.2.0-dev` | `1.2.0-dev` | `1.1.0` |
+The development version is computed, never typed: `<next>` comes from the `type:*` labels of the pull requests merged since the last tag (a feature pending → minor, a fix → patch, a breaking change → major; nothing pending → the next patch), by the organisation's [`next-version.py`](https://github.com/DiluxOne/.github/blob/main/scripts/next-version.py); `N` counts the commits since the tag. A person who installs a build sees `1.1.0-dev.14` under Plugins and the commit under Status › System, and knows what is coming and which build it is. PHP orders `1.1.0-dev.14` before `1.1.0`, so a site with a development build updates to the release normally.
 
-Why: a developer who clones `main` between releases sees `1.1.0-dev` and immediately knows they're not looking at the published version. Without the suffix, the same clone would show `1.2.0` indistinguishable from the actual published release.
-
-The CI version-alignment rule reads the suffix as a statement of intent rather than comparing the two values blindly:
-
-- **With** a pre-release suffix, this is work in progress, so the base version only has to be **at or ahead of** `Stable tag:`. `1.1.0-dev` alongside a published `1.0.0` is the normal state of `main`. Falling *behind* fails — it would mean the plugin claims to be building something wp.org already serves.
-- **Without** a suffix, a release is being prepared and all three markers must agree exactly. The release workflow re-checks the same thing against the git tag.
-
-`make release` runs a dry run of the header versus `Stable tag` comparison locally; the release workflow is the one that checks all three markers against the tag.
-
-Accepted pre-release suffixes are `-dev`, `-alpha`, `-beta`, `-rc` (optionally followed by `.N`).
+The CI version-alignment rule still accepts a pre-release suffix on `Version:` (`-dev`, `-alpha`, `-beta`, `-rc`, optionally `.N`): with one, the base version must be at or ahead of `Stable tag:`; without one, all three markers must agree exactly, and the release workflow checks them against the tag. `main` has no suffix, so on `main` the three are simply equal.
 
 ## Cutting a release
 
@@ -48,10 +38,10 @@ Once the work for the next version is merged into `main` and CI is green:
    git pull
    make release        # full quality gate + version-alignment dry-run
    ```
-   `make release` will fail if PHP `Version:` (after stripping `-dev`) and readme `Stable tag:` don't match. Don't push the tag if it complains.
+   `make release` will fail if PHP `Version:` (after stripping a pre-release suffix) and readme `Stable tag:` don't match. Don't push the tag if it complains.
 
 2. **Open a release-prep PR.** Branch name: `chore/release-X.Y.Z`. The PR does three things:
-   - Drops the `-dev` suffix in `diluxone-offload.php` (the `Version:` header **and** the `DILUXONE_OFFLOAD_VERSION` constant).
+   - Sets the new version in `diluxone-offload.php` (the `Version:` header **and** the `DILUXONE_OFFLOAD_VERSION` constant).
    - Updates `readme.txt`: `Stable tag:` to the new version, and adds a `= X.Y.Z =` block under `== Changelog ==` summarising user-visible changes.
    - That's it. No code changes — anything that needed code change went in earlier PRs.
 
@@ -76,11 +66,7 @@ Once the work for the next version is merged into `main` and CI is green:
 
 7. **Verify on wp.org** within ~10 minutes. The new version should appear at `https://wordpress.org/plugins/diluxone-offload/`. wp.org does not run automated rollouts — sites with auto-update enabled pick it up over the next ~12 hours via the WordPress core update check.
 
-8. **Bump back to dev.** Open a follow-up PR `chore/bump-(X.Y.Z+1)-dev` that:
-   - Sets PHP `Version:` and `DILUXONE_OFFLOAD_VERSION` to `(next intended version)-dev`.
-   - Leaves `Stable tag:` alone (it stays at the just-released `X.Y.Z`).
-
-   Merge it. Now `main` is signposted "in development towards (next)" again.
+8. **Nothing to bump back.** `main` keeps the three markers at `X.Y.Z`; every development build from here on stamps itself `<next>-dev.<N>` (see above), so no follow-up commit is needed.
 
 ## Required secrets
 

@@ -131,8 +131,39 @@ test-integration: ## Run integration tests inside the wp-env tests container (ne
 # exactly what ships.
 DIST_DIR := build/diluxone-offload
 
+# A build that is not a release carries the version that is coming,
+# <next>-dev.<N>: <next> from the type labels of what merged since the last
+# tag (the organisation's next-version.py), N the commits since it. The
+# working tree is never touched; main stays at the last released version.
+# STAMP=0 leaves the copy as the tree is (Plugin Check runs that way, like CI).
+DX_CENTRAL   ?= $(HOME)/repos/diluxone-github
+NEXT_VERSION := $(if $(wildcard $(DX_CENTRAL)/scripts/next-version.py),$(DX_CENTRAL)/scripts/next-version.py,build/next-version.py)
+STAMP        ?= 1
+
+build/next-version.py:
+	@mkdir -p build
+	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v1/scripts/next-version.py -o "$@"
+
+# stamp <dir>: the three version markers of the copy under <dir> become the
+# development version, and a `Build:` header line (absent in the tree)
+# records the commit it was made from; Status › System shows both.
+define stamp
+	@if [ "$(STAMP)" != 0 ]; then \
+	  dev="$$(python3 "$(NEXT_VERSION)" --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["dev"])' 2>/dev/null)"; \
+	  if [ -z "$$dev" ]; then \
+	    echo "  (not stamped: next-version.py could not read GitHub; is gh logged in? The copy keeps the tree's version.)"; \
+	  else \
+	    build="$$(git rev-parse --short HEAD)$$(git diff --quiet HEAD -- . ':!build' || echo -dirty)"; \
+	    sed -i -E "s/^( \* Version:[[:space:]]*).*$$/\1$$dev\n * Build: $$build/" "$(1)/diluxone-offload.php"; \
+	    sed -i -E "s/^(define\( 'DILUXONE_OFFLOAD_VERSION', ').*(' \);)$$/\1$$dev\2/" "$(1)/diluxone-offload.php"; \
+	    sed -i -E "s/^(Stable tag:[[:space:]]*).*$$/\1$$dev/" "$(1)/readme.txt"; \
+	    echo "✔ Stamped $$dev, build $$build"; \
+	  fi; \
+	fi
+endef
+
 .PHONY: dist
-dist: ## Build build/diluxone-offload/ — exactly what gets published.
+dist: $(NEXT_VERSION) ## Build build/diluxone-offload/ — what gets published, stamped <next>-dev.<N> (STAMP=0: as is).
 	@mkdir -p "$(DIST_DIR)"
 	@# --delete, never `rm -rf` the directory itself: wp-env bind-mounts it, and
 	@# replacing the inode leaves the container looking at a mount that is gone.
@@ -145,6 +176,7 @@ dist: ## Build build/diluxone-offload/ — exactly what gets published.
 	@# fails the build.
 	@untracked="$$(cd "$(DIST_DIR)" && find . \( -type f -o -type l \) | sed 's|^\./||' | while read -r f; do git -C "$(CURDIR)" ls-files --error-unmatch "$$f" >/dev/null 2>&1 || echo "$$f"; done)"; \
 	if [ -n "$$untracked" ]; then echo "✖ Files in the dist that are not tracked by git:"; echo "$$untracked" | sed 's/^/    /'; exit 1; fi
+	$(call stamp,$(DIST_DIR))
 	@echo "✔ Built $(DIST_DIR) ($$(find "$(DIST_DIR)" -type f | wc -l) files)"
 
 # -- Plugin Check (wordpress.org review gate) --------------------------
@@ -162,7 +194,8 @@ PCP_DIR := $(CURDIR)/build/pcp
 PCP_ENV := npx @wordpress/env --debug=false
 
 .PHONY: pcp-env
-pcp-env: dist
+pcp-env:
+	@$(MAKE) --no-print-directory dist STAMP=0
 	@mkdir -p "$(PCP_DIR)"
 	@printf '%s\n' \
 	  '{' \
@@ -300,7 +333,7 @@ SITE_PLUGIN := $(SITE)/wp-content/plugins/diluxone-offload
 SITE_LANGS  := $(SITE)/wp-content/languages/plugins
 
 .PHONY: deploy-test
-deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
+deploy-test: $(NEXT_VERSION) ## Copy the working tree into a real site for manual smoke-testing, stamped <next>-dev.<N>.
 	@if [ ! -d "$(SITE)/wp-content/plugins" ]; then \
 	  echo "no site at $(SITE). Override with SITE=/path/to/wordpress"; \
 	  exit 1; \
@@ -313,6 +346,7 @@ deploy-test: ## Copy the working tree into a real site for manual smoke-testing.
 	  --exclude-from=.distignore \
 	  --exclude='.git' \
 	  ./ "$(SITE_PLUGIN)/"
+	$(call stamp,$(SITE_PLUGIN))
 	@# The bundled .mo files are inert on their own: with no
 	@# load_plugin_textdomain() call — discouraged by Plugin Check since
 	@# WordPress 4.6 — WordPress only reads plugin translations from

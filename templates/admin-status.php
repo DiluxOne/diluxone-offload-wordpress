@@ -275,6 +275,13 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							<td><?php esc_html_e( 'Version', 'diluxone-offload' ); ?></td>
 							<td><strong><?php echo esc_html( Admin::get_plugin_version() ); ?></strong></td>
 						</tr>
+						<?php $diluxone_offload_build = Admin::get_plugin_build(); ?>
+						<?php if ( $diluxone_offload_build !== '' ) : ?>
+						<tr>
+							<td><?php esc_html_e( 'Build', 'diluxone-offload' ); ?></td>
+							<td><strong><?php echo esc_html( $diluxone_offload_build ); ?></strong></td>
+						</tr>
+						<?php endif; ?>
 						<tr>
 							<td><?php esc_html_e( 'DB Schema Version', 'diluxone-offload' ); ?></td>
 							<td><strong><?php echo esc_html( get_option( 'diluxone_offload_db_version', 'N/A' ) ); ?></strong></td>
