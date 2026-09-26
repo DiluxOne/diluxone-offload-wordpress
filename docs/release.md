@@ -11,9 +11,10 @@ For everyone who touches this repository: outside contributors, maintainers and 
 | Computes the next version | no | no | yes, from the labels |
 | Decides that a version is ready | no | yes, by removing one line in `readme.txt` | never |
 | Approves the publication | no | yes, in the `wordpress-org` environment | never |
-| Stamps, deploys, tags, creates the release | never | never, not even by hand | yes, after the approval |
+| Stamps, deploys, tags, creates the release | never | never | yes, after the approval |
+| Pushes a tag `X.Y.Z` by hand | no | an administrator can; it only types the version and goes through the same job | the job refuses a tag that is not the computed, ready version |
 
-Nobody types a version number, nobody pushes a tag, nobody touches SVN. If you are contributing from outside: open the pull request with its changelog bullet and you are done; your change ships in the next version. If you are a coding agent: the rules below are the ones you must not break.
+Nobody types a version number into a file, nobody touches SVN, and the tag is created by the job. If you are contributing from outside: open the pull request with its changelog bullet and you are done; your change ships in the next version. If you are a coding agent: the rules below are the ones you must not break.
 
 ## The flow
 

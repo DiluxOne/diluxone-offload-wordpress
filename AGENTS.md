@@ -74,7 +74,9 @@ What you must do, and never do, in a change:
   how a change is tried before a release; `make dist` builds the same locally.
 - **Publishing is a deployment a maintainer approves** in the `wordpress-org`
   environment; the job then stamps, deploys, tags and creates the release.
-  No person and no agent does any of that by hand.
+  No agent does any of that by hand. An administrator may still push a tag
+  `X.Y.Z`; it only types the version and goes through the same job, which
+  refuses anything but the computed, ready version.
 
 ## Rules you must not break
 

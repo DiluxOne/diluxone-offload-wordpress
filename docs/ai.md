@@ -35,7 +35,7 @@ A bug report with enough detail gets a reproduction attempt: Claude writes one u
 
 ## What is never automated
 
-- **Releases.** A release is a deployment only the maintainer approves; the tag and the wordpress.org commit are made by the release job after that approval, never by a person or an agent. The version is computed from the labels; the readme's `Unreleased.` line, removed by the maintainer, says when ([`release.md`](release.md)).
+- **Releases.** A release is a deployment only the maintainer approves; the tag and the wordpress.org commit are made by the release job after that approval, never by an agent. The version is computed from the labels; the readme's `Unreleased.` line, removed by the maintainer, says when. An administrator's hand-pushed tag only types the version and runs the same job ([`release.md`](release.md)).
 - **Merging anything that is not low risk.** A human decides.
 - **Changing the review rules.** Every change goes through a pull request the maintainer approves.
 - **Closing a bug or shipping a fix.** The triage labels and asks; a person decides.
