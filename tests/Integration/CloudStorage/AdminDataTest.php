@@ -222,6 +222,14 @@ class AdminDataTest extends IntegrationTestCase {
         $files = array_column(\DiluxOneOffload\DiluxOneOffloadDB::get_deleted_files(), 'file');
         $this->assertNotContains('/2026/09/b.jpg', $files, 'a deleted file has no row');
         $this->assertSame(1, Admin::tracking_counts(true)['cloud_only']);
+
+        // A rename whose source the table does not know leaves the destination's row alone.
+        $this->assertNotFalse(file_put_contents($prefix . '/2026/09/c.jpg', 'c'));
+        $this->assertNotFalse(file_put_contents($prefix . '/2026/09/untracked.jpg', 'u'));
+        \DiluxOneOffload\DiluxOneOffloadDB::forget_file('/2026/09/untracked.jpg');
+        $this->assertTrue(rename($prefix . '/2026/09/untracked.jpg', $prefix . '/2026/09/c.jpg'));
+        $files = array_column(\DiluxOneOffload\DiluxOneOffloadDB::get_deleted_files(), 'file');
+        $this->assertContains('/2026/09/c.jpg', $files, 'the overwritten destination keeps its row');
     }
 
     public function test_skip_reasons_have_labels(): void {

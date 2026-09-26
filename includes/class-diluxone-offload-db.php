@@ -640,6 +640,15 @@ class DiluxOneOffloadDB {
 			return false;
 		}
 
+		$has_source = (int) $wpdb->get_var(
+			// @phpstan-ignore-next-line The table name is the class's own; the path is the placeholder.
+			$wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE file = %s', $from )
+		);
+		if ( 0 === $has_source ) {
+			// Nothing to move; a row the destination may have is left as it is.
+			return false;
+		}
+
 		// The destination may already have a row (an overwrite): it goes, the source's moves in.
 		$wpdb->delete( self::get_table_name(), array( 'file' => $to ), array( '%s' ) );
 
