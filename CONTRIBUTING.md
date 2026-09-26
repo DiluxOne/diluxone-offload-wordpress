@@ -37,7 +37,7 @@ Every job that runs on a pull request is a required check on `main`, except Code
 
 ### The review
 
-Claude reviews every pull request from a branch of this repository, guided by [`docs/architecture.md`](docs/architecture.md), [`AGENTS.md`](AGENTS.md) and the organisation's WordPress review profile. It comments inline on blockers and majors, lists minor findings in its summary and labels the risk and complexity. Fix the code and push, or answer in the thread mentioning `@dilux-bot`; every conversation must be resolved before merging. A change rated low risk and low complexity, on low-risk paths, from a trusted author, merges on its own once everything is green; everything else the maintainer merges. Details and the rules for AI-assisted work: [`docs/ai.md`](docs/ai.md).
+Claude reviews every pull request from a branch of this repository, guided by [`docs/architecture.md`](docs/architecture.md), [`AGENTS.md`](AGENTS.md) and the organisation's WordPress review profile. It comments inline on blockers and majors, lists minor findings in its summary, labels the risk, the complexity and the type of the change (`type:*`, read from the diff; it corrects the title's type to match, and a `type:*` label a person sets wins), and checks that the description matches the code. Editing the title or description re-runs only the conventions and that check, never the suites; an edited description counts as unchecked until the next push. Fix the code and push, or answer in the thread mentioning `@dilux-bot`; every conversation must be resolved before merging. A change rated low risk and low complexity, on low-risk paths, from a trusted author, merges on its own once everything is green; everything else the maintainer merges. Details and the rules for AI-assisted work: [`docs/ai.md`](docs/ai.md).
 
 ### Forks and the real-storage suite
 
@@ -58,7 +58,7 @@ The full list, with the architecture and the review priorities, is in [`docs/arc
 
 ## Versions and releases
 
-Versions follow [Semantic Versioning](https://semver.org/). `main` carries `X.Y.Z-dev` between releases; never bump the version in a feature pull request. The release flow, for maintainers, is in [`docs/release.md`](docs/release.md).
+Versions follow [Semantic Versioning](https://semver.org/). `main` keeps the last released version in its markers; the next version is computed from the `type:*` labels the review sets on merged pull requests (a breaking change → major, a feature → minor, a fix → patch), development builds stamp themselves `<next>-dev.<N>`, and a release is a deployment the maintainer approves. Never bump the version in a pull request. The flow, for maintainers, is in [`docs/release.md`](docs/release.md).
 
 ## Code of Conduct and licence
 

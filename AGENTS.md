@@ -47,9 +47,11 @@ make plugin-check        # wordpress.org's Plugin Check on the built dist
 ```
 
 Every job that runs on a pull request is a required check on `main`, except
-CodeQL, which only runs when JavaScript changes (`release.yml` runs on tags
-only). Every pull request is also reviewed by Claude, which labels its risk
-and complexity; only low-risk changes can merge without a human.
+CodeQL, which only runs when JavaScript changes (`release.yml` runs on
+pushes to `main` and on release tags, never on a pull request). Every pull
+request is also reviewed by Claude, which labels its risk, its complexity and
+its type (`type:*`, from which the next version is computed); only low-risk
+changes can merge without a human.
 
 ## Rules you must not break
 
@@ -57,8 +59,10 @@ and complexity; only low-risk changes can merge without a human.
   touch the wordpress.org SVN. Pushing a tag `X.Y.Z` publishes the plugin to
   every WordPress site; release tags are permanent. Releases are cut by the
   maintainer ([`docs/release.md`](docs/release.md)).
-- **Never** bump the version in a feature PR. The version changes only in a
-  release-prep PR.
+- **Never** bump the version markers. `main` keeps the last released
+  version; the next one is computed from the `type:*` labels of what merged
+  and stamped by the release job and by development builds
+  ([`docs/release.md`](docs/release.md)).
 - **Never** commit secrets: no `.env*`, no storage keys, no SVN password. The
   real-storage suite reads its key from the environment or a git-ignored
   `.env.e2e`.

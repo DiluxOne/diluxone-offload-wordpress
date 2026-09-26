@@ -7,7 +7,8 @@ name: Real-storage suite (Azure)
 # It runs with the repository's Azure secrets, so it runs only on events the
 # maintainer owns: pull requests from branches of this repository that are
 # not drafts and that change code (the What changed job, on the
-# organisation's `code` list), pushes to main, and the manual button. A
+# organisation's `code` list), pushes to main whose tree the pull request's
+# run did not already test, once a week, and the manual button. A
 # pull request from a fork gets every other check and is skipped here on
 # purpose; nothing external ever runs with the key. A draft (the bot's
 # reproduction pull requests are drafts) runs it once it is marked ready
@@ -27,6 +28,8 @@ on:
     branches: [main]
   push:
     branches: [main]
+  schedule:
+    - cron: '47 6 * * 1'
   workflow_dispatch:
 
 concurrency:
@@ -43,15 +46,19 @@ jobs:
     name: What changed
     # The organisation's rule, applied to this repository's own workflow:
     # the suite runs on a pull request only when it changes code (the
-    # `code` list of the policy, defaults plus .github/review-policy.yml).
-    # The gate below runs on !cancelled() and treats a missing answer as
-    # "run", so this job failing never skips the suite.
+    # `code` list of the policy, defaults plus .github/review-policy.yml)
+    # and on a push to main only when the commit's tree is not the one a
+    # merged pull request of this repository already ran it on. The gate
+    # below runs on !cancelled() and treats a missing answer as "run", so
+    # this job failing never skips the suite.
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Runs the central's script from the mutable v1 tag: nothing beyond
+    # Runs the central's script from the mutable v2 tag: nothing beyond
     # reading the checkout, whatever the workflow as a whole may write.
     permissions:
       contents: read
+      pull-requests: read # the pull request behind a push to main
+      checks: read # and the checks of its head
     outputs:
       code: ${{ steps.changes.outputs.code }}
     steps:
@@ -62,12 +69,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: DiluxOne/.github
-          ref: v1
+          ref: v2
           path: .dx-central
           persist-credentials: false
       - id: changes
         env:
           EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
           DEFAULT_POLICY: .dx-central/policy/review-policy.default.yml
         run: bash .dx-central/scripts/changes.sh
 
@@ -79,8 +88,9 @@ jobs:
     # Never with a fork's code (the secrets are the maintainer's), never on
     # a draft (the bot's reproduction pull requests are drafts, and a fix a
     # person pushes on top runs the suite the moment it is marked ready),
-    # and on a pull request only when code changed.
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && needs.changes.outputs.code != 'false')) }}
+    # and on a pull request or a push only when the What changed job did
+    # not rule the code out; the weekly run and the button always run.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)))) }}
     env:
       AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}
       AZURE_E2E_KEY: ${{ secrets.AZURE_E2E_KEY }}
@@ -152,7 +162,7 @@ jobs:
           retention-days: 14
 
       - name: Open an issue and notify the pull request when main is broken
-        if: failure() && github.event_name == 'push'
+        if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -167,6 +177,7 @@ jobs:
           title="Real-storage suite failed on main (${SHA:0:7})"
           existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
           body="$mention the real Azure end-to-end suite failed on \`main\` after ${SHA:0:7}."
+          [ "${{ github.event_name }}" = schedule ] && body="$mention the weekly run of the real Azure end-to-end suite failed on \`main\` at ${SHA:0:7}; nothing merged caused it, something drifted."
           body="$body"$'\n\n'"Run: $RUN_URL"
           [ -n "$number" ] && body="$body"$'\n'"Pull request: #$number"
           body="$body"$'\n\n'"Traces, videos and screenshots are attached to the run as \`real-azure-results\`."
