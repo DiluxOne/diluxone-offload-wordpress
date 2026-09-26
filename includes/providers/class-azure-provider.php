@@ -96,6 +96,15 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @var int
 	 */
 	private int $transfer_timeout;
+	/**
+	 * Seconds a download may take: the setting, but never under the 300 s
+	 * downloads always had. A site that never touched the setting keeps
+	 * reading its large media; the setting can only make downloads wait
+	 * longer, not shorter.
+	 *
+	 * @var int
+	 */
+	private int $download_timeout;
 	/** @var string */
 	private string $endpoint;
 	// NOTE: use_https removed - HTTPS is always enforced (Azure requirement)
@@ -115,6 +124,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		// The key is still `upload_timeout`: ConfigManager::get_cloud_client()
 		// passes the setting under that name and nothing else needs to change.
 		$this->transfer_timeout = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
+		$this->download_timeout = max( 300, $this->transfer_timeout );
 
 		// Build endpoint with HTTPS (Azure requirement - always enforced)
 		$this->endpoint = "https://{$this->storage_account}.blob.core.windows.net";
@@ -349,7 +359,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				$url,
 				array(
 					'headers'     => $headers,
-					'timeout'     => $this->transfer_timeout,
+					'timeout'     => $this->download_timeout,
 					'stream'      => true,
 					'filename'    => $local_path,
 					'redirection' => 0,
@@ -1485,7 +1495,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'x-ms-date: ' . $date,
 						'x-ms-version: 2020-04-08',
 					),
-					CURLOPT_TIMEOUT        => $this->transfer_timeout,
+					CURLOPT_TIMEOUT        => $this->download_timeout,
 					CURLOPT_CONNECTTIMEOUT => 30,
 					CURLOPT_FOLLOWLOCATION => false,
 				)

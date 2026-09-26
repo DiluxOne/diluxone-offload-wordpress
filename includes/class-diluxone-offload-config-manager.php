@@ -861,21 +861,22 @@ class ConfigManager {
 	 * The error code the health banner keys on, read from a provider's
 	 * failure message.
 	 *
-	 * A timeout is its own code, because the fix is a setting and not a
-	 * credential, and it is checked first: a transport message such as
-	 * "Operation timed out after 60000 milliseconds" carries three-digit
-	 * runs that are not a status. A status is a 4xx or 5xx on its own
-	 * (never digits inside a name or a size); anything else is ''.
+	 * A status is a 4xx or 5xx standing on its own (never digits inside a
+	 * name or a size: "60000 milliseconds" is not a 600) and it is read
+	 * first, because a message carries file names and one can be called
+	 * timeout-banner.jpg. Only a message with no status can be a timeout,
+	 * which is its own code because the fix is a setting and not a
+	 * credential. Anything else is ''.
 	 *
 	 * @param string $message The failure message.
-	 * @return string 'timeout', a three-digit HTTP status, or ''.
+	 * @return string A three-digit HTTP status, 'timeout', or ''.
 	 */
 	public static function error_code_from_message( string $message ): string {
-		if ( stripos( $message, 'timed out' ) !== false || stripos( $message, 'timeout' ) !== false ) {
-			return 'timeout';
-		}
 		if ( preg_match( '/\b([45]\d{2})\b/', $message, $matches ) ) {
 			return $matches[1];
+		}
+		if ( stripos( $message, 'timed out' ) !== false || stripos( $message, 'timeout' ) !== false ) {
+			return 'timeout';
 		}
 		return '';
 	}

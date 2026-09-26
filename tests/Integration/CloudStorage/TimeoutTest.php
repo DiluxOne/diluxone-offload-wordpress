@@ -14,11 +14,13 @@ use DiluxOneOffload\SyncManager;
  * What the Transfer Timeout setting does.
  *
  * The real Azure provider is pointed at a local server that answers only
- * after the setting's minimum (30 s) has passed, so every transfer path
- * that carries file bytes must give up cleanly at the setting: a live
- * upload through the stream wrapper, a download through it, and the sync
- * engine's curl batch. Each case waits the full timeout, which is why the
- * class is in the `slow` group: `--exclude-group slow` leaves it out.
+ * after the setting's minimum (30 s) has passed, so every upload path
+ * must give up cleanly at the setting: a live upload through the stream
+ * wrapper and the sync engine's curl batch. Downloads never wait less than
+ * the 300 s they always had (the unit suite proves the floor), which is
+ * too long for a test that waits for real. Each case here waits the full
+ * timeout, which is why the class is in the `slow` group:
+ * `--exclude-group slow` leaves it out.
  *
  * @group slow
  */
@@ -108,13 +110,6 @@ class TimeoutTest extends IntegrationTestCase {
         $this->assertSame('upload', $health['error_source']);
     }
 
-    public function test_a_download_gives_up_at_the_setting(): void {
-        CloudStreamWrapper::register();
-        $started = microtime(true);
-        $read    = @file_get_contents('diluxoneoffload://' . CloudStreamWrapper::key_prefix() . '/2026/09/slow-read.txt');
-        $this->assertGaveUpAtTheSetting($started);
-        $this->assertFalse($read);
-    }
 
     public function test_the_sync_batch_gives_up_at_the_setting_and_records_the_error(): void {
         ConfigManager::set_state(PluginState::CONFIGURED);

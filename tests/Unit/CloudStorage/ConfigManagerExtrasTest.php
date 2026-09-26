@@ -212,6 +212,7 @@ class ConfigManagerExtrasTest extends TestCase {
 			'digits that are not a status'      => array( 'Block 1 of 120 failed: 1048576 bytes short', '' ),
 			'a 2xx is not an error code'        => array( 'Unexpected status 201', '' ),
 			'nothing to read'                   => array( 'Unknown upload error', '' ),
+			'a status wins over a file name'    => array( 'Upload failed with status: 403 - timeout-banner.jpg', '403' ),
 		);
 	}
 }

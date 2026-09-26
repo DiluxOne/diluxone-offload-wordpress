@@ -120,7 +120,7 @@ Conventions:
 - `current_user_can('manage_options')` is the standard capability check for admin operations. We don't define custom capabilities (yet).
 - Multisite-aware: configuration is per site, always. There is no network-level configuration. When in doubt, behave per-site.
 - **Database access goes through `$wpdb->prepare()`.** Never concatenate user input. The wpdb instance is the global `$wpdb`; in classes, declare it `global` inside the method.
-- For HTTP calls to providers, use `wp_remote_get`, `wp_remote_post`, `wp_remote_head`, `wp_remote_request`. The one exception is the sync engine's parallel and chunked uploads, which use `curl_multi` on purpose (that is why `ext-curl` is a requirement); do not add a second one. **Always pass an explicit `timeout`**: 30 seconds for short metadata operations, 300 seconds for file transfers. Defaulting to no-timeout is a hung-request bug waiting to happen.
+- For HTTP calls to providers, use `wp_remote_get`, `wp_remote_post`, `wp_remote_head`, `wp_remote_request`. The one exception is the sync engine's parallel and chunked uploads, which use `curl_multi` on purpose (that is why `ext-curl` is a requirement); do not add a second one. **Always pass an explicit `timeout`**: 30 seconds for short metadata operations; the provider's transfer timeout (the "Transfer Timeout" setting) for uploads; for downloads that setting or 300 seconds, whichever is longer. Defaulting to no-timeout is a hung-request bug waiting to happen.
 
 ### Compatibility
 
@@ -169,7 +169,7 @@ The failure modes that have actually shown up in this codebase, or are likely to
 - **Missing sanitization on input.** A new AJAX handler that reads `$_POST['x']` and stores it without `sanitize_text_field()` (or stricter) is a defect.
 - **Missing `check_ajax_referer` or `current_user_can` on a new AJAX handler.** Both are required.
 - **Plain SQL strings instead of `$wpdb->prepare()`.** Even for "simple" queries with `intval()`-cast inputs, the convention is `prepare()`.
-- **New external HTTP calls without `timeout`** in the args. Always specify, never default. A request that carries file data (an upload, a block, a commit, a download) takes the provider's transfer timeout, which is the "Transfer Timeout" setting; a control request (HEAD, listing, the health probe) keeps a short fixed one.
+- **New external HTTP calls without `timeout`** in the args. Always specify, never default. An upload request (a single PUT, a block, a commit, a batch handle) takes the provider's transfer timeout, which is the "Transfer Timeout" setting; a download takes the setting or 300 seconds, whichever is longer; a control request (HEAD, listing, the health probe) keeps a short fixed one.
 - **New external HTTP calls without integration with the connection-health system.** Provider classes record failures via `ConfigManager::record_failure()`. New calls that fail silently break the banner and the write-refusal logic.
 - **New strings not wrapped in `__()`** — particularly when adding admin UI text or error messages.
 - **Hardcoded English strings inside `templates/`.** Templates are the most common place for accidental untranslated strings.

@@ -158,7 +158,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.0.0 =
 Unreleased.
 
-* The "Upload Timeout" setting is now "Transfer Timeout" and governs every transfer of file data: uploads, each block and its commit, and downloads. Before, downloads and block commits waited a fixed 300 seconds whatever the setting said.
+* The "Upload Timeout" setting is now "Transfer Timeout" and governs every upload request: the single upload, each block and its commit, and the sync's parallel transfers. Before, block commits waited a fixed 300 seconds whatever the setting said. Downloads keep waiting at least the 300 seconds they always had; a higher setting raises that too.
 * A transfer that runs past the timeout is reported as such: the connection-health banner says "Cloud Transfer Timed Out" and links to Settings, instead of showing a made-up error code.
 * With debug logging on, every successful upload through the stream wrapper writes one line (path and size).
 * The suites now prove what each setting does, not only that it is saved.

@@ -361,15 +361,30 @@ class AzureProviderTest extends TestCase {
 		$provider->upload_file( $big, 'big.bin' );
 		@unlink( $big );
 
-		$this->answer( fn() => self::reply( 200, 'bytes' ) );
-		$target = tempnam( sys_get_temp_dir(), 'az' );
-		$provider->download_file( 'small.txt', $target );
-		@unlink( $target );
-
 		$requests = $this->requests();
-		$this->assertCount( 5, $requests, 'one PUT, two blocks, one commit, one download' );
+		$this->assertCount( 4, $requests, 'one PUT, two blocks, one commit' );
 		foreach ( $requests as $req ) {
 			$this->assertSame( 45, $req['args']['timeout'], $req['method'] . ' ' . $req['url'] );
+		}
+	}
+
+	/** A download waits the 300 s it always had, or the setting when that is longer. */
+	public function test_a_download_never_waits_less_than_three_hundred_seconds(): void {
+		foreach ( array( 45 => 300, 400 => 400 ) as $setting => $expected ) {
+			$provider = new AzureProvider(
+				array(
+					'storage_account' => self::ACCOUNT,
+					'container_name'  => self::CONTAINER,
+					'access_key'      => self::KEY,
+					'upload_timeout'  => $setting,
+				)
+			);
+			$GLOBALS['_test_wp_http_log'] = array();
+			$this->answer( fn() => self::reply( 200, 'bytes' ) );
+			$target = tempnam( sys_get_temp_dir(), 'az' );
+			$provider->download_file( 'x.txt', $target );
+			@unlink( $target );
+			$this->assertSame( $expected, $this->requests()[0]['args']['timeout'], "setting {$setting}" );
 		}
 	}
 
@@ -382,10 +397,11 @@ class AzureProviderTest extends TestCase {
 				'upload_timeout'  => 5,
 			)
 		);
-		$this->answer( fn() => self::reply( 200, 'bytes' ) );
-		$target = tempnam( sys_get_temp_dir(), 'az' );
-		$provider->download_file( 'x.txt', $target );
-		@unlink( $target );
+		$this->answer( fn() => self::reply( 201 ) );
+		$tmp = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $tmp, 'x' );
+		$provider->upload_file( $tmp, 'x.txt' );
+		@unlink( $tmp );
 		$this->assertSame( 30, $this->requests()[0]['args']['timeout'] );
 	}
 
