@@ -9,8 +9,10 @@ on:
     tags: ['*']
 
 # The SVN credentials live in the environment `wordpress-org` (Settings ›
-# Environments), which the shared workflow's deploy job runs in; nothing is
-# passed from here.
+# Environments), which the shared workflow's deploy job runs in. A called
+# workflow only sees the secrets its caller hands over, environment secrets
+# included, so this caller passes `secrets: inherit`; the job itself only
+# reads the two SVN values, and only when it runs in that environment.
 #
 # The shared workflow is pinned to a commit, not to the moving `v1` tag:
 # this is the one workflow that runs with the publishing credentials, and
@@ -26,3 +28,4 @@ jobs:
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
+    secrets: inherit
