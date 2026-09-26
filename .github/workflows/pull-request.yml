@@ -5,29 +5,49 @@ name: Pull request
 # the Claude review and the auto-merge decision, with the slow wp-env suites
 # running alongside the review. The real Azure suite (tests-real-azure.yml)
 # and CodeQL (codeql.yml) are this repository's own.
+#
+# Nothing runs twice for one change: an edit of the title or description is
+# handled by pull-request-edited.yml (no suites), and a push to main runs the
+# suites only when its tree is not the one the pull request's checks ran on.
+# Once a week, and on the Run workflow button, everything runs against
+# today's WordPress and tools; a scheduled failure opens one ci:weekly issue.
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   conventions:
+    permissions:
+      contents: read
+      actions: read # the runs of this head, for the base-branch check on `edited`
     uses: DiluxOne/.github/.github/workflows/conventions.yml@v1
     with:
       retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
 
   checks:
+    permissions:
+      contents: read
+      pull-requests: read # the push to main looks up the pull request it came from
+      checks: read # and the checks of its head
     uses: DiluxOne/.github/.github/workflows/plugin-checks-wp.yml@v1
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
 
   tests:
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     uses: DiluxOne/.github/.github/workflows/plugin-tests-wp.yml@v1
 
   review:
@@ -54,5 +74,14 @@ jobs:
       trusted: ${{ needs.review.outputs.trusted }}
       blocking: ${{ needs.review.outputs.blocking }}
       enabled: ${{ needs.review.outputs.auto-merge }}
+      description-ok: ${{ needs.review.outputs.description-ok }}
     secrets:
       DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
+
+  weekly-failure:
+    needs: [checks, tests]
+    if: github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    permissions:
+      contents: read
+      issues: write
+    uses: DiluxOne/.github/.github/workflows/weekly-failure.yml@v1

@@ -44,7 +44,7 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make i18n` | `wp i18n make-pot` — extract the translatable strings into `build/diluxone-offload.pot`. |
 | `make test` | Run the unit-test suite (the default test target — fast, no WordPress runtime needed). |
 | `make test-integration` | Run the integration-test suite against `wp-env` (must be `make env` first). |
-| `make check` | The fast gates: lint + stan + psalm + unit tests. CI also runs integration, E2E, i18n, Plugin Check and the real-storage suite. |
+| `make check` | The fast gates: lint + stan + psalm + unit tests. CI also runs integration, E2E, i18n, Plugin Check and the real-storage suite, once per change: a pull request runs them when it changes code, the push to `main` skips them when its tree is the one the pull request tested, and a weekly run (or *Run workflow*) runs everything. |
 | `make test-e2e` | Playwright end-to-end suite against `wp-env` (fake cloud client). |
 | `make test-real` | The real-storage suite against a real Azure account (see `CONTRIBUTING.md`). |
 | `make dist` | Build `build/diluxone-offload/`, exactly what wordpress.org receives. |

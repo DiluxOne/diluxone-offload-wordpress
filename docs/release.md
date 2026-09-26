@@ -99,7 +99,7 @@ Two rulesets cover every tag shaped `X.Y.Z`: only an administrator can create on
 
 - **A deploy that failed before SVN** (a secret, a network error): fix the cause and **Re-run jobs**.
 - **A tag on the wrong commit, or with misaligned version markers**: the tag stays. Fix it in a PR and release the next patch version.
-- **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the deploy refuses it; delete it and push the right one. `v1.2.0` matches the `*.*.*` pattern and is as permanent as a real release tag, so never push one.
+- **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the release workflow does not even start, it fires only on `X.Y.Z`. A two-part tag can be deleted and replaced; anything that matches `*.*.*` (`1.2.0-rc1`, `v1.2.0`) is as permanent as a real release tag, so never push one.
 
 ## Rolling back
 

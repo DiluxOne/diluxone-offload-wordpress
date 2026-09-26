@@ -1,0 +1,52 @@
+name: Pull request edited
+
+# When the title or the description of a pull request changes: the
+# conventions, the review (free on a commit it already read; an edited
+# description counts as unchecked until the next review) and the auto-merge
+# decision, which commits the description verbatim. Nothing else: the suites
+# gave the code its verdict in pull-request.yml and keep it. Same job ids as
+# there, so the rulesets see one set of checks.
+
+on:
+  pull_request:
+    types: [edited]
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    permissions:
+      contents: read
+      actions: read # the runs of this head, for the base-branch check
+    uses: DiluxOne/.github/.github/workflows/conventions.yml@v1
+    with:
+      retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
+
+  review:
+    needs: [conventions]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    uses: DiluxOne/.github/.github/workflows/claude-review.yml@v1
+    with:
+      profile: plugin-wp
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
+
+  auto-merge:
+    needs: review
+    if: always() && needs.review.result != 'skipped'
+    uses: DiluxOne/.github/.github/workflows/auto-merge.yml@v1
+    with:
+      risk: ${{ needs.review.outputs.risk }}
+      complexity: ${{ needs.review.outputs.complexity }}
+      floor: ${{ needs.review.outputs.floor }}
+      trusted: ${{ needs.review.outputs.trusted }}
+      blocking: ${{ needs.review.outputs.blocking }}
+      enabled: ${{ needs.review.outputs.auto-merge }}
+      description-ok: ${{ needs.review.outputs.description-ok }}
+    secrets:
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
