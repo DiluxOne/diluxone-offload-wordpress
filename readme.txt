@@ -150,10 +150,18 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 5. The first sync, file by file, in the browser.
 6. Sync complete: enable offloading now or later.
 7. Offloading active: disconnect from the cloud, or delete the local copies.
-8. Settings: file-size limit, upload timeout, HTTPS for cloud URLs, debug logging.
+8. Settings: file-size limit, transfer timeout, HTTPS for cloud URLs, debug logging.
 9. Status: plugin state, environment and provider at a glance.
 
 == Changelog ==
+
+= 2.0.0 =
+Unreleased.
+
+* The "Upload Timeout" setting is now "Transfer Timeout" and governs every transfer of file data: uploads, each block and its commit, and downloads. Before, downloads and block commits waited a fixed 300 seconds whatever the setting said.
+* A transfer that runs past the timeout is reported as such: the connection-health banner says "Cloud Transfer Timed Out" and links to Settings, instead of showing a made-up error code.
+* With debug logging on, every successful upload through the stream wrapper writes one line (path and size).
+* The suites now prove what each setting does, not only that it is saved.
 
 = 1.0.0 =
 First public release.

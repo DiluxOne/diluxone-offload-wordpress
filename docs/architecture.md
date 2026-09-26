@@ -169,7 +169,7 @@ The failure modes that have actually shown up in this codebase, or are likely to
 - **Missing sanitization on input.** A new AJAX handler that reads `$_POST['x']` and stores it without `sanitize_text_field()` (or stricter) is a defect.
 - **Missing `check_ajax_referer` or `current_user_can` on a new AJAX handler.** Both are required.
 - **Plain SQL strings instead of `$wpdb->prepare()`.** Even for "simple" queries with `intval()`-cast inputs, the convention is `prepare()`.
-- **New external HTTP calls without `timeout`** in the args. Always specify, never default.
+- **New external HTTP calls without `timeout`** in the args. Always specify, never default. A request that carries file data (an upload, a block, a commit, a download) takes the provider's transfer timeout, which is the "Transfer Timeout" setting; a control request (HEAD, listing, the health probe) keeps a short fixed one.
 - **New external HTTP calls without integration with the connection-health system.** Provider classes record failures via `ConfigManager::record_failure()`. New calls that fail silently break the banner and the write-refusal logic.
 - **New strings not wrapped in `__()`** — particularly when adding admin UI text or error messages.
 - **Hardcoded English strings inside `templates/`.** Templates are the most common place for accidental untranslated strings.

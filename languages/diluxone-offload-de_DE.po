@@ -1522,12 +1522,12 @@ msgstr ""
 "Synchronisierung übersprungen (1-500 MB)."
 
 #: templates/admin-settings.php:56
-msgid "Upload Timeout (seconds)"
-msgstr "Upload-Timeout (Sekunden)"
+msgid "Transfer Timeout (seconds)"
+msgstr "Zeitlimit für Übertragungen (Sekunden)"
 
 #: templates/admin-settings.php:67
-msgid "Maximum time to wait for cloud uploads (30-600 seconds)."
-msgstr "Maximale Wartezeit für Cloud-Uploads (30–600 Sekunden)."
+msgid "How long each transfer request to the cloud may take, upload or download (30-600 seconds). Raise it on a slow host."
+msgstr "Wie lange jede Übertragungsanfrage an die Cloud dauern darf, Upload oder Download (30-600 Sekunden). Auf einem langsamen Host erhöhen."
 
 #: templates/admin-settings.php:78
 msgid "Offloading Settings"
@@ -2218,3 +2218,17 @@ msgstr "Lokale Dateien werden gelöscht..."
 #: templates/admin-sync.php:941
 msgid "Start Delete"
 msgstr "Löschung starten"
+
+msgid "transfer timed out"
+msgstr "Übertragung abgelaufen"
+
+msgid "Cloud Transfer Timed Out"
+msgstr "Cloud-Übertragung abgelaufen"
+
+#. translators: %d: the Transfer Timeout setting, in seconds
+msgid "A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
+msgstr "Eine Übertragung in die Cloud hat länger gedauert, als das Zeitlimit für Übertragungen erlaubt (%d Sekunden). Erhöhe es in den Einstellungen, wenn dieser Host oder seine Verbindung langsam ist; wenn Übertragungen mit diesem Wert bisher funktioniert haben, prüfe die Verbindung zum Anbieter."
+
+msgid "Open Settings"
+msgstr "Einstellungen öffnen"
+

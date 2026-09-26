@@ -95,9 +95,8 @@ psalm: ## Psalm taint analysis (XSS / SQLi / RCE).
 	$(PSALM_CMD) --taint-analysis --no-cache --no-progress
 
 .PHONY: i18n
-i18n: ## Generate diluxone-offload.pot via WP-CLI.
-	mkdir -p build
-	$(WP_CLI) i18n make-pot . build/diluxone-offload.pot \
+i18n: ## Regenerate languages/diluxone-offload.pot via WP-CLI.
+	$(WP_CLI) i18n make-pot . languages/diluxone-offload.pot \
 	    --slug=diluxone-offload \
 	    --domain=diluxone-offload \
 	    --exclude=tests,vendor,node_modules,.wordpress-org,assets,docs,build
@@ -115,11 +114,11 @@ test-unit-min: ## Unit suite under the oldest PHP the plugin supports (7.4): wha
 	docker run --rm -v "$(CURDIR)":/app -w /app php:7.4-cli php vendor/bin/phpunit -c phpunit.xml.dist
 
 .PHONY: test-integration
-test-integration: ## Run integration tests inside the wp-env tests container (needs `make env` first).
+test-integration: ## Run integration tests inside the wp-env tests container (needs `make env` first). PHPUNIT_ARGS="--exclude-group slow" skips the timeout tests.
 	npx @wordpress/env run tests-cli wp plugin activate diluxone-offload-wordpress
 	npx @wordpress/env run tests-cli \
 	    ./wp-content/plugins/diluxone-offload-wordpress/vendor/bin/phpunit \
-	    -c ./wp-content/plugins/diluxone-offload-wordpress/phpunit-integration.xml
+	    -c ./wp-content/plugins/diluxone-offload-wordpress/phpunit-integration.xml $(PHPUNIT_ARGS)
 
 # -- Distribution build ------------------------------------------------
 # The repo directory is diluxone-offload-wordpress (GitHub), but the plugin

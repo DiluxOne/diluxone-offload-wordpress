@@ -155,6 +155,35 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame('completed', $sm->process_batch(5.0)['status']);
     }
 
+    // ── Maximum File Size ───────────────────────────────────
+
+    /** The setting's whole effect: a file above it never enters the sync, a file below it is uploaded. */
+    public function test_a_file_above_the_maximum_file_size_is_left_out_of_the_initial_sync(): void {
+        $this->configure(['allowed_file_types' => 'sz', 'max_file_size' => 2 * 1048576]);
+        $this->fixture('sz/small.sz', str_repeat('s', 1048576));
+        $this->fixture('sz/large.sz', str_repeat('l', 3 * 1048576));
+
+        $sm = new SyncManager();
+        $r  = $sm->start_sync();
+        $this->assertTrue($r['success'], print_r($r, true));
+        $this->assertSame(1, $r['total_files'], 'only the file under the limit is catalogued');
+        $this->assertSame(1, DB::get_total_count());
+
+        $this->assertSame('completed', $sm->process_batch(5.0)['status']);
+        $this->assertArrayHasKey('uploads/sz/small.sz', $this->client->blobs);
+        $this->assertArrayNotHasKey('uploads/sz/large.sz', $this->client->blobs, 'the large file never reaches the cloud');
+        $this->assertFileExists($this->base . '/sz/large.sz', 'and stays where it was');
+    }
+
+    /** A file exactly at the limit is under it. */
+    public function test_a_file_exactly_at_the_maximum_file_size_is_synced(): void {
+        $this->configure(['allowed_file_types' => 'szx', 'max_file_size' => 1048576]);
+        $this->fixture('szx/exact.szx', str_repeat('e', 1048576));
+        $r = (new SyncManager())->start_sync();
+        $this->assertTrue($r['success'], print_r($r, true));
+        $this->assertSame(1, $r['total_files']);
+    }
+
     // ── scan_local_files / pause / resume ───────────────────
 
     public function test_scan_local_files_with_nothing_eligible(): void {

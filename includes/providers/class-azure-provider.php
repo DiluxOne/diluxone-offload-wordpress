@@ -85,8 +85,17 @@ class AzureProvider implements CloudStorageClientInterface {
 	/** @var string */
 	private string $access_key;
 
-	/** @var int Seconds an upload request may take: the "Upload Timeout" setting. */
-	private int $upload_timeout;
+	/**
+	 * Seconds one transfer of file data may take: the "Transfer Timeout"
+	 * setting. Every request that carries file bytes honours it (a single
+	 * PUT, each block, the block-list commit, the batch and chunked handles,
+	 * a download to disk). Control requests (HEAD, listing, the health
+	 * probe) keep their own short, fixed timeouts: a control request should
+	 * not wait ten minutes.
+	 *
+	 * @var int
+	 */
+	private int $transfer_timeout;
 	/** @var string */
 	private string $endpoint;
 	// NOTE: use_https removed - HTTPS is always enforced (Azure requirement)
@@ -103,7 +112,9 @@ class AzureProvider implements CloudStorageClientInterface {
 		$this->storage_account = $config['storage_account'] ?? '';
 		$this->container_name  = $config['container_name'] ?? '';
 		$this->access_key      = $config['access_key'] ?? '';
-		$this->upload_timeout  = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
+		// The key is still `upload_timeout`: ConfigManager::get_cloud_client()
+		// passes the setting under that name and nothing else needs to change.
+		$this->transfer_timeout = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
 
 		// Build endpoint with HTTPS (Azure requirement - always enforced)
 		$this->endpoint = "https://{$this->storage_account}.blob.core.windows.net";
@@ -270,7 +281,7 @@ class AzureProvider implements CloudStorageClientInterface {
 					'method'  => 'PUT',
 					'headers' => $headers,
 					'body'    => $file_content,
-					'timeout' => $this->upload_timeout,
+					'timeout' => $this->transfer_timeout,
 				)
 			);
 
@@ -338,7 +349,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				$url,
 				array(
 					'headers'     => $headers,
-					'timeout'     => 300,
+					'timeout'     => $this->transfer_timeout,
 					'stream'      => true,
 					'filename'    => $local_path,
 					'redirection' => 0,
@@ -448,7 +459,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'x-ms-version'   => '2020-04-08',
 					),
 					'body'    => $chunk,
-					'timeout' => 300,
+					'timeout' => $this->transfer_timeout,
 				)
 			);
 
@@ -505,7 +516,7 @@ class AzureProvider implements CloudStorageClientInterface {
 					'x-ms-version'           => '2020-04-08',
 				),
 				'body'    => $block_list_xml,
-				'timeout' => 300,
+				'timeout' => $this->transfer_timeout,
 			)
 		);
 
@@ -1206,7 +1217,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'x-ms-date: ' . $date,
 						'x-ms-version: 2020-04-08',
 					),
-					CURLOPT_TIMEOUT        => $this->upload_timeout,
+					CURLOPT_TIMEOUT        => $this->transfer_timeout,
 					CURLOPT_CONNECTTIMEOUT => 30,
 				)
 			);
@@ -1310,7 +1321,7 @@ class AzureProvider implements CloudStorageClientInterface {
 							'x-ms-version'   => '2020-04-08',
 						),
 						'body'    => $chunk,
-						'timeout' => $this->upload_timeout,
+						'timeout' => $this->transfer_timeout,
 					)
 				);
 
@@ -1380,7 +1391,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'x-ms-date: ' . $date,
 						'x-ms-version: 2020-04-08',
 					),
-					CURLOPT_TIMEOUT        => 60,
+					CURLOPT_TIMEOUT        => $this->transfer_timeout,
 					CURLOPT_CONNECTTIMEOUT => 30,
 				)
 			);
@@ -1474,7 +1485,7 @@ class AzureProvider implements CloudStorageClientInterface {
 						'x-ms-date: ' . $date,
 						'x-ms-version: 2020-04-08',
 					),
-					CURLOPT_TIMEOUT        => 90,
+					CURLOPT_TIMEOUT        => $this->transfer_timeout,
 					CURLOPT_CONNECTTIMEOUT => 30,
 					CURLOPT_FOLLOWLOCATION => false,
 				)

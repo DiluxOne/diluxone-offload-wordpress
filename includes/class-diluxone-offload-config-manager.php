@@ -847,18 +847,37 @@ class ConfigManager {
 			if ( $result['success'] ) {
 				self::record_connection_success();
 			} else {
-				$error_code = '';
-				$msg        = $result['message'] ?? 'Unknown error';
-				if ( preg_match( '/(\d{3})/', $msg, $matches ) ) {
-					$error_code = $matches[1];
-				}
-				self::record_connection_failure( $error_code, $msg, 'health_check' );
+				$msg = $result['message'] ?? 'Unknown error';
+				self::record_connection_failure( self::error_code_from_message( $msg ), $msg, 'health_check' );
 			}
 		} catch ( \Exception $e ) {
 			self::record_connection_failure( 'exception', $e->getMessage(), 'health_check' );
 		}
 
 		return self::get_connection_health();
+	}
+
+	/**
+	 * The error code the health banner keys on, read from a provider's
+	 * failure message.
+	 *
+	 * A timeout is its own code, because the fix is a setting and not a
+	 * credential, and it is checked first: a transport message such as
+	 * "Operation timed out after 60000 milliseconds" carries three-digit
+	 * runs that are not a status. A status is a 4xx or 5xx on its own
+	 * (never digits inside a name or a size); anything else is ''.
+	 *
+	 * @param string $message The failure message.
+	 * @return string 'timeout', a three-digit HTTP status, or ''.
+	 */
+	public static function error_code_from_message( string $message ): string {
+		if ( stripos( $message, 'timed out' ) !== false || stripos( $message, 'timeout' ) !== false ) {
+			return 'timeout';
+		}
+		if ( preg_match( '/\b([45]\d{2})\b/', $message, $matches ) ) {
+			return $matches[1];
+		}
+		return '';
 	}
 
 	/**

@@ -1514,12 +1514,12 @@ msgstr ""
 "sincronizzazione iniziale (1-500 MB)."
 
 #: templates/admin-settings.php:56
-msgid "Upload Timeout (seconds)"
-msgstr "Timeout di caricamento (secondi)"
+msgid "Transfer Timeout (seconds)"
+msgstr "Timeout di trasferimento (secondi)"
 
 #: templates/admin-settings.php:67
-msgid "Maximum time to wait for cloud uploads (30-600 seconds)."
-msgstr "Tempo massimo di attesa per i caricamenti cloud (30-600 secondi)."
+msgid "How long each transfer request to the cloud may take, upload or download (30-600 seconds). Raise it on a slow host."
+msgstr "Quanto può durare ogni richiesta di trasferimento verso il cloud, caricamento o download (30-600 secondi). Aumentalo su un host lento."
 
 #: templates/admin-settings.php:78
 msgid "Offloading Settings"
@@ -2200,3 +2200,17 @@ msgstr "Eliminazione dei file locali..."
 #: templates/admin-sync.php:941
 msgid "Start Delete"
 msgstr "Avvia eliminazione"
+
+msgid "transfer timed out"
+msgstr "trasferimento scaduto"
+
+msgid "Cloud Transfer Timed Out"
+msgstr "Trasferimento cloud scaduto"
+
+#. translators: %d: the Transfer Timeout setting, in seconds
+msgid "A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
+msgstr "Un trasferimento verso il cloud ha superato il timeout di trasferimento consentito (%d secondi). Aumentalo nelle Impostazioni se questo host o la sua connessione sono lenti; se i trasferimenti funzionavano con questo valore, controlla la connessione al provider."
+
+msgid "Open Settings"
+msgstr "Apri Impostazioni"
+

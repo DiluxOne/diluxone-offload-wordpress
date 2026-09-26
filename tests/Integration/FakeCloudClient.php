@@ -32,7 +32,12 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var int Download handles handed out (one per attempted download). */
     public int $downloads = 0;
 
-    public function __construct(private string $upload_base_url) {}
+    /**
+     * @param string $upload_base_url Where the curl handles point (a LocalBlobServer).
+     * @param string $public_base_url The URL the client hands out for media; http:// lets a
+     *                                test prove what Force HTTPS does to it.
+     */
+    public function __construct(private string $upload_base_url, private string $public_base_url = 'https://fake.cloud') {}
 
     public function test_connection(): array {
         return $this->connection_ok
@@ -102,7 +107,7 @@ class FakeCloudClient implements CloudStorageClientInterface {
     }
 
     public function get_file_url(string $remote_path): string {
-        return 'https://fake.cloud/' . ltrim($remote_path, '/');
+        return rtrim($this->public_base_url, '/') . '/' . ltrim($remote_path, '/');
     }
 
     public function get_provider_name(): string {

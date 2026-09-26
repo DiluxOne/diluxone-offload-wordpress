@@ -196,4 +196,20 @@ class SyncFilterTest extends TestCase {
 		$this->assertSame( 10, $a['max_file_size'] );
 		$this->assertSame( array( 'x/' ), $a['excluded_paths'] );
 	}
+
+	// ── From the Settings screen to the filter ──────────────
+
+	/** The Maximum File Size the screen saves is the byte limit the initial sync filters on. */
+	public function test_the_saved_maximum_file_size_is_the_limit_the_sync_filters_on(): void {
+		$settings = \DiluxOneOffload\DTOs\PluginSettings::fromPost( array( 'max_file_size' => '2' ) );
+		$f        = SyncFilter::fromConfig( array( 'max_file_size' => $settings->getMaxFileSize() ) );
+		$this->assertTrue( $f->shouldIncludeFile( 'under.jpg', 2 * 1048576 ) );
+		$this->assertFalse( $f->shouldIncludeFile( 'over.jpg', 2 * 1048576 + 1 ) );
+		$this->assertStringContainsString( 'size', strtolower( (string) $f->getExclusionReason( 'over.jpg', 2 * 1048576 + 1 ) ) );
+	}
+
+	public function test_the_screen_clamps_the_maximum_file_size_to_one_and_five_hundred_megabytes(): void {
+		$this->assertSame( 1048576, \DiluxOneOffload\DTOs\PluginSettings::fromPost( array( 'max_file_size' => '0' ) )->getMaxFileSize() );
+		$this->assertSame( 500 * 1048576, \DiluxOneOffload\DTOs\PluginSettings::fromPost( array( 'max_file_size' => '9999' ) )->getMaxFileSize() );
+	}
 }

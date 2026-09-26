@@ -6,7 +6,9 @@ namespace Tests\Integration;
  *
  * PHP's built-in server, started with proc_open and stopped in tearDown.
  * It answers every request with the status given in ?status=, defaulting
- * to 201, which is what Azure returns for a created block blob.
+ * to 201, which is what Azure returns for a created block blob. With
+ * ?delay=N (or /delay-N/ in the path) it sleeps N seconds first, which is
+ * how the timeout tests get a server slower than the setting allows.
  */
 class LocalBlobServer {
 
@@ -26,6 +28,13 @@ class LocalBlobServer {
 $status = (int) ($_GET['status'] ?? 201);
 if (preg_match('#/status-(\d{3})/#', (string) ($_SERVER['REQUEST_URI'] ?? ''), $m)) {
     $status = (int) $m[1];
+}
+$delay = (int) ($_GET['delay'] ?? 0);
+if (preg_match('#/delay-(\d{1,3})/#', (string) ($_SERVER['REQUEST_URI'] ?? ''), $m)) {
+    $delay = (int) $m[1];
+}
+if ($delay > 0) {
+    sleep($delay);
 }
 http_response_code($status);
 // Drain the body so cURL sees a clean upload.

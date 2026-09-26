@@ -966,6 +966,8 @@ class Admin {
 				return __( 'permission denied', 'diluxone-offload' );
 			case '404':
 				return __( 'container not found', 'diluxone-offload' );
+			case 'timeout':
+				return __( 'transfer timed out', 'diluxone-offload' );
 			case 'exception':
 				return __( 'connection error', 'diluxone-offload' );
 			default:
@@ -978,13 +980,26 @@ class Admin {
 	 * recorded `error_code`. Each branch maps a known failure mode to a
 	 * tailored message so the user knows exactly what to do.
 	 *
-	 * Returns an array with keys: title, detail, cta_label.
+	 * Returns an array with keys: title, detail, cta_label and cta_tab, the
+	 * plugin tab the call to action opens.
 	 *
 	 * @param string $error_code    Code from connection_health (e.g. 'decrypt_failed', '403', 'exception')
 	 * @param string $error_message Human-readable message from the failure source
-	 * @return array{title:string,detail:string,cta_label:string}
+	 * @return array{title:string,detail:string,cta_label:string,cta_tab:string}
 	 */
 	private static function health_banner_copy( string $error_code, string $error_message ): array {
+		$copy = self::health_banner_copy_for( $error_code, $error_message );
+		return $copy + array( 'cta_tab' => 'cloud-provider' );
+	}
+
+	/**
+	 * The copy per error code; the caller adds the default tab.
+	 *
+	 * @param string $error_code    Code from connection_health.
+	 * @param string $error_message Human-readable message from the failure source.
+	 * @return array{title:string,detail:string,cta_label:string,cta_tab?:string}
+	 */
+	private static function health_banner_copy_for( string $error_code, string $error_message ): array {
 		switch ( $error_code ) {
 			case 'decrypt_failed':
 				return array(
@@ -1006,6 +1021,18 @@ class Admin {
 					'title'     => __( 'Container Not Found', 'diluxone-offload' ),
 					'detail'    => __( 'The configured container or bucket does not exist on the cloud provider. Check that the name is spelled correctly and that it has been created.', 'diluxone-offload' ),
 					'cta_label' => __( 'Open Cloud Provider Settings', 'diluxone-offload' ),
+				);
+
+			case 'timeout':
+				return array(
+					'title'     => __( 'Cloud Transfer Timed Out', 'diluxone-offload' ),
+					'detail'    => sprintf(
+						/* translators: %d: the Transfer Timeout setting, in seconds */
+						__( 'A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider.', 'diluxone-offload' ),
+						(int) ( ConfigManager::get_config()['timeout'] ?? 60 )
+					),
+					'cta_label' => __( 'Open Settings', 'diluxone-offload' ),
+					'cta_tab'   => 'settings',
 				);
 
 			case 'exception':
@@ -1087,7 +1114,7 @@ class Admin {
 					</p>
 					<?php endif; ?>
 					<p style="margin: 8px 0 0; font-size: 13px;">
-						<a href="<?php echo \esc_url( \admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" style="color: #721c24; text-decoration: underline;">
+						<a href="<?php echo \esc_url( \admin_url( 'admin.php?page=diluxone-offload&tab=' . $copy['cta_tab'] ) ); ?>" style="color: #721c24; text-decoration: underline;">
 							<?php echo \esc_html( $copy['cta_label'] ); ?>
 						</a>
 					</p>

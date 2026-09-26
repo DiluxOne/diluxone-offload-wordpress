@@ -192,4 +192,26 @@ class ConfigManagerExtrasTest extends TestCase {
 		$this->assertTrue( SyncStatus::isFinished( SyncStatus::CANCELLED ) );
 		$this->assertFalse( SyncStatus::isFinished( SyncStatus::STARTED ) );
 	}
+
+	// ── The error code read from a failure message ──────────
+
+	/**
+	 * @dataProvider messages
+	 */
+	public function test_the_error_code_is_read_from_the_message( string $message, string $expected ): void {
+		$this->assertSame( $expected, ConfigManager::error_code_from_message( $message ) );
+	}
+
+	/** @return array<string, array{string, string}> */
+	public static function messages(): array {
+		return array(
+			'a status on its own'               => array( 'Upload failed with status: 403', '403' ),
+			'a status inside a sentence'        => array( 'Download failed with status: 404 - Azure BlobNotFound', '404' ),
+			'a transport timeout (60000 ms)'    => array( 'Upload failed: cURL error 28: Operation timed out after 60000 milliseconds with 0 bytes received', 'timeout' ),
+			'the word timeout'                  => array( 'Connection timeout while talking to the provider', 'timeout' ),
+			'digits that are not a status'      => array( 'Block 1 of 120 failed: 1048576 bytes short', '' ),
+			'a 2xx is not an error code'        => array( 'Unexpected status 201', '' ),
+			'nothing to read'                   => array( 'Unknown upload error', '' ),
+		);
+	}
 }
