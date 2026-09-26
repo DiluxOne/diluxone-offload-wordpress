@@ -18,7 +18,7 @@ jobs:
   conventions:
     permissions:
       contents: read
-      actions: read # the runs of this head, for the base-branch check
+      pull-requests: read # the pull request's timeline, for the base-branch check
     uses: DiluxOne/.github/.github/workflows/conventions.yml@v2
     with:
       retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'

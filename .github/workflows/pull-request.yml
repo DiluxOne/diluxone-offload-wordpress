@@ -28,7 +28,7 @@ jobs:
   conventions:
     permissions:
       contents: read
-      actions: read # the runs of this head, for the base-branch check on `edited`
+      pull-requests: read # the pull request's timeline, for the base-branch check on `edited`
     uses: DiluxOne/.github/.github/workflows/conventions.yml@v2
     with:
       retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
@@ -80,7 +80,7 @@ jobs:
 
   weekly-failure:
     needs: [checks, tests]
-    if: github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    if: ${{ !cancelled() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
     permissions:
       contents: read
       issues: write
