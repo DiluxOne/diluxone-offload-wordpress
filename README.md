@@ -14,6 +14,8 @@ The plugin is complete and free. It ships with one provider, Azure Blob Storage,
 
 From the WordPress admin: **Plugins → Add New**, search for *DiluxOne Offload*, install, activate. Or download it from [wordpress.org/plugins/diluxone-offload](https://wordpress.org/plugins/diluxone-offload/).
 
+To try what is coming before it is released, install the [**Development build**](https://github.com/DiluxOne/diluxone-offload-wordpress/releases/tag/dev) (Releases → the pre-release): the current state of `main`, replaced on every change, not for production sites. Its notes say which version it will become and what changed.
+
 Then open **DiluxOne Offload → Cloud Provider**: enter the storage account, the container (public access level *Blob*) and the key, click **Test Connection** and save. In **Sync & Offloading**, start the sync and enable offloading when it finishes. Requirements, FAQ and known limitations are in [`readme.txt`](readme.txt), the text shown on wordpress.org.
 
 ## Hosted sync service

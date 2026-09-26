@@ -20,7 +20,7 @@ Nobody types a version number into a file, nobody touches SVN, and the tag is cr
 
 1. **A pull request merges into `main`.** Only through a green pull request, squash-merged ([`CONTRIBUTING.md`](../CONTRIBUTING.md)). The Claude review labelled it `type:*` from the diff (a maintainer's label wins) and corrected the title's type to match.
 2. **The push to `main` runs the [`Release`](../.github/workflows/release.yml) workflow.** It does not run the suites again (the tree was tested in the pull request); it computes the next version from the `type:*` labels of everything merged since the last release tag, with the organisation's [`next-version.py`](https://github.com/DiluxOne/.github/blob/main/scripts/next-version.py): `type:breaking` → major, `type:feat` → minor, `type:fix` or `type:perf` → patch; a `version:major|minor|patch` label a maintainer sets on any merged pull request wins over the types.
-3. **A development build is uploaded**, every time, whatever the labels say: the shipped tree stamped `<next>-dev.<N>`, as the run's artifact `diluxone-offload-<next>-dev.<N>`. See [Development builds](#development-builds).
+3. **A development build is published**, every time, whatever the labels say: the shipped tree stamped `<next>-dev.<N>`, as the one **Development build** pre-release in [Releases](https://github.com/DiluxOne/diluxone-offload-wordpress/releases), replaced on every push. See [Development builds](#development-builds).
 4. **The readme says whether the version is ready.** The newest entry under `== Changelog ==` in [`readme.txt`](../readme.txt) is headed `= X.Y.Z =` and, while the version is being built, its first line is exactly `Unreleased.`. With that line in place the run ends green, its summary says **Not ready**, and nothing waits for anyone, however many pull requests merged. See [The changelog is the release switch](#the-changelog-is-the-release-switch).
 5. **The maintainer removes the `Unreleased.` line in a pull request.** That is the release decision. When it merges, the run's `Deploy to wordpress.org` job waits in the `wordpress-org` environment, and only the environment's required reviewers can approve it. The summary shows the version, the bump and the pull requests that justify it.
 6. **The maintainer approves the deployment** (Actions tab → the run → *Review deployments*, or the review email). Reject and nothing happens; a later push computes again. See [Approving a release](#approving-a-release).
@@ -65,15 +65,17 @@ What you see in the Actions tab while the line is there: every push to `main` en
 
 ## Development builds
 
-Every push to `main` produces a build of what is coming, with no release:
+Every push to `main` publishes a build of what is coming, with no release:
 
 | Where | What | Version shown |
 | --- | --- | --- |
-| Actions → the `Release` run of the push → artifact `diluxone-offload-<next>-dev.<N>` | The shipped tree (minus `.distignore`), zipped, with the plugin folder named `diluxone-offload` | `2.0.0-dev.8` under Plugins; the commit under Status › System |
+| Releases → **Development build** (pre-release, tag `dev`); fixed link <https://github.com/DiluxOne/diluxone-offload-wordpress/releases/download/dev/diluxone-offload.zip> | The shipped tree (minus `.distignore`), zipped, with the plugin folder named `diluxone-offload`; the notes say the version, the commit and the changelog that is coming | `2.0.0-dev.8` under Plugins; the commit under Status › System |
 | `make dist` | The same tree under `build/diluxone-offload/`, from your working tree | the same, `-dirty` on the commit when you have uncommitted changes |
 | `make deploy-test` | The same copied into a real site (`~/repos/cst-website` by default, `SITE=` to change it) | the same |
 
-`<next>` is the version the labels give (the next patch when nothing is pending), `N` counts the commits since the last release tag. Both stamp the three markers in the copy and add a `Build:` header line with the commit; the plugin shows it under Status › System, so a person who installs a build knows what is coming and which commit it is. PHP orders `2.0.0-dev.8` before `2.0.0`, so a site with a development build updates to the release normally. Artifacts are kept 30 days; `make dist` needs `gh` logged in to read the labels (`STAMP=0` builds the tree as it is, which is how Plugin Check runs).
+`<next>` is the version the labels give (the next patch when nothing is pending), `N` counts the commits since the last release tag. Both stamp the three markers in the copy and add a `Build:` header line with the commit; the plugin shows it under Status › System, so a person who installs a build knows what is coming and which commit it is. PHP orders `2.0.0-dev.8` before `2.0.0`, so a site with a development build updates to the release normally. `make dist` needs `gh` logged in to read the labels (`STAMP=0` builds the tree as it is, which is how Plugin Check runs).
+
+**There is one development build, always the latest.** The pre-release and its tag `dev` are replaced on every push to `main`, the way WooCommerce publishes its nightly: one link, no login, no history. Released versions are different: every `X.Y.Z` keeps its tag, its GitHub release and its zip forever, and wordpress.org keeps every published version too, so a site can always go back to an earlier release. "Latest" in Releases is always the last released version, never the development build. To look at an older development build (a bug reported "on dev.7"), take the commit from its report (Status › System, or the `Build:` header) and rebuild it: `git checkout <commit> && make dist`. The issue triage knows the current released and development versions: a report made on an older one is asked to update, or to try the current development build, and to say whether the problem is still there.
 
 ## Approving a release
 
@@ -81,7 +83,7 @@ The `Deploy to wordpress.org` job runs in the repository environment `wordpress-
 
 **By hand.** An administrator can still push a tag `X.Y.Z` on `main`. It goes through the same job, and must be the version the labels say is next, with the readme ready; anything else is refused before SVN. A tag the job created itself starts a second run that finds the release and stops.
 
-**Rehearsal.** `dry-run: true` in `release.yml` does everything but the SVN commit, the tag and the release, and shows the notes in the run's summary. The first run of a new pipeline, and any change to it, is rehearsed that way first; the pipeline this page describes was rehearsed on 2026-09-26.
+**Rehearsal.** `dry-run: true` in `release.yml` does everything but the SVN commit, the tag and the release, and shows the notes in the run's summary; the development build is built too, but not published. The first run of a new pipeline, and any change to it, is rehearsed that way first; the pipeline this page describes was rehearsed on 2026-09-26.
 
 Before a release, `make release` on `main` runs the full quality gate and the marker alignment locally.
 
@@ -104,7 +106,7 @@ Two rulesets cover every tag shaped `X.Y.Z`: only an administrator or the releas
 
 - **A deploy that failed before SVN** (a secret, a network error): fix the cause and **Re-run jobs**.
 - **A tag on the wrong commit, or with misaligned version markers**: the tag stays. Fix it in a pull request and release the next patch version.
-- **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the release workflow does not even start, it fires only on `X.Y.Z`. A two-part tag can be deleted and replaced; anything that matches `*.*.*` (`1.2.0-rc1`, `v1.2.0`) is as permanent as a real release tag, so never push one.
+- **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the release workflow does not even start, it fires only on `X.Y.Z`. A two-part tag can be deleted and replaced; anything that matches `*.*.*` (`1.2.0-rc1`, `v1.2.0`) is as permanent as a real release tag, so never push one. The tag `dev` of the development build is outside these rules on purpose: the pipeline moves it on every push.
 
 ## Rolling back
 
