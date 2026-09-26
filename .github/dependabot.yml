@@ -20,7 +20,10 @@ version: 2
 updates:
   # GitHub Actions used in this repository's own workflows (CodeQL and the
   # real-storage suite): checkout, setup-node, setup-php, cache,
-  # upload-artifact, codeql-action.
+  # upload-artifact, codeql-action; and the two shared workflows pinned to a
+  # commit of DiluxOne/.github (the release and the SVN credentials check),
+  # which Dependabot bumps as reusable-workflow references. Those land in a
+  # group of their own so a pin bump is never mixed with action bumps.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -30,6 +33,9 @@ updates:
       timezone: "America/Argentina/Buenos_Aires"
     open-pull-requests-limit: 3
     groups:
+      diluxone-central:
+        patterns:
+          - "DiluxOne/.github*"
       github-actions:
         patterns:
           - "*"
