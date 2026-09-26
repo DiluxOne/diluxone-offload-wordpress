@@ -633,27 +633,18 @@ class CloudStreamWrapper {
 	}
 
 	/**
-	 * Lower-cased host where the cloud-storage plugin serves assets from.
-	 * Returns '' when the plugin is not configured. Memoised per-request.
+	 * Lower-cased host the media is served from: the host of the URL the
+	 * provider hands out, whatever the provider. Returns '' when there is no
+	 * client. Memoised per request.
 	 */
-	private static function get_cloud_host(): string {
+	public static function get_cloud_host(): string {
 		if ( self::$cloud_host_cache !== null ) {
 			return self::$cloud_host_cache;
 		}
-		$config = ConfigManager::get_config();
-		if ( empty( $config['cloud_provider'] ) ) {
-			self::$cloud_host_cache = '';
-			return self::$cloud_host_cache;
-		}
-		$provider = $config['cloud_provider'];
-		$pc       = $config['provider_config'] ?? array();
+		$client = self::get_cloud_client();
+		$host   = $client ? wp_parse_url( $client->get_file_url( '' ), PHP_URL_HOST ) : '';
 
-		$host = '';
-		if ( $provider === 'azure' && ! empty( $pc['storage_account'] ) ) {
-			$host = $pc['storage_account'] . '.blob.core.windows.net';
-		}
-
-		self::$cloud_host_cache = strtolower( $host );
+		self::$cloud_host_cache = strtolower( is_string( $host ) ? $host : '' );
 		return self::$cloud_host_cache;
 	}
 
@@ -988,16 +979,13 @@ class CloudStreamWrapper {
 		if ( empty( $result['success'] ) ) {
 			$error_msg = $result['error'] ?? 'Unknown upload error';
 			Logger::info( '[DiluxOne Offload CloudStreamWrapper] upload failed: ' . $this->path . ' - ' . $error_msg );
-			$error_code = '';
-			if ( preg_match( '/(\d{3})/', $error_msg, $matches ) ) {
-				$error_code = $matches[1];
-			}
-			\DiluxOneOffload\ConfigManager::record_connection_failure( $error_code, $error_msg, 'upload' );
+			\DiluxOneOffload\ConfigManager::record_connection_failure( \DiluxOneOffload\ConfigManager::error_code_from_message( $error_msg ), $error_msg, 'upload' );
 			self::note_write_failure( $this->path, $error_msg );
 			return false;
 		}
 
 		self::clear_write_failure( $this->path );
+		Logger::info( '[DiluxOne Offload CloudStreamWrapper] uploaded: ' . $this->path . ' (' . $size . ' bytes)' );
 
 		// Auto-recovery: if was unhealthy and upload succeeded, mark healthy
 		$health = \DiluxOneOffload\ConfigManager::get_connection_health();

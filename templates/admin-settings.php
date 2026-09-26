@@ -53,7 +53,7 @@ $config = $config ?? array(); // phpcs:ignore WordPress.NamingConventions.Prefix
 
 				<tr>
 					<th scope="row">
-						<label for="timeout"><?php esc_html_e( 'Upload Timeout (seconds)', 'diluxone-offload' ); ?></label>
+						<label for="timeout"><?php esc_html_e( 'Transfer Timeout (seconds)', 'diluxone-offload' ); ?></label>
 					</th>
 					<td>
 						<input type="number"
@@ -64,7 +64,7 @@ $config = $config ?? array(); // phpcs:ignore WordPress.NamingConventions.Prefix
 								max="600"
 								class="small-text">
 						<p class="description">
-							<?php esc_html_e( 'Maximum time to wait for cloud uploads (30-600 seconds).', 'diluxone-offload' ); ?>
+							<?php esc_html_e( 'How long each upload request to the cloud may take (30-600 seconds). Raise it on a slow host. Downloads wait at least 300 seconds, or this value when it is higher.', 'diluxone-offload' ); ?>
 						</p>
 					</td>
 				</tr>

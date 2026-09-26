@@ -335,8 +335,8 @@ msgid "Status: plugin state, environment and provider at a glance."
 msgstr "Status: estado do plugin, ambiente e fornecedor num relance."
 
 #. Screenshot description.
-msgid "Settings: file-size limit, upload timeout, HTTPS for cloud URLs, debug logging."
-msgstr "Settings: limite de tamanho de ficheiro, tempo limite de carregamento, HTTPS para URLs da cloud, registo de depuração."
+msgid "Settings: file-size limit, transfer timeout, HTTPS for cloud URLs, debug logging."
+msgstr "Settings: limite de tamanho de ficheiro, tempo limite de transferência, HTTPS para URLs da cloud, registo de depuração."
 
 #. Screenshot description.
 msgid "Offloading active: disconnect from the cloud, or delete the local copies."

@@ -768,10 +768,10 @@ msgstr "Stato: stato del plugin, ambiente e provider a colpo d'occhio."
 
 #. Screenshot description.
 msgid ""
-"Settings: file-size limit, upload timeout, HTTPS for cloud URLs, debug "
+"Settings: file-size limit, transfer timeout, HTTPS for cloud URLs, debug "
 "logging."
 msgstr ""
-"Impostazioni: limite dimensione file, timeout di caricamento, HTTPS per gli "
+"Impostazioni: limite dimensione file, timeout di trasferimento, HTTPS per gli "
 "URL cloud, logging di debug."
 
 #. Screenshot description.

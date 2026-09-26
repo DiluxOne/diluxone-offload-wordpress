@@ -15,6 +15,8 @@
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_add_handle
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_exec
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_select
+ * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_info_read
+ * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_strerror
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_getcontent
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_remove_handle
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_close
@@ -894,6 +896,41 @@ class SyncManager {
 		return $results;
 	}
 
+
+	/**
+	 * Run a curl_multi stack to completion and collect each transfer's error.
+	 *
+	 * Inside a multi stack curl_error() stays empty: the transport's verdict
+	 * is only handed out through curl_multi_info_read(). Without this a
+	 * timed-out or unreachable transfer was recorded as a bare "HTTP 0",
+	 * which told the user nothing.
+	 *
+	 * @param resource $mh The multi handle, with every handle added (PHPStan reads the PHP 7.4 stubs; at runtime PHP 8 hands a CurlMultiHandle, which every curl_multi_* call accepts).
+	 * @return array<string, string> Transport error message per handle id ('' when none).
+	 */
+	private function run_multi( $mh ): array {
+		$running = null;
+		$errors  = array();
+		do {
+			curl_multi_exec( $mh, $running );
+			curl_multi_select( $mh );
+			$info = curl_multi_info_read( $mh );
+			while ( false !== $info ) {
+				$id            = $this->handle_id( $info['handle'] );
+				$errors[ $id ] = 0 === (int) $info['result'] ? '' : curl_strerror( (int) $info['result'] );
+				$info          = curl_multi_info_read( $mh );
+			}
+		} while ( $running > 0 );
+		return $errors;
+	}
+
+	/**
+	 * @param resource|object $ch A curl handle (a resource before PHP 8, a CurlHandle after).
+	 */
+	private function handle_id( $ch ): string {
+		return is_object( $ch ) ? (string) spl_object_id( $ch ) : (string) (int) $ch;
+	}
+
 	/**
 	 * Upload a chunk of files in parallel using cURL Multi
 	 * OPTIMIZED: Properly manages file handles for streaming
@@ -925,17 +962,13 @@ class SyncManager {
 		}
 
 		// Execute all handles in parallel
-		$running = null;
-		do {
-			curl_multi_exec( $mh, $running );
-			curl_multi_select( $mh );
-		} while ( $running > 0 );
+		$transport = $this->run_multi( $mh );
 
 		// Collect results and cleanup
 		foreach ( $handles as $i => $ch ) {
 			$response_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 			$response_body = curl_multi_getcontent( $ch );
-			$error         = curl_error( $ch );
+			$error         = $transport[ $this->handle_id( $ch ) ] ?? curl_error( $ch );
 			$file_info     = $files[ $i ];
 
 			if ( $response_code === 201 || $response_code === 200 ) {
@@ -1092,16 +1125,12 @@ class SyncManager {
 		}
 
 		// Execute all handles in parallel
-		$running = null;
-		do {
-			curl_multi_exec( $mh, $running );
-			curl_multi_select( $mh );
-		} while ( $running > 0 );
+		$transport = $this->run_multi( $mh );
 
 		// Collect results and cleanup
 		foreach ( $handles as $i => $ch ) {
 			$response_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-			$error         = curl_error( $ch );
+			$error         = $transport[ $this->handle_id( $ch ) ] ?? curl_error( $ch );
 
 			curl_multi_remove_handle( $mh, $ch );
 			// Close file handle before measuring what actually landed on disk.

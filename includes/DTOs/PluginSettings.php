@@ -29,7 +29,7 @@ class PluginSettings {
 	private bool $autoActivateOffloading;
 	/** @var bool */
 	private bool $forceHttpsOnCloud;
-	/** @var int Timeout in seconds. NOTE: use_https removed — HTTPS is always enforced (Azure requirement). */
+	/** @var int Seconds one transfer request (upload or download) may take: the "Transfer Timeout" setting. */
 	private int $timeout;
 	/** @var int */
 	private int $maxFileSize;

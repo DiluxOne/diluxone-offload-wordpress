@@ -73,6 +73,13 @@ class IntegrationTestCase extends TestCase {
         	$prop->setAccessible( true );
         }
         $prop->setValue(null, null);
+        // The host Force HTTPS keys on is memoised from the client; a test
+        // that swaps the client must not inherit the previous host.
+        $host = new \ReflectionProperty(\DiluxOneOffload\CloudStreamWrapper::class, 'cloud_host_cache');
+        if ( PHP_VERSION_ID < 80100 ) {
+        	$host->setAccessible( true );
+        }
+        $host->setValue(null, null);
     }
 
     protected function tearDown(): void {

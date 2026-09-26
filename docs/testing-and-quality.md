@@ -56,6 +56,10 @@ make test-integration   # run the integration suite
 
 Use these for code paths that genuinely depend on WordPress core: hooks, options, transients, custom tables, AJAX handlers, REST routes. Anything that boils down to "I need `wpdb`" or "I need `apply_filters` to actually apply".
 
+The settings have tests for what they do, not only for being saved: `ForwardSyncTest` (a file above Maximum File Size never enters the initial sync), `TimeoutTest` (a live upload and a sync batch give up at the Transfer Timeout, and the health records `timeout`; the unit suite proves that a download never waits less than 300 seconds), `ForceHttpsTest` (the four URL filters, on the host the provider's URL names) and `LoggingTest` (an upload leaves no informational line with the toggle off, one with it on, and never the key).
+
+`TimeoutTest` waits the setting's minimum, 30 seconds, twice, so it is in the `slow` group. CI runs it; locally, `make test-integration PHPUNIT_ARGS="--exclude-group slow"` leaves it out.
+
 CI runs the same suite (the slow suite's **Integration tests (wp-env)** job) so a pure-Docker contributor can develop against the exact same environment.
 
 ## PHPCS / WordPress Coding Standards

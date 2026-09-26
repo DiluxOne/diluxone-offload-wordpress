@@ -336,4 +336,87 @@ class AzureProviderTest extends TestCase {
 		$this->assertFalse( $r['success'] );
 		$this->assertArrayNotHasKey( 'diluxone_offload_azure_stats', $GLOBALS['_test_wp_transients'] );
 	}
+
+	// ── Transfer Timeout ────────────────────────────────────
+
+	/** Every request that carries file bytes waits as long as the setting says, and no longer. */
+	public function test_the_transfer_timeout_governs_every_transfer_request(): void {
+		$provider = new AzureProvider(
+			array(
+				'storage_account' => self::ACCOUNT,
+				'container_name'  => self::CONTAINER,
+				'access_key'      => self::KEY,
+				'upload_timeout'  => 45,
+			)
+		);
+		$this->answer( fn() => self::reply( 201 ) );
+
+		$small = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $small, 'one PUT' );
+		$provider->upload_file( $small, 'small.txt' );
+		@unlink( $small );
+
+		$big = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $big, str_repeat( 'b', 4 * 1024 * 1024 + 1 ) ); // two blocks and a commit
+		$provider->upload_file( $big, 'big.bin' );
+		@unlink( $big );
+
+		$requests = $this->requests();
+		$this->assertCount( 4, $requests, 'one PUT, two blocks, one commit' );
+		foreach ( $requests as $req ) {
+			$this->assertSame( 45, $req['args']['timeout'], $req['method'] . ' ' . $req['url'] );
+		}
+	}
+
+	/** A download waits the 300 s it always had, or the setting when that is longer. */
+	public function test_a_download_never_waits_less_than_three_hundred_seconds(): void {
+		foreach ( array( 45 => 300, 400 => 400 ) as $setting => $expected ) {
+			$provider = new AzureProvider(
+				array(
+					'storage_account' => self::ACCOUNT,
+					'container_name'  => self::CONTAINER,
+					'access_key'      => self::KEY,
+					'upload_timeout'  => $setting,
+				)
+			);
+			$GLOBALS['_test_wp_http_log'] = array();
+			$this->answer( fn() => self::reply( 200, 'bytes' ) );
+			$target = tempnam( sys_get_temp_dir(), 'az' );
+			$provider->download_file( 'x.txt', $target );
+			@unlink( $target );
+			$this->assertSame( $expected, $this->requests()[0]['args']['timeout'], "setting {$setting}" );
+		}
+	}
+
+	public function test_the_transfer_timeout_is_never_below_thirty_seconds(): void {
+		$provider = new AzureProvider(
+			array(
+				'storage_account' => self::ACCOUNT,
+				'container_name'  => self::CONTAINER,
+				'access_key'      => self::KEY,
+				'upload_timeout'  => 5,
+			)
+		);
+		$this->answer( fn() => self::reply( 201 ) );
+		$tmp = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $tmp, 'x' );
+		$provider->upload_file( $tmp, 'x.txt' );
+		@unlink( $tmp );
+		$this->assertSame( 30, $this->requests()[0]['args']['timeout'] );
+	}
+
+	/** A control request is not a transfer: the probe keeps its own short timeout whatever the setting. */
+	public function test_the_health_probe_keeps_its_own_short_timeout(): void {
+		$provider = new AzureProvider(
+			array(
+				'storage_account' => self::ACCOUNT,
+				'container_name'  => self::CONTAINER,
+				'access_key'      => self::KEY,
+				'upload_timeout'  => 600,
+			)
+		);
+		$this->answer( fn() => self::reply( 200, '', array( 'x-ms-blob-public-access' => 'blob' ) ) );
+		$provider->test_connection();
+		$this->assertSame( 30, $this->requests()[0]['args']['timeout'] );
+	}
 }
