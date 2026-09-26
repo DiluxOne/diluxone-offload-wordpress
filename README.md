@@ -46,7 +46,7 @@ The checkout is mounted as `wp-content/plugins/diluxone-offload-wordpress/`; act
 | [`docs/architecture.md`](docs/architecture.md) | How the plugin is built and the rules its code follows |
 | [`docs/roadmap.md`](docs/roadmap.md) | What it does, what is paid, what comes next, what it will not do |
 | [`docs/ai.md`](docs/ai.md) | How AI is used here, and the rules for AI-assisted contributions |
-| [`docs/release.md`](docs/release.md) | Versioning and the release to wordpress.org (maintainers) |
+| [`docs/release.md`](docs/release.md) | How a change becomes a version: labels, the changelog switch, development builds, the approved release |
 | [`AGENTS.md`](AGENTS.md) | The short rules any coding agent must follow |
 | [`SECURITY.md`](SECURITY.md) | Private vulnerability reporting |
 

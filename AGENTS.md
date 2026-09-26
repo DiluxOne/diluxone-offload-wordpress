@@ -53,16 +53,43 @@ request is also reviewed by Claude, which labels its risk, its complexity and
 its type (`type:*`, from which the next version is computed); only low-risk
 changes can merge without a human.
 
+## How a change becomes a release
+
+The whole flow, with who does what, is [`docs/release.md`](docs/release.md).
+What you must do, and never do, in a change:
+
+- **The version is computed, never typed.** The `type:*` label the review
+  sets on each merged pull request gives the next number (`breaking` →
+  major, `feat` → minor, `fix`/`perf` → patch); a maintainer's `version:*`
+  label wins. `main` keeps the last released version in its three markers.
+- **Write the changelog in the same pull request.** A change a user notices
+  adds one bullet under the newest `= X.Y.Z =` entry of `readme.txt`, below
+  its first line `Unreleased.`, written for users.
+- **The line `Unreleased.` is the release switch.** While it is there, every
+  push to `main` ends green as **Not ready** and nothing waits for approval.
+  The pull request that removes it is the maintainer's decision to release
+  and contains nothing else. Never remove it as part of another change.
+- **Every push to `main` uploads a development build**, the shipped tree
+  stamped `<next>-dev.<N>`, as the artifact of the `Release` run. That is
+  how a change is tried before a release; `make dist` builds the same locally.
+- **Publishing is a deployment a maintainer approves** in the `wordpress-org`
+  environment; the job then stamps, deploys, tags and creates the release.
+  No agent does any of that by hand. An administrator may still push a tag
+  `X.Y.Z`; it only types the version and goes through the same job, which
+  refuses anything but the computed, ready version.
+
 ## Rules you must not break
 
-- **Never** push to `main`, create or push a tag, create a GitHub release or
-  touch the wordpress.org SVN. Pushing a tag `X.Y.Z` publishes the plugin to
-  every WordPress site; release tags are permanent. Releases are cut by the
-  maintainer ([`docs/release.md`](docs/release.md)).
-- **Never** bump the version markers. `main` keeps the last released
-  version; the next one is computed from the `type:*` labels of what merged
-  and stamped by the release job and by development builds
+- **Never** push to `main`, create or push a tag, create a GitHub release,
+  approve a deployment or touch the wordpress.org SVN. A tag `X.Y.Z` is
+  created by the release job after the maintainer's approval and publishes
+  the plugin to every WordPress site; release tags are permanent
   ([`docs/release.md`](docs/release.md)).
+- **Never** bump the version markers, and never remove the `Unreleased.`
+  line of the newest changelog entry unless the maintainer asked for that
+  release. `main` keeps the last released version; the next one is computed
+  from the `type:*` labels of what merged and stamped by the release job and
+  by development builds ([`docs/release.md`](docs/release.md)).
 - **Never** commit secrets: no `.env*`, no storage keys, no SVN password. The
   real-storage suite reads its key from the environment or a git-ignored
   `.env.e2e`.
@@ -76,3 +103,16 @@ changes can merge without a human.
 - **Docs change in the same PR as the behaviour they describe.** That
   includes this file, `docs/architecture.md`, `readme.txt` and `docs/`.
   A doc that describes something the code no longer does is a bug.
+
+## Where the details are
+
+| Question | Read |
+| --- | --- |
+| How the plugin works, its hard rules, what the review looks for | [`docs/architecture.md`](docs/architecture.md) |
+| Local setup, Make targets, repository name vs plugin slug | [`docs/development.md`](docs/development.md) |
+| Every quality gate, what runs when, how to run each | [`docs/testing-and-quality.md`](docs/testing-and-quality.md) |
+| Branches, titles, pull requests, forks, the review | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Versions, the changelog switch, development builds, approving a release | [`docs/release.md`](docs/release.md) |
+| What is free, paid, planned, not planned; which version does what | [`docs/roadmap.md`](docs/roadmap.md) |
+| How AI is used here and the rules for AI-assisted work | [`docs/ai.md`](docs/ai.md) |
+| The shared workflows, policy and review profiles | [DiluxOne/.github](https://github.com/DiluxOne/.github) |

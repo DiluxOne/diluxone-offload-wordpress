@@ -11,7 +11,7 @@ Thanks for helping. This page covers issues, pull requests and what CI enforces.
 ## Pull requests
 
 1. Branch from `main`: in your fork if you are an outside contributor, in the repository if you are a maintainer. Name it `<type>/<kebab-case>`, for example `fix/sync-retry-count`.
-2. Make the change with its tests, and update any doc that describes what you changed, `readme.txt` included.
+2. Make the change with its tests, and update any doc that describes what you changed. A change a user notices adds one bullet to the newest `= X.Y.Z =` entry of `readme.txt`, under its `Unreleased.` line; leave that line alone ([`docs/release.md`](docs/release.md)).
 3. Run `make check` (PHPCS, PHPStan, Psalm, unit tests). Integration, end-to-end, i18n and Plugin Check have their own targets; CI runs all of them.
 4. Open the pull request and fill in the template: 📝 What changes and 💡 Why are required, 🧪 How I tested it and 📸 Screenshots help the review. The description becomes the commit body on `main`, word for word, so write it for the person who reads the history in a year: plain words, short paragraphs.
 5. If AI took part, end the description with one line: `🤖 AI-assisted · <model> (<maker>)`. The rules for contributing with AI are in [`docs/ai.md`](docs/ai.md).
@@ -58,7 +58,7 @@ The full list, with the architecture and the review priorities, is in [`docs/arc
 
 ## Versions and releases
 
-Versions follow [Semantic Versioning](https://semver.org/). `main` keeps the last released version in its markers; the next version is computed from the `type:*` labels the review sets on merged pull requests (a breaking change → major, a feature → minor, a fix → patch), development builds stamp themselves `<next>-dev.<N>`, and a release is a deployment the maintainer approves. Never bump the version in a pull request. The flow, for maintainers, is in [`docs/release.md`](docs/release.md).
+Versions follow [Semantic Versioning](https://semver.org/) and nobody types them. `main` keeps the last released version in its markers; the next version is computed from the `type:*` labels the review sets on merged pull requests (a breaking change → major, a feature → minor, a fix → patch). Every push to `main` uploads a development build, `diluxone-offload-<next>-dev.<N>`, as an artifact of the `Release` run, for anyone to try. The changelog is written as the changes merge, under the `Unreleased.` line of the newest `readme.txt` entry; the maintainer removes that line when the version is ready, approves the deployment, and the pipeline publishes. Never bump the version or remove that line in your pull request. The whole flow, with who does what: [`docs/release.md`](docs/release.md).
 
 ## Code of Conduct and licence
 
