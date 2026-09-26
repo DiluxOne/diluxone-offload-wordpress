@@ -10,9 +10,14 @@ on:
 
 # The SVN credentials live in the environment `wordpress-org` (Settings ›
 # Environments), which the shared workflow's deploy job runs in. A called
-# workflow only sees the secrets its caller hands over, environment secrets
-# included, so this caller passes `secrets: inherit`; the job itself only
-# reads the two SVN values, and only when it runs in that environment.
+# workflow only sees the secrets its caller hands over, and an environment's
+# secrets can only be handed over with `secrets: inherit`, which passes every
+# repository and organisation secret too (the Anthropic key, the bot's key,
+# the Azure test account). That is why this workflow runs only on X.Y.Z
+# tags, which only an administrator can create, and calls the shared
+# workflow at a fixed commit: what runs with all those secrets is exactly
+# the reviewed code at that commit. A Dependabot bump of that pin is a
+# secret-bearing change and is reviewed as one (`.github/**` is high risk).
 #
 # The shared workflow is pinned to a commit, not to the moving `v1` tag:
 # this is the one workflow that runs with the publishing credentials, and
