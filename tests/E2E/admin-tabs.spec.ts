@@ -53,7 +53,8 @@ for (const view of VIEWS) {
 
 		// No PHP notices/warnings/fatals leaked into the markup.
 		const body = await page.locator('body').innerText();
-		expect(body).not.toMatch(/Fatal error|Warning:|Notice:|Deprecated:/);
+		// PHP prints these in this exact case; the plugin's own "WARNING:" (key rotation) is not one.
+		expect(body).not.toMatch(/Fatal error: |Warning: |Notice: |Deprecated: /);
 		expect(body).not.toMatch(/critical error|error crítico/i);
 
 		// No inline <script> or <style> inside our page — the review team

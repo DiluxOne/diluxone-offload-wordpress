@@ -47,9 +47,15 @@ export function onScreen( view: string ): RegExp {
 	return new RegExp( `page=${ VIEWS[ view ].page }` );
 }
 
+/**
+ * PHP prints "Fatal error: ", "Warning: ", "Notice: " and "Deprecated: " in
+ * that exact case; the plugin's own copy says "WARNING:" on purpose (the
+ * key rotation), so the PHP ones are matched case-sensitively.
+ */
 export async function expectNoPhpErrors( page: Page ): Promise< void > {
 	const body = await page.locator( 'body' ).innerText();
-	expect( body ).not.toMatch( /Fatal error|Warning:|Notice:|Deprecated:|critical error/i );
+	expect( body ).not.toMatch( /Fatal error: |Warning: |Notice: |Deprecated: / );
+	expect( body ).not.toMatch( /critical error/i );
 }
 
 /** Fill the provider form and click Test Connection; returns the result box text. */

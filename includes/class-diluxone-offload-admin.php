@@ -32,6 +32,13 @@ class Admin {
 	const MENU = 'diluxone-offload';
 
 	/**
+	 * The tracking table's counts, read once per rendered page.
+	 *
+	 * @var array{total: int, synced: int, pending: int, local: int}|null
+	 */
+	private static ?array $tracking_counts = null;
+
+	/**
 	 * How the plugin introduces itself in the dashboard.
 	 *
 	 * Written once: the menu, the heading and the browser tab all read it from
@@ -354,8 +361,9 @@ class Admin {
 	 * the rail.
 	 */
 	public static function render_admin_page(): void {
-		list( $screen, $tab ) = self::requested();
-		$meta                 = self::screens()[ $screen ];
+		self::$tracking_counts = null; // One read per page: the rail and the screen share it.
+		list( $screen, $tab )  = self::requested();
+		$meta                  = self::screens()[ $screen ];
 
 		?>
 		<div class="wrap diluxone-offload-admin" data-screen="<?php echo \esc_attr( $screen ); ?>" data-tab="<?php echo \esc_attr( $tab ); ?>">
@@ -1088,9 +1096,16 @@ class Admin {
 	 * Counts from the tracking table: every row, the synced ones, the ones
 	 * still pending, and the synced ones that still have a local copy.
 	 *
+	 * Read once per request: the rail asks on every screen and the Sync and
+	 * Status screens ask again for their own figures.
+	 *
 	 * @return array{total: int, synced: int, pending: int, local: int}
 	 */
 	private static function tracking_counts(): array {
+		if ( is_array( self::$tracking_counts ) ) {
+			return self::$tracking_counts;
+		}
+
 		global $wpdb;
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 		$table = DiluxOneOffloadDB::get_table_name();
@@ -1105,12 +1120,14 @@ class Admin {
 			ARRAY_A
 		);
 
-		return array(
+		self::$tracking_counts = array(
 			'total'   => (int) ( $row['total'] ?? 0 ),
 			'synced'  => (int) ( $row['synced'] ?? 0 ),
 			'pending' => (int) ( $row['pending'] ?? 0 ),
 			'local'   => (int) ( $row['local'] ?? 0 ),
 		);
+
+		return self::$tracking_counts;
 	}
 
 	/**
