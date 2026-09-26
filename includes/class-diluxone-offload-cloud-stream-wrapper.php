@@ -1381,6 +1381,12 @@ class CloudStreamWrapper {
 		// Cache as "deleted" so later stat checks do not ask the cloud again.
 		self::$stat_cache[ $parsed_path ] = false;
 
+		// The tracking table forgets it either way: if the blob was already
+		// gone, the row was stale already.
+		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
+		}
+
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			if ( $result['success'] ) {
 				Logger::info( '[DiluxOne Offload CloudStreamWrapper] Deleted: ' . $parsed_path );
@@ -1458,6 +1464,14 @@ class CloudStreamWrapper {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				Logger::warning( '[DiluxOne Offload CloudStreamWrapper] rename: copy succeeded but delete failed (non-critical): ' . ( $delete_result['error'] ?? 'Unknown error' ) );
 			}
+		}
+
+		// The tracking table follows the file to its new path.
+		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::rename_file(
+				\DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_from ),
+				\DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_to )
+			);
 		}
 
 		// Step 3: Update cache

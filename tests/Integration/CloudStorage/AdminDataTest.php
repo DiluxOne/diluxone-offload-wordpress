@@ -203,6 +203,34 @@ class AdminDataTest extends IntegrationTestCase {
         $this->assertStringContainsString('Not on this server', $html);
     }
 
+    public function test_unlink_and_rename_through_the_wrapper_keep_the_table_true(): void {
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        CloudStreamWrapper::register();
+        CloudStreamWrapper::activate_offloading();
+        $prefix = 'diluxoneoffload://' . CloudStreamWrapper::key_prefix();
+        $this->assertNotFalse(file_put_contents($prefix . '/2026/09/a.jpg', 'aaa'));
+        $this->assertNotFalse(file_put_contents($prefix . '/2026/09/b.jpg', 'bbbb'));
+        $this->assertSame(2, Admin::tracking_counts(true)['cloud_only']);
+
+        $this->assertTrue(rename($prefix . '/2026/09/a.jpg', $prefix . '/2026/09/renamed.jpg'));
+        $files = array_column(\DiluxOneOffload\DiluxOneOffloadDB::get_deleted_files(), 'file');
+        $this->assertContains('/2026/09/renamed.jpg', $files, 'the row followed the file');
+        $this->assertNotContains('/2026/09/a.jpg', $files);
+
+        $this->assertTrue(unlink($prefix . '/2026/09/b.jpg'));
+        $files = array_column(\DiluxOneOffload\DiluxOneOffloadDB::get_deleted_files(), 'file');
+        $this->assertNotContains('/2026/09/b.jpg', $files, 'a deleted file has no row');
+        $this->assertSame(1, Admin::tracking_counts(true)['cloud_only']);
+    }
+
+    public function test_skip_reasons_have_labels(): void {
+        $this->assertSame('Empty files', Admin::skip_reason_label('empty_file'));
+        $this->assertSame('Over the size limit', Admin::skip_reason_label('File size exceeds limit (30 MB > 20 MB)'));
+        $this->assertSame('File type not allowed', Admin::skip_reason_label('File extension not allowed: .exe'));
+        $this->assertSame('something new', Admin::skip_reason_label('something new'), 'an unknown reason is shown as it is');
+    }
+
     // ── A5: the skipped list ────────────────────────────────
 
     public function test_the_scan_writes_what_it_left_out_and_the_sync_screen_shows_it(): void {

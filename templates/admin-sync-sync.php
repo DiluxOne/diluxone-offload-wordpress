@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use DiluxOneOffload\Admin;
+
 // All data is prepared by Admin::render_screen_content() — no business logic in templates
 $current_state   = $current_state ?? 'not_configured';
 $sync_progress   = $sync_progress ?? array();
@@ -176,7 +178,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 					array(
 						__( 'Last upload', 'diluxone-offload' ),
 						$last_upload ? $diluxone_offload_ago( $last_upload['time'] ) : __( 'none yet', 'diluxone-offload' ),
-						$last_upload ? basename( $last_upload['path'] ) . ' · ' . size_format( $last_upload['size'] ) : __( 'through the site, since offloading was enabled', 'diluxone-offload' ),
+						$last_upload ? basename( $last_upload['path'] ) . ' · ' . size_format( $last_upload['size'] ) : __( 'through the site while offloading is on', 'diluxone-offload' ),
 					),
 				)
 			);
@@ -220,7 +222,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 					<summary><?php esc_html_e( 'Skipped by the last scan', 'diluxone-offload' ); ?></summary>
 					<p class="description"><?php esc_html_e( 'Left out on purpose: empty files, cache folders, files over the size limit, paths too long for the tracking table. As of the last scan; a new sync scans again.', 'diluxone-offload' ); ?></p>
 					<?php foreach ( $skipped['reasons'] as $reason => $entry ) : ?>
-						<p><strong><?php echo esc_html( $reason ); ?></strong> · <?php echo esc_html( number_format_i18n( $entry['count'] ) ); ?></p>
+						<p><strong><?php echo esc_html( Admin::skip_reason_label( (string) $reason ) ); ?></strong> · <?php echo esc_html( number_format_i18n( $entry['count'] ) ); ?></p>
 						<?php if ( $entry['paths'] !== array() ) : ?>
 						<ul class="diluxone-offload-skipped__list">
 							<?php foreach ( $entry['paths'] as $skipped_path ) : ?>

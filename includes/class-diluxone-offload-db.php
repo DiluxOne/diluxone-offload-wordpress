@@ -601,7 +601,49 @@ class DiluxOneOffloadDB {
 	public static function count_failed_files(): int {
 		global $wpdb;
 
-		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE synced = 0 AND deleted = 0' );
+		return (int) $wpdb->get_var(
+			'
+            SELECT COUNT(*)
+            FROM ' . self::get_table_name() . '
+            WHERE synced = 0 AND deleted = 0
+        '
+		);
+	}
+
+	/**
+	 * Forget a file the wrapper deleted from the cloud: its row would count
+	 * as "not on this server" and a Disconnect would try to download it.
+	 *
+	 * @param string $file_path Tracking-row path.
+	 */
+	public static function forget_file( string $file_path ): bool {
+		global $wpdb;
+
+		if ( ! $wpdb instanceof \wpdb ) {
+			return false;
+		}
+
+		return false !== $wpdb->delete( self::get_table_name(), array( 'file' => $file_path ), array( '%s' ) );
+	}
+
+	/**
+	 * A file the wrapper renamed in the cloud keeps its row under the new
+	 * path; nothing to do when the old path had none.
+	 *
+	 * @param string $from Tracking-row path before.
+	 * @param string $to   Tracking-row path after.
+	 */
+	public static function rename_file( string $from, string $to ): bool {
+		global $wpdb;
+
+		if ( ! $wpdb instanceof \wpdb || ! self::fits_key( $to ) ) {
+			return false;
+		}
+
+		// The destination may already have a row (an overwrite): it goes, the source's moves in.
+		$wpdb->delete( self::get_table_name(), array( 'file' => $to ), array( '%s' ) );
+
+		return false !== $wpdb->update( self::get_table_name(), array( 'file' => $to ), array( 'file' => $from ), array( '%s' ), array( '%s' ) );
 	}
 
 	/**

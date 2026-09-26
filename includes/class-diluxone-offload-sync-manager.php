@@ -794,6 +794,11 @@ class SyncManager {
 					$skip_reason = $this->should_sync_file( $local_path, $file_size );
 				}
 				if ( $skip_reason !== true ) {
+					// The size reason names each file's size, which would make every
+					// oversize file its own group on the Sync screen.
+					if ( is_string( $skip_reason ) && 0 === strpos( $skip_reason, 'File size exceeds limit' ) ) {
+						$skip_reason = 'File size exceeds limit';
+					}
 					$skipped_files[] = basename( $local_path );
 					if ( ! isset( $skip_reasons[ $skip_reason ] ) ) {
 						$skip_reasons[ $skip_reason ]  = 0;
@@ -1313,31 +1318,30 @@ class SyncManager {
 			Logger::info( '[DiluxOne Offload SyncManager] SCRATCH mode: ' . count( $cloud_files ) . ' files marked for download' );
 
 		} else {
-			// CONTINUE MODE (default): Resume existing download
-			Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Resuming existing download from DB...' );
+			// CONTINUE MODE (default): resume what is marked for download, and
+			// catalogue what the cloud has that the table does not know.
+			// Always both: the table may hold only part of the library (it
+			// was emptied by an older build's Delete Local Files, or it only
+			// has the uploads made since), and a Disconnect that trusted it
+			// would bring back a few files and turn offloading off with the
+			// rest still in the cloud only.
+			$already_marked = (int) DiluxOneOffloadDB::get_deleted_stats()['files'];
+			Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: ' . $already_marked . ' files already marked for download; cataloguing what the cloud has besides...' );
 
-			// Check if there are already deleted files in DB
-			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
+			global $wpdb;
+			$table_name = $wpdb->prefix . 'diluxone_offload_files';
 
-			if ( ! empty( $deleted_stats ) && $deleted_stats['files'] > 0 ) {
-				// Already have files marked for download, just resume
-				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Found ' . $deleted_stats['files'] . ' files already marked for download, resuming...' );
-			} else {
-				// No files marked yet, need to catalog from cloud storage (smart mode)
-				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: No files marked yet, cataloging missing files from cloud storage...' );
+			// List this site's files in cloud storage
+			$cloud_files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
 
-				global $wpdb;
-				$table_name = $wpdb->prefix . 'diluxone_offload_files';
+			if ( empty( $cloud_files ) && $already_marked === 0 ) {
+				return array(
+					'success' => false,
+					'message' => 'No files found in cloud storage.',
+				);
+			}
 
-				// List this site's files in cloud storage
-				$cloud_files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
-
-				if ( empty( $cloud_files ) ) {
-					return array(
-						'success' => false,
-						'message' => 'No files found in cloud storage.',
-					);
-				}
+			if ( ! empty( $cloud_files ) ) {
 
 				// Get files already in DB (synced files)
 				$synced_files_in_db = array();
@@ -1382,9 +1386,10 @@ class SyncManager {
 					DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 				}
 
-				$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
 				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: ' . $missing_count . ' missing files marked for download' );
 			}
+
+			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
 		}
 
 		// ⭐ Get TOTAL files in cloud (synced=1), not just pending

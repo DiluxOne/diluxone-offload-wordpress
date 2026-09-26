@@ -1095,6 +1095,42 @@ class Admin {
 	}
 
 	/**
+	 * What a reason the scan skipped a file for is called on the screen. The
+	 * scan records short codes and, for the filter, English sentences that
+	 * begin with a fixed phrase; each gets one translated label, and an
+	 * unknown one is shown as it is.
+	 *
+	 * @param string $reason The reason as SyncManager recorded it.
+	 * @return string
+	 */
+	public static function skip_reason_label( string $reason ): string {
+		$fixed = array(
+			'empty_file'                  => \__( 'Empty files', 'diluxone-offload' ),
+			'path_too_long'               => \__( 'Paths too long for the tracking table', 'diluxone-offload' ),
+			'Cache directories'           => \__( 'Cache directories', 'diluxone-offload' ),
+			'Temporary directories'       => \__( 'Temporary directories', 'diluxone-offload' ),
+			'File excluded by filter'     => \__( 'Excluded by the filter', 'diluxone-offload' ),
+			'Hidden file (starts with .)' => \__( 'Hidden files', 'diluxone-offload' ),
+			'System file'                 => \__( 'System files', 'diluxone-offload' ),
+		);
+		if ( isset( $fixed[ $reason ] ) ) {
+			return $fixed[ $reason ];
+		}
+		$prefixes = array(
+			'File size exceeds limit'        => \__( 'Over the size limit', 'diluxone-offload' ),
+			'Path matches exclusion pattern' => \__( 'Excluded paths', 'diluxone-offload' ),
+			'File extension not allowed'     => \__( 'File type not allowed', 'diluxone-offload' ),
+		);
+		foreach ( $prefixes as $prefix => $label ) {
+			if ( 0 === strpos( $reason, $prefix ) ) {
+				return $label;
+			}
+		}
+
+		return $reason;
+	}
+
+	/**
 	 * "Check now" on Status › Health: a connection check regardless of the
 	 * five-minute cache, and the health as recorded afterwards.
 	 */
