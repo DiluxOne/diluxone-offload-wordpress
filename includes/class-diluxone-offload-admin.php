@@ -34,7 +34,7 @@ class Admin {
 	/**
 	 * The tracking table's counts, read once per rendered page.
 	 *
-	 * @var array{total: int, synced: int, pending: int, local: int}|null
+	 * @var array{total: int, synced: int, pending: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}|null
 	 */
 	private static ?array $tracking_counts = null;
 
@@ -315,6 +315,7 @@ class Admin {
 		\add_action( 'wp_ajax_diluxone_offload_clear_failed', array( __CLASS__, 'ajax_clear_failed' ) );
 		\add_action( 'wp_ajax_diluxone_offload_ajax_remove_provider', array( __CLASS__, 'ajax_remove_provider' ) );
 		\add_action( 'wp_ajax_diluxone_offload_refresh_stats', array( __CLASS__, 'ajax_refresh_stats' ) );
+		\add_action( 'wp_ajax_diluxone_offload_check_health', array( __CLASS__, 'ajax_check_health' ) );
 		Logger::debug( '[DiluxOne Offload] Admin hooks registered successfully' );
 	}
 
@@ -703,6 +704,25 @@ class Admin {
 				$handle  = 'diluxone-offload-admin-cloud-provider';
 				break;
 
+			case 'status':
+				$payload = array(
+					'i18n' => array(
+						'checking'       => __( 'Checking…', 'diluxone-offload' ),
+						'check_now'      => __( 'Check now', 'diluxone-offload' ),
+						'healthy'        => __( 'Healthy', 'diluxone-offload' ),
+						/* translators: %s: short reason */
+						'unhealthy'      => __( 'Unhealthy (%s)', 'diluxone-offload' ),
+						'just_now'       => __( 'just now', 'diluxone-offload' ),
+						'request_failed' => __( 'The check could not run. Try again.', 'diluxone-offload' ),
+					),
+					'data' => array(
+						'urls' => self::screen_urls(),
+					),
+				);
+				$object  = 'DiluxOneOffloadStatus';
+				$handle  = 'diluxone-offload-admin-status';
+				break;
+
 			case 'overview':
 				$payload = array(
 					'i18n' => array(
@@ -965,6 +985,7 @@ class Admin {
 				$template_data['health']        = ConfigManager::get_connection_health();
 				// Delete Provider is offered before offloading is active (disconnect first via Sync & Offloading › Disconnect).
 				$template_data['can_delete_provider'] = in_array( $current_state_cp, array( 'configured', 'syncing', 'synced' ), true );
+				$template_data['timestamps']          = ConfigManager::get_timestamps();
 				$template_data['screen_urls']         = self::screen_urls();
 				break;
 
@@ -992,19 +1013,28 @@ class Admin {
 					}
 				}
 
-				// Get failed files from DB
+				// The failed list is paged: the first FAILED_LIST_LIMIT rows,
+				// and the count of all of them.
 				require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-				$failed_files_sync = DiluxOneOffloadDB::get_failed_files();
+				$failed_files_sync = DiluxOneOffloadDB::get_failed_files( self::FAILED_LIST_LIMIT );
 				$counts            = self::tracking_counts();
 
 				$template_data['current_state']   = $current_state_sync;
 				$template_data['sync_progress']   = ConfigManager::get_sync_progress();
 				$template_data['stats']           = self::get_basic_stats();
 				$template_data['failed_files']    = $failed_files_sync;
-				$template_data['failed_count']    = count( $failed_files_sync );
+				$template_data['failed_count']    = DiluxOneOffloadDB::count_failed_files();
 				$template_data['has_files_in_db'] = $counts['total'] > 0;
 				$template_data['synced_count']    = $counts['synced'];
 				$template_data['pending_count']   = $counts['pending'];
+				$template_data['counts']          = $counts;
+				$template_data['timestamps']      = ConfigManager::get_timestamps();
+				$template_data['last_upload']     = ConfigManager::get_last_upload();
+				$template_data['skipped']         = ConfigManager::get_skipped();
+				$template_data['free_disk']       = self::free_disk();
+				$template_data['cloud_host']      = ( $config['provider_config']['storage_account'] ?? '' ) !== ''
+					? sprintf( 'https://%s.blob.core.windows.net/%s/', (string) $config['provider_config']['storage_account'], (string) ( $config['provider_config']['container_name'] ?? '' ) )
+					: '';
 				$template_data['screen_urls']     = self::screen_urls();
 				break;
 
@@ -1014,6 +1044,7 @@ class Admin {
 				$template_data['storage_stats'] = self::get_basic_stats();
 				$template_data['health']        = ConfigManager::get_connection_health();
 				$template_data['tracking_rows'] = ConfigManager::is_configured() ? self::tracking_counts()['total'] : 0;
+				$template_data['free_disk']     = self::free_disk();
 				$template_data['screen_urls']   = self::screen_urls();
 				break;
 		}
@@ -1040,6 +1071,92 @@ class Admin {
 				\sprintf( \__( 'Template not found: %s', 'diluxone-offload' ), $template_path )
 			) . '</p>';
 		}
+	}
+
+	/** How many rows of the failed list a screen shows; the count is of all of them. */
+	const FAILED_LIST_LIMIT = 50;
+
+	/**
+	 * The free disk of the server's uploads directory, or null when the host
+	 * does not allow reading it. Never the cloud path: while offloading is
+	 * on, wp_upload_dir() answers with it, and it has no disk.
+	 *
+	 * @return int|null Bytes.
+	 */
+	public static function free_disk(): ?int {
+		$dir = CloudStreamWrapper::native_upload_basedir();
+		if ( $dir === '' || ! function_exists( 'disk_free_space' ) ) {
+			return null;
+		}
+		// Some hosts disable the function; false means "not available", never 0.
+		$free = @disk_free_space( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A disabled function raises a warning; the screen says "not available" instead.
+
+		return is_float( $free ) ? (int) $free : null;
+	}
+
+	/**
+	 * What a reason the scan skipped a file for is called on the screen. The
+	 * scan records short codes and, for the filter, English sentences that
+	 * begin with a fixed phrase; each gets one translated label, and an
+	 * unknown one is shown as it is.
+	 *
+	 * @param string $reason The reason as SyncManager recorded it.
+	 * @return string
+	 */
+	public static function skip_reason_label( string $reason ): string {
+		$fixed = array(
+			'empty_file'                  => \__( 'Empty files', 'diluxone-offload' ),
+			'path_too_long'               => \__( 'Paths too long for the tracking table', 'diluxone-offload' ),
+			'Cache directories'           => \__( 'Cache directories', 'diluxone-offload' ),
+			'Temporary directories'       => \__( 'Temporary directories', 'diluxone-offload' ),
+			'File excluded by filter'     => \__( 'Excluded by the filter', 'diluxone-offload' ),
+			'Hidden file (starts with .)' => \__( 'Hidden files', 'diluxone-offload' ),
+			'System file'                 => \__( 'System files', 'diluxone-offload' ),
+		);
+		if ( isset( $fixed[ $reason ] ) ) {
+			return $fixed[ $reason ];
+		}
+		$prefixes = array(
+			'File size exceeds limit'        => \__( 'Over the size limit', 'diluxone-offload' ),
+			'Path matches exclusion pattern' => \__( 'Excluded paths', 'diluxone-offload' ),
+			'File extension not allowed'     => \__( 'File type not allowed', 'diluxone-offload' ),
+		);
+		foreach ( $prefixes as $prefix => $label ) {
+			if ( 0 === strpos( $reason, $prefix ) ) {
+				return $label;
+			}
+		}
+
+		return $reason;
+	}
+
+	/**
+	 * "Check now" on Status › Health: a connection check regardless of the
+	 * five-minute cache, and the health as recorded afterwards.
+	 */
+	public static function ajax_check_health(): void {
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions', 'diluxone-offload' ) ) );
+		}
+
+		if ( ! ConfigManager::is_configured() ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'No provider is connected, so there is no connection to check.', 'diluxone-offload' ) ) );
+		}
+
+		$health = ConfigManager::check_connection_health( true );
+
+		wp_send_json_success(
+			array(
+				'status'               => (string) ( $health['status'] ?? 'unknown' ),
+				'error_code'           => (string) ( $health['error_code'] ?? '' ),
+				'reason'               => ( $health['status'] ?? '' ) === 'unhealthy' ? self::pause_reason_short( (string) ( $health['error_code'] ?? '' ) ) : '',
+				'consecutive_failures' => (int) ( $health['consecutive_failures'] ?? 0 ),
+				'last_check'           => (int) ( $health['last_check'] ?? 0 ),
+				'last_success'         => (int) ( $health['last_success'] ?? 0 ),
+			)
+		);
 	}
 
 	/**
@@ -1099,10 +1216,11 @@ class Admin {
 	 * Read once per request: the rail asks on every screen and the Sync and
 	 * Status screens ask again for their own figures.
 	 *
-	 * @return array{total: int, synced: int, pending: int, local: int}
+	 * @param bool $fresh Read again even if this page already did (after a write in the same request).
+	 * @return array{total: int, synced: int, pending: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}
 	 */
-	private static function tracking_counts(): array {
-		if ( is_array( self::$tracking_counts ) ) {
+	public static function tracking_counts( bool $fresh = false ): array {
+		if ( ! $fresh && is_array( self::$tracking_counts ) ) {
 			return self::$tracking_counts;
 		}
 
@@ -1115,19 +1233,27 @@ class Admin {
 			"SELECT COUNT(*) AS total,
 				COALESCE(SUM(synced = 1), 0) AS synced,
 				COALESCE(SUM(synced = 0 AND deleted = 0), 0) AS pending,
-				COALESCE(SUM(synced = 1 AND deleted = 0), 0) AS local
+				COALESCE(SUM(synced = 1 AND deleted = 0), 0) AS local,
+				COALESCE(SUM(CASE WHEN synced = 1 AND deleted = 0 THEN size ELSE 0 END), 0) AS local_size,
+				COALESCE(SUM(synced = 1 AND deleted = 1), 0) AS cloud_only,
+				COALESCE(SUM(CASE WHEN synced = 1 AND deleted = 1 THEN size ELSE 0 END), 0) AS cloud_only_size
 			FROM {$table}",
 			ARRAY_A
 		);
 
-		self::$tracking_counts = array(
-			'total'   => (int) ( $row['total'] ?? 0 ),
-			'synced'  => (int) ( $row['synced'] ?? 0 ),
-			'pending' => (int) ( $row['pending'] ?? 0 ),
-			'local'   => (int) ( $row['local'] ?? 0 ),
+		$counts = array(
+			'total'           => (int) ( $row['total'] ?? 0 ),
+			'synced'          => (int) ( $row['synced'] ?? 0 ),
+			'pending'         => (int) ( $row['pending'] ?? 0 ),
+			'local'           => (int) ( $row['local'] ?? 0 ),
+			'local_size'      => (int) ( $row['local_size'] ?? 0 ),
+			'cloud_only'      => (int) ( $row['cloud_only'] ?? 0 ),
+			'cloud_only_size' => (int) ( $row['cloud_only_size'] ?? 0 ),
 		);
 
-		return self::$tracking_counts;
+		self::$tracking_counts = $counts;
+
+		return $counts;
 	}
 
 	/**
@@ -1162,10 +1288,13 @@ class Admin {
 		$is_configured = ConfigManager::is_configured();
 		$paused        = ( $health['status'] ?? '' ) === 'unhealthy';
 		$counts        = $is_configured ? self::tracking_counts() : array(
-			'total'   => 0,
-			'synced'  => 0,
-			'pending' => 0,
-			'local'   => 0,
+			'total'           => 0,
+			'synced'          => 0,
+			'pending'         => 0,
+			'local'           => 0,
+			'local_size'      => 0,
+			'cloud_only'      => 0,
+			'cloud_only_size' => 0,
 		);
 		$config        = ConfigManager::get_config();
 		$container     = (string) ( $config['provider_config']['container_name'] ?? '' );
@@ -1814,7 +1943,16 @@ class Admin {
 
 			if ( $result['success'] ) {
 				Logger::info( '[DiluxOne Offload] Connection successful for provider: ' . $provider );
-				ConfigManager::record_connection_success();
+				// The health is the saved connection's: a passing test of other
+				// credentials (a new key being tried, another container) says
+				// nothing about it and must not mark it healthy.
+				$saved = ConfigManager::get_config();
+				if ( ConfigManager::is_configured()
+					&& ( $saved['provider_config']['storage_account'] ?? null ) === $account_name
+					&& ( $saved['provider_config']['container_name'] ?? null ) === $container_name
+					&& ( ConfigManager::get_current_provider_config()['access_key'] ?? null ) === $account_key ) {
+					ConfigManager::record_connection_success();
+				}
 
 				// Remembered so the save can verify it is the tested account.
 				$transient_data = array(
@@ -2160,6 +2298,9 @@ class Admin {
 			delete_option( 'diluxone_offload_sync_progress' );
 			delete_option( 'diluxone_offload_failed_files' );
 			delete_option( 'diluxone_offload_connection_health' );
+			delete_option( ConfigManager::TIMESTAMPS_OPTION );
+			delete_option( ConfigManager::LAST_UPLOAD_OPTION );
+			delete_option( ConfigManager::SKIPPED_OPTION );
 
 			// Clear the MySQL table
 			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';

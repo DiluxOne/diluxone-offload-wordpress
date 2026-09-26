@@ -23,7 +23,36 @@ $failed_count    = (int) ( $failed_count ?? 0 );
 $has_files_in_db = $has_files_in_db ?? false;
 $synced_count    = (int) ( $synced_count ?? 0 );
 $pending_count   = (int) ( $pending_count ?? 0 );
+$counts          = $counts ?? array();
+$timestamps      = $timestamps ?? array();
+$cloud_host      = (string) ( $cloud_host ?? '' );
 $screen_urls     = $screen_urls ?? array();
+$local_copies    = (int) ( $counts['local'] ?? 0 );
+$local_size      = (int) ( $counts['local_size'] ?? 0 );
+$cloud_only      = (int) ( $counts['cloud_only'] ?? 0 );
+$cloud_only_size = (int) ( $counts['cloud_only_size'] ?? 0 );
+$since           = (int) ( $timestamps['offloading_since'] ?? 0 );
+?>
+
+<?php
+// The figures every state of this screen can show, from the tracking table.
+$diluxone_offload_bignums = static function ( array $items ): void {
+	echo '<div class="diluxone-offload-bignums">';
+	foreach ( $items as $item ) {
+		echo '<div class="diluxone-offload-bignum">';
+		echo '<div class="diluxone-offload-bignum__k">' . esc_html( $item[0] ) . '</div>';
+		echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
+		if ( $item[2] !== '' ) {
+			echo '<div class="diluxone-offload-bignum__d">' . esc_html( $item[2] ) . '</div>';
+		}
+		echo '</div>';
+	}
+	echo '</div>';
+};
+$diluxone_offload_ago     = static function ( int $ts ): string {
+	/* translators: %s: a human time difference, e.g. "10 minutes" */
+	return $ts > 0 ? sprintf( __( '%s ago', 'diluxone-offload' ), human_time_diff( $ts, time() ) ) : __( 'never', 'diluxone-offload' );
+};
 ?>
 
 <div class="diluxone-offload-sync-container">
@@ -36,6 +65,28 @@ $screen_urls     = $screen_urls ?? array();
 		</h3>
 
 		<?php if ( $current_state === 'offloading_active' ) : ?>
+			<?php
+			$diluxone_offload_bignums(
+				array(
+					array( __( 'Served from', 'diluxone-offload' ), $cloud_host !== '' ? (string) wp_parse_url( $cloud_host, PHP_URL_HOST ) : __( 'the cloud', 'diluxone-offload' ), __( 'every media URL WordPress hands out', 'diluxone-offload' ) ),
+					array( __( 'Local copies', 'diluxone-offload' ), number_format_i18n( $local_copies ), size_format( $local_size ) . ' ' . __( 'still on this server', 'diluxone-offload' ) ),
+					array( __( 'Not on this server', 'diluxone-offload' ), number_format_i18n( $cloud_only ), size_format( $cloud_only_size ) . ' ' . __( 'in the cloud only', 'diluxone-offload' ) ),
+					array( __( 'Offloading since', 'diluxone-offload' ), $since > 0 ? get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $since ), (string) get_option( 'date_format' ) ) : '—', $since > 0 ? $diluxone_offload_ago( $since ) : '' ),
+				)
+			);
+			$diluxone_offload_bytes = $local_size + $cloud_only_size;
+			if ( $diluxone_offload_bytes > 0 ) :
+				$diluxone_offload_cloud_pct = (int) round( $cloud_only_size / $diluxone_offload_bytes * 100 );
+				?>
+				<div class="diluxone-offload-bar-head">
+					<span><?php esc_html_e( 'Where the bytes are', 'diluxone-offload' ); ?></span>
+					<strong><?php echo esc_html( sprintf( /* translators: %s: percentage */ __( '%s%% cloud only', 'diluxone-offload' ), $diluxone_offload_cloud_pct ) ); ?></strong>
+				</div>
+				<div class="diluxone-offload-progress" role="progressbar" aria-valuenow="<?php echo esc_attr( (string) $diluxone_offload_cloud_pct ); ?>" aria-valuemin="0" aria-valuemax="100">
+					<i style="width: <?php echo esc_attr( (string) $diluxone_offload_cloud_pct ); ?>%"></i>
+				</div>
+				<p class="description"><?php echo esc_html( sprintf( /* translators: 1: size in the cloud only, 2: size still local */ __( '%1$s live in the cloud only; %2$s still have a copy here.', 'diluxone-offload' ), size_format( $cloud_only_size ), size_format( $local_size ) ) ); ?></p>
+			<?php endif; ?>
 			<!-- STATUS: OFFLOADING ACTIVE -->
 			<div style="background: #cce5ff; border-left: 4px solid #2196f3; padding: 12px 15px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px;">
 				<span class="dashicons dashicons-cloud" style="color: #2196f3; font-size: 24px; flex-shrink: 0; margin-top: 2px;"></span>

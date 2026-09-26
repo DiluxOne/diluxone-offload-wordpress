@@ -709,7 +709,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$response_code = wp_remote_retrieve_response_code( $response );
 
-			if ( $response_code === 202 ) {
+			// 202: deleted. 404: the blob was not there, which is what a delete
+			// is for; callers can trust that a success means "gone" and a
+			// failure means "maybe still there" (a network error, a 403, a 5xx).
+			if ( $response_code === 202 || $response_code === 404 ) {
 				return OperationResult::success();
 			}
 

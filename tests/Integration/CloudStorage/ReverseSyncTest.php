@@ -143,7 +143,20 @@ class ReverseSyncTest extends IntegrationTestCase {
         DB::add_cloud_only_file('/2026/09/x.jpg', 3);
         $r = (new SyncManager())->start_reverse_sync('continue');
         $this->assertTrue($r['success'], print_r($r, true));
-        $this->assertSame(1, DB::count_deleted_files(), 'nothing re-catalogued');
+        $this->assertSame(1, DB::count_deleted_files(), 'the marked row is kept, nothing invented');
+    }
+
+    public function test_continue_mode_also_catalogues_what_the_table_does_not_know(): void {
+        // The table knows one file (a live upload); the cloud has the whole
+        // library. A Disconnect that trusted the table would bring back one file.
+        $this->client->blobs = ['uploads/2026/09/live.jpg' => 'l', 'uploads/2026/09/old.jpg' => 'o'];
+        DB::add_cloud_only_file('/2026/09/live.jpg', 1);
+        $r = (new SyncManager())->start_reverse_sync('continue');
+        $this->assertTrue($r['success'], print_r($r, true));
+        $deleted = array_column(DB::get_deleted_files(), 'file');
+        $this->assertContains('/2026/09/live.jpg', $deleted);
+        $this->assertContains('/2026/09/old.jpg', $deleted, 'the file the table did not know is marked for download too');
+        $this->assertSame(2, DB::count_deleted_files());
     }
 
     public function test_continue_mode_catalogues_only_files_missing_from_the_db(): void {
@@ -299,7 +312,8 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertTrue($del['json']['success'] ?? false, $del['raw']);
         $this->assertFileDoesNotExist($p);
         $this->assertSame('completed', $del['json']['data']['status']);
-        $this->assertSame(0, DB::get_total_count(), 'the catalogue is cleared once nothing is left to delete');
+        $this->assertSame(1, DB::get_total_count(), 'the row stays: it is what the screens count and what a Disconnect downloads');
+        $this->assertSame(1, DB::count_deleted_files(), 'as cloud-only');
     }
 
     // ── Plugin plumbing ─────────────────────────────────────

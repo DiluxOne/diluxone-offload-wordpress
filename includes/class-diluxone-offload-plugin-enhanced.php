@@ -1145,11 +1145,11 @@ class Plugin {
 		Logger::info( '[DiluxOne Offload Delete] Batch completed: deleted=' . $deleted_total . ', failed=' . $failed_total . ', remaining=' . $remaining_count );
 
 		if ( $is_done ) {
-			// ⭐ OPTIMIZATION: Clear table after delete completes
-			// Table has no value once all files are deleted (all records would be deleted=1)
-			// Keeps DB lean and allows fresh catalog on next operation
-			DiluxOneOffloadDB::clear_table();
-			Logger::info( '[DiluxOne Offload Delete] All files deleted - table cleared (no longer needed)' );
+			// The rows stay, as synced = 1, deleted = 1: they are what the
+			// screens count ("not on this server") and what a Disconnect
+			// downloads. Clearing the table here left every figure at zero
+			// on precisely the sites that use offloading.
+			Logger::info( '[DiluxOne Offload Delete] All local copies deleted; the tracking table keeps the rows as cloud-only' );
 
 			wp_send_json_success(
 				array(

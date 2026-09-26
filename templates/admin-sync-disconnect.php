@@ -23,7 +23,32 @@ $failed_count    = (int) ( $failed_count ?? 0 );
 $has_files_in_db = $has_files_in_db ?? false;
 $synced_count    = (int) ( $synced_count ?? 0 );
 $pending_count   = (int) ( $pending_count ?? 0 );
+$counts          = $counts ?? array();
+$free_disk       = $free_disk ?? null;
 $screen_urls     = $screen_urls ?? array();
+$cloud_only      = (int) ( $counts['cloud_only'] ?? 0 );
+$cloud_only_size = (int) ( $counts['cloud_only_size'] ?? 0 );
+?>
+
+<?php
+// The figures every state of this screen can show, from the tracking table.
+$diluxone_offload_bignums = static function ( array $items ): void {
+	echo '<div class="diluxone-offload-bignums">';
+	foreach ( $items as $item ) {
+		echo '<div class="diluxone-offload-bignum">';
+		echo '<div class="diluxone-offload-bignum__k">' . esc_html( $item[0] ) . '</div>';
+		echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
+		if ( $item[2] !== '' ) {
+			echo '<div class="diluxone-offload-bignum__d">' . esc_html( $item[2] ) . '</div>';
+		}
+		echo '</div>';
+	}
+	echo '</div>';
+};
+$diluxone_offload_ago     = static function ( int $ts ): string {
+	/* translators: %s: a human time difference, e.g. "10 minutes" */
+	return $ts > 0 ? sprintf( __( '%s ago', 'diluxone-offload' ), human_time_diff( $ts, time() ) ) : __( 'never', 'diluxone-offload' );
+};
 ?>
 
 <div class="diluxone-offload-sync-container">
@@ -36,6 +61,19 @@ $screen_urls     = $screen_urls ?? array();
 		</h3>
 
 		<?php if ( $current_state === 'offloading_active' ) : ?>
+			<?php
+			$diluxone_offload_bignums(
+				array(
+					array( __( 'Files to bring back', 'diluxone-offload' ), number_format_i18n( $cloud_only ), __( 'known to the tracking table; exact after the scan', 'diluxone-offload' ) ),
+					array( __( 'Size to bring back', 'diluxone-offload' ), size_format( $cloud_only_size ), __( 'as recorded when they were uploaded', 'diluxone-offload' ) ),
+					array(
+						__( 'Free disk here', 'diluxone-offload' ),
+						is_int( $free_disk ) ? size_format( $free_disk ) : __( 'not available', 'diluxone-offload' ),
+						is_int( $free_disk ) ? ( $free_disk >= $cloud_only_size ? __( 'enough for what is in the cloud', 'diluxone-offload' ) : __( 'less than what is in the cloud: free some first', 'diluxone-offload' ) ) : __( 'the host does not allow reading it', 'diluxone-offload' ),
+					),
+				)
+			);
+			?>
 			<div style="padding: 0 0 10px;">
 					<!-- Disconnect from Cloud (primary action) -->
 					<div style="flex: 1; background: #fff3f3; border: 2px solid #dc3545; border-radius: 6px; padding: 15px;">

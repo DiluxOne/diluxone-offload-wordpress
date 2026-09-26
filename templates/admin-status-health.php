@@ -221,6 +221,9 @@ $ago           = static function ( int $ts ): string {
 			<h3>
 				<span class="dashicons dashicons-heart"></span>
 				<?php esc_html_e( 'Connection Health', 'diluxone-offload' ); ?>
+				<?php if ( $is_configured ) : ?>
+				<button type="button" id="check-health-now" class="button button-small"><?php esc_html_e( 'Check now', 'diluxone-offload' ); ?></button>
+				<?php endif; ?>
 			</h3>
 			<?php if ( ! $is_configured ) : ?>
 				<p class="description"><?php esc_html_e( 'No provider is connected, so there is no connection to check.', 'diluxone-offload' ); ?></p>
@@ -230,7 +233,7 @@ $ago           = static function ( int $ts ): string {
 					<table class="info-table">
 						<tr>
 							<td><?php esc_html_e( 'Status', 'diluxone-offload' ); ?></td>
-							<td>
+							<td id="health-status">
 								<?php if ( $health_status === 'healthy' ) : ?>
 									<span class="diluxone-offload-pill diluxone-offload-pill--active"><?php esc_html_e( 'Healthy', 'diluxone-offload' ); ?></span>
 								<?php elseif ( $health_status === 'unhealthy' ) : ?>
@@ -242,15 +245,15 @@ $ago           = static function ( int $ts ): string {
 						</tr>
 						<tr>
 							<td><?php esc_html_e( 'Last check', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $ago( $last_check ) ); ?></strong></td>
+							<td id="health-last-check"><strong><?php echo esc_html( $ago( $last_check ) ); ?></strong></td>
 						</tr>
 						<tr>
 							<td><?php esc_html_e( 'Last success', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $ago( $last_success ) ); ?></strong></td>
+							<td id="health-last-success"><strong><?php echo esc_html( $ago( $last_success ) ); ?></strong></td>
 						</tr>
 						<tr>
 							<td><?php esc_html_e( 'Consecutive failures', 'diluxone-offload' ); ?></td>
-							<td>
+							<td id="health-failures">
 								<strong><?php echo esc_html( number_format_i18n( $failures ) ); ?></strong>
 								<?php if ( $failures >= 3 ) : ?>
 									<span class="description"><?php esc_html_e( '(uploads refused from 3)', 'diluxone-offload' ); ?></span>

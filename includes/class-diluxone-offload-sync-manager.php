@@ -120,6 +120,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SyncManager {
 
+	/** How many skipped paths the scan keeps for the Sync screen; the counts per reason are always complete. */
+	const SKIPPED_PATHS_CAP = 500;
+
 	/** @var mixed */
 	private $cloud_client;
 	/** @var mixed */
@@ -761,6 +764,8 @@ class SyncManager {
 		$files_passed_filter = 0;
 		$skipped_files       = array();
 		$skip_reasons        = array();
+		$skipped_paths       = array(); // reason => relative paths, the first SKIPPED_PATHS_CAP in all
+		$skipped_kept        = 0;
 
 		foreach ( $iterator as $file ) {
 			++$total_files_found;
@@ -779,33 +784,31 @@ class SyncManager {
 
 				// Skip files with size 0 (empty files) - checked before filter
 				if ( $file_size === 0 ) {
-					$skipped_files[] = basename( $local_path );
-					if ( ! isset( $skip_reasons['empty_file'] ) ) {
-						$skip_reasons['empty_file'] = 0;
-					}
-					++$skip_reasons['empty_file'];
-					continue;
+					$skip_reason = 'empty_file';
+				} elseif ( ! DiluxOneOffloadDB::fits_key( $relative_path ) ) {
+					// A path the tracking table cannot hold is skipped here, and
+					// counted, rather than dropped later without a trace.
+					$skip_reason = 'path_too_long';
+				} else {
+					// Apply filtering (including file type, max size, hidden files)
+					$skip_reason = $this->should_sync_file( $local_path, $file_size );
 				}
-
-				// A path the tracking table cannot hold is skipped here, and
-				// counted, rather than dropped later without a trace.
-				if ( ! DiluxOneOffloadDB::fits_key( $relative_path ) ) {
-					$skipped_files[] = basename( $local_path );
-					if ( ! isset( $skip_reasons['path_too_long'] ) ) {
-						$skip_reasons['path_too_long'] = 0;
-					}
-					++$skip_reasons['path_too_long'];
-					continue;
-				}
-
-				// Apply filtering (including file type, max size, hidden files)
-				$skip_reason = $this->should_sync_file( $local_path, $file_size );
 				if ( $skip_reason !== true ) {
+					// The size reason names each file's size, which would make every
+					// oversize file its own group on the Sync screen.
+					if ( is_string( $skip_reason ) && 0 === strpos( $skip_reason, 'File size exceeds limit' ) ) {
+						$skip_reason = 'File size exceeds limit';
+					}
 					$skipped_files[] = basename( $local_path );
 					if ( ! isset( $skip_reasons[ $skip_reason ] ) ) {
-						$skip_reasons[ $skip_reason ] = 0;
+						$skip_reasons[ $skip_reason ]  = 0;
+						$skipped_paths[ $skip_reason ] = array();
 					}
 					++$skip_reasons[ $skip_reason ];
+					if ( $skipped_kept < self::SKIPPED_PATHS_CAP ) {
+						$skipped_paths[ $skip_reason ][] = '/' . ltrim( $relative_path, '/' );
+						++$skipped_kept;
+					}
 					continue;
 				}
 
@@ -829,13 +832,32 @@ class SyncManager {
 		Logger::info( '[DiluxOne Offload SyncManager] Total files found by iterator: ' . $total_files_found );
 		Logger::info( '[DiluxOne Offload SyncManager] Files passed filter: ' . $files_passed_filter );
 
-		// Report what the filter left out.
+		// Report what the filter left out, in the log and in one option the
+		// Sync screen reads ("as of the last scan"): the counts per reason are
+		// complete, the paths stop at SKIPPED_PATHS_CAP so the option stays
+		// small on a library that skips thousands of cache files.
 		if ( ! empty( $skip_reasons ) ) {
 			Logger::info( '[DiluxOne Offload SyncManager] Files skipped by reason:' );
 			foreach ( $skip_reasons as $reason => $count ) {
 				Logger::info( '[DiluxOne Offload SyncManager]   ' . $reason . ': ' . $count . ' files' );
 			}
 		}
+		$reasons = array();
+		foreach ( $skip_reasons as $reason => $count ) {
+			$reasons[ $reason ] = array(
+				'count' => $count,
+				'paths' => $skipped_paths[ $reason ] ?? array(),
+			);
+		}
+		update_option(
+			ConfigManager::SKIPPED_OPTION,
+			array(
+				'time'    => time(),
+				'total'   => array_sum( $skip_reasons ),
+				'reasons' => $reasons,
+			),
+			false
+		);
 
 		Logger::info( '[DiluxOne Offload SyncManager] Found ' . count( $files ) . ' files to sync' );
 
@@ -1296,31 +1318,30 @@ class SyncManager {
 			Logger::info( '[DiluxOne Offload SyncManager] SCRATCH mode: ' . count( $cloud_files ) . ' files marked for download' );
 
 		} else {
-			// CONTINUE MODE (default): Resume existing download
-			Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Resuming existing download from DB...' );
+			// CONTINUE MODE (default): resume what is marked for download, and
+			// catalogue what the cloud has that the table does not know.
+			// Always both: the table may hold only part of the library (it
+			// was emptied by an older build's Delete Local Files, or it only
+			// has the uploads made since), and a Disconnect that trusted it
+			// would bring back a few files and turn offloading off with the
+			// rest still in the cloud only.
+			$already_marked = (int) DiluxOneOffloadDB::get_deleted_stats()['files'];
+			Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: ' . $already_marked . ' files already marked for download; cataloguing what the cloud has besides...' );
 
-			// Check if there are already deleted files in DB
-			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
+			global $wpdb;
+			$table_name = $wpdb->prefix . 'diluxone_offload_files';
 
-			if ( ! empty( $deleted_stats ) && $deleted_stats['files'] > 0 ) {
-				// Already have files marked for download, just resume
-				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: Found ' . $deleted_stats['files'] . ' files already marked for download, resuming...' );
-			} else {
-				// No files marked yet, need to catalog from cloud storage (smart mode)
-				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: No files marked yet, cataloging missing files from cloud storage...' );
+			// List this site's files in cloud storage
+			$cloud_files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
 
-				global $wpdb;
-				$table_name = $wpdb->prefix . 'diluxone_offload_files';
+			if ( empty( $cloud_files ) && $already_marked === 0 ) {
+				return array(
+					'success' => false,
+					'message' => 'No files found in cloud storage.',
+				);
+			}
 
-				// List this site's files in cloud storage
-				$cloud_files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
-
-				if ( empty( $cloud_files ) ) {
-					return array(
-						'success' => false,
-						'message' => 'No files found in cloud storage.',
-					);
-				}
+			if ( ! empty( $cloud_files ) ) {
 
 				// Get files already in DB (synced files)
 				$synced_files_in_db = array();
@@ -1365,9 +1386,10 @@ class SyncManager {
 					DiluxOneOffloadDB::add_cloud_only_files_batch( $batch_files );
 				}
 
-				$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
 				Logger::info( '[DiluxOne Offload SyncManager] CONTINUE mode: ' . $missing_count . ' missing files marked for download' );
 			}
+
+			$deleted_stats = DiluxOneOffloadDB::get_deleted_stats();
 		}
 
 		// ⭐ Get TOTAL files in cloud (synced=1), not just pending

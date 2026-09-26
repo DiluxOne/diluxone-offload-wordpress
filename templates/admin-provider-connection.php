@@ -18,7 +18,9 @@ $config        = $config ?? array();
 $current_state = $current_state ?? 'not_configured';
 $is_configured = $is_configured ?? false;
 $health        = $health ?? array();
+$timestamps    = $timestamps ?? array();
 $screen_urls   = $screen_urls ?? array();
+$connected_at  = (int) ( $timestamps['connected_at'] ?? 0 );
 
 $provider_name         = $config['cloud_provider'] ?? '';
 $provider_display_name = $provider_name === 'azure' ? __( 'Microsoft Azure Blob Storage', 'diluxone-offload' ) : '';
@@ -148,6 +150,12 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Media served from', 'diluxone-offload' ); ?></th>
 					<td><code><?php echo esc_html( sprintf( 'https://%s.blob.core.windows.net/%s/', $account_name, $container_name_val ) ); ?></code></td>
+				</tr>
+				<?php endif; ?>
+				<?php if ( $connected_at > 0 ) : ?>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Connected since', 'diluxone-offload' ); ?></th>
+					<td><?php echo esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $connected_at ), (string) get_option( 'date_format' ) ) ); ?> <span class="description">(<?php echo esc_html( sprintf( /* translators: %s: a human time difference, e.g. "10 minutes" */ __( '%s ago', 'diluxone-offload' ), human_time_diff( $connected_at, time() ) ) ); ?>)</span></td>
 				</tr>
 				<?php endif; ?>
 			</table>

@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use DiluxOneOffload\Admin;
+
 // All data is prepared by Admin::render_screen_content() — no business logic in templates
 $current_state   = $current_state ?? 'not_configured';
 $sync_progress   = $sync_progress ?? array();
@@ -23,7 +25,34 @@ $failed_count    = (int) ( $failed_count ?? 0 );
 $has_files_in_db = $has_files_in_db ?? false;
 $synced_count    = (int) ( $synced_count ?? 0 );
 $pending_count   = (int) ( $pending_count ?? 0 );
+$counts          = $counts ?? array();
+$last_upload     = $last_upload ?? null;
+$skipped         = $skipped ?? null;
 $screen_urls     = $screen_urls ?? array();
+$cloud_only      = (int) ( $counts['cloud_only'] ?? 0 );
+$local_copies    = (int) ( $counts['local'] ?? 0 );
+$failed_shown    = count( $failed_files );
+?>
+
+<?php
+// The figures every state of this screen can show, from the tracking table.
+$diluxone_offload_bignums = static function ( array $items ): void {
+	echo '<div class="diluxone-offload-bignums">';
+	foreach ( $items as $item ) {
+		echo '<div class="diluxone-offload-bignum">';
+		echo '<div class="diluxone-offload-bignum__k">' . esc_html( $item[0] ) . '</div>';
+		echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
+		if ( $item[2] !== '' ) {
+			echo '<div class="diluxone-offload-bignum__d">' . esc_html( $item[2] ) . '</div>';
+		}
+		echo '</div>';
+	}
+	echo '</div>';
+};
+$diluxone_offload_ago     = static function ( int $ts ): string {
+	/* translators: %s: a human time difference, e.g. "10 minutes" */
+	return $ts > 0 ? sprintf( __( '%s ago', 'diluxone-offload' ), human_time_diff( $ts, time() ) ) : __( 'never', 'diluxone-offload' );
+};
 ?>
 
 <div class="diluxone-offload-sync-container">
@@ -137,6 +166,76 @@ $screen_urls     = $screen_urls ?? array();
 				</div>
 			</div>
 
+		<?php endif; ?>
+
+		<?php if ( in_array( $current_state, array( 'synced', 'offloading_active' ), true ) || $synced_count > 0 ) : ?>
+			<?php
+			$diluxone_offload_bignums(
+				array(
+					array( __( 'Synced', 'diluxone-offload' ), number_format_i18n( $synced_count ), __( 'files in the cloud', 'diluxone-offload' ) ),
+					array( __( 'Local copies left', 'diluxone-offload' ), number_format_i18n( $local_copies ), __( 'synced files still on this server', 'diluxone-offload' ) ),
+					array( __( 'Not on this server', 'diluxone-offload' ), number_format_i18n( $cloud_only ), __( 'in the cloud only', 'diluxone-offload' ) ),
+					array(
+						__( 'Last upload', 'diluxone-offload' ),
+						$last_upload ? $diluxone_offload_ago( $last_upload['time'] ) : __( 'none yet', 'diluxone-offload' ),
+						$last_upload ? basename( $last_upload['path'] ) . ' · ' . size_format( $last_upload['size'] ) : __( 'through the site while offloading is on', 'diluxone-offload' ),
+					),
+				)
+			);
+			$diluxone_offload_total = $synced_count + $pending_count;
+			if ( $diluxone_offload_total > 0 ) :
+				$diluxone_offload_pct = (int) round( $synced_count / $diluxone_offload_total * 100 );
+				?>
+				<div class="diluxone-offload-bar-head">
+					<span><?php esc_html_e( 'Library in the cloud', 'diluxone-offload' ); ?></span>
+					<strong><?php echo esc_html( $diluxone_offload_pct . '%' ); ?></strong>
+				</div>
+				<div class="diluxone-offload-progress" role="progressbar" aria-valuenow="<?php echo esc_attr( (string) $diluxone_offload_pct ); ?>" aria-valuemin="0" aria-valuemax="100">
+					<i style="width: <?php echo esc_attr( (string) $diluxone_offload_pct ); ?>%"></i>
+				</div>
+				<p class="description">
+					<?php
+					if ( $pending_count > 0 ) {
+						printf(
+							/* translators: %s: number of files not synced */
+							esc_html( _n( '%s file pending or failed.', '%s files pending or failed.', $pending_count, 'diluxone-offload' ) ),
+							esc_html( number_format_i18n( $pending_count ) )
+						);
+					} else {
+						esc_html_e( 'Nothing pending.', 'diluxone-offload' );
+					}
+					if ( $skipped && $skipped['total'] > 0 ) {
+						echo ' ';
+						printf(
+							/* translators: 1: number of files, 2: how long ago the scan ran */
+							esc_html( _n( '%1$s file was left out by the last scan (%2$s).', '%1$s files were left out by the last scan (%2$s).', $skipped['total'], 'diluxone-offload' ) ),
+							esc_html( number_format_i18n( $skipped['total'] ) ),
+							esc_html( $diluxone_offload_ago( $skipped['time'] ) )
+						);
+					}
+					?>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( $skipped && $skipped['total'] > 0 ) : ?>
+				<details class="diluxone-offload-skipped">
+					<summary><?php esc_html_e( 'Skipped by the last scan', 'diluxone-offload' ); ?></summary>
+					<p class="description"><?php esc_html_e( 'Left out on purpose: empty files, cache folders, files over the size limit, paths too long for the tracking table. As of the last scan; a new sync scans again.', 'diluxone-offload' ); ?></p>
+					<?php foreach ( $skipped['reasons'] as $reason => $entry ) : ?>
+						<p><strong><?php echo esc_html( Admin::skip_reason_label( (string) $reason ) ); ?></strong> · <?php echo esc_html( number_format_i18n( $entry['count'] ) ); ?></p>
+						<?php if ( $entry['paths'] !== array() ) : ?>
+						<ul class="diluxone-offload-skipped__list">
+							<?php foreach ( $entry['paths'] as $skipped_path ) : ?>
+								<li><code><?php echo esc_html( $skipped_path ); ?></code></li>
+							<?php endforeach; ?>
+							<?php if ( $entry['count'] > count( $entry['paths'] ) ) : ?>
+								<li class="description"><?php echo esc_html( sprintf( /* translators: %s: number of files not listed */ __( 'and %s more', 'diluxone-offload' ), number_format_i18n( $entry['count'] - count( $entry['paths'] ) ) ) ); ?></li>
+							<?php endif; ?>
+						</ul>
+						<?php endif; ?>
+					<?php endforeach; ?>
+				</details>
+			<?php endif; ?>
 		<?php endif; ?>
 	</div>
 
@@ -435,6 +534,18 @@ $screen_urls     = $screen_urls ?? array();
 					</tbody>
 				</table>
 			</div>
+			<?php if ( $failed_count > $failed_shown ) : ?>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: number of rows shown, 2: total number of failed files */
+					esc_html__( 'The first %1$s of %2$s, the ones with most attempts first. Retry Failed Files takes all of them.', 'diluxone-offload' ),
+					esc_html( number_format_i18n( $failed_shown ) ),
+					esc_html( number_format_i18n( $failed_count ) )
+				);
+				?>
+			</p>
+			<?php endif; ?>
 			<button id="close-failed-modal" class="button button-primary"><?php esc_html_e( 'Close', 'diluxone-offload' ); ?></button>
 		</div>
 	</div>

@@ -987,6 +987,25 @@ class CloudStreamWrapper {
 		self::clear_write_failure( $this->path );
 		Logger::info( '[DiluxOne Offload CloudStreamWrapper] uploaded: ' . $this->path . ' (' . $size . ' bytes)' );
 
+		// The tracking table learns of it (synced, no local copy), so the
+		// counts on the screens include the files uploaded while offloading
+		// is on, not only the ones the initial sync moved; and the screens
+		// can say what was uploaded last. Best effort: the wrapper also runs
+		// where the plugin's other classes are not loaded (the unit suite).
+		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) && function_exists( 'update_option' ) ) {
+			$row_path = \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $this->path );
+			\DiluxOneOffload\DiluxOneOffloadDB::record_live_upload( $row_path, (int) $size );
+			\update_option(
+				\DiluxOneOffload\ConfigManager::LAST_UPLOAD_OPTION,
+				array(
+					'path' => $row_path,
+					'size' => (int) $size,
+					'time' => time(),
+				),
+				false
+			);
+		}
+
 		// Auto-recovery: if was unhealthy and upload succeeded, mark healthy
 		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
 		if ( $health['status'] === 'unhealthy' ) {
@@ -1362,6 +1381,14 @@ class CloudStreamWrapper {
 		// Cache as "deleted" so later stat checks do not ask the cloud again.
 		self::$stat_cache[ $parsed_path ] = false;
 
+		// The tracking table forgets the file once the provider says it is
+		// gone (a delete that succeeded, or one on a blob it no longer had:
+		// both are a success from the provider). After a network failure the
+		// blob may still be there, and the row stays until the next reconcile.
+		if ( $result['success'] && class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
+		}
+
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			if ( $result['success'] ) {
 				Logger::info( '[DiluxOne Offload CloudStreamWrapper] Deleted: ' . $parsed_path );
@@ -1439,6 +1466,14 @@ class CloudStreamWrapper {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				Logger::warning( '[DiluxOne Offload CloudStreamWrapper] rename: copy succeeded but delete failed (non-critical): ' . ( $delete_result['error'] ?? 'Unknown error' ) );
 			}
+		}
+
+		// The tracking table follows the file to its new path.
+		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::rename_file(
+				\DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_from ),
+				\DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_to )
+			);
 		}
 
 		// Step 3: Update cache

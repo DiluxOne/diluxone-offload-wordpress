@@ -74,6 +74,11 @@ interface CloudStorageClientInterface {
 	/**
 	 * Delete file from cloud storage
 	 *
+	 * A success means the file is gone, including when it was not there to
+	 * begin with; a failure means it may still be there (a network error, a
+	 * permission error, a server error). Callers that keep a record of what
+	 * the cloud holds rely on that distinction.
+	 *
 	 * @param string $remote_path Remote path
 	 * @return array<string, mixed> ['success' => bool, 'error' => string]
 	 */
