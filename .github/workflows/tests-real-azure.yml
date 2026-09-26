@@ -6,11 +6,13 @@ name: Real-storage suite (Azure)
 #
 # It runs with the repository's Azure secrets, so it runs only on events the
 # maintainer owns: pull requests from branches of this repository that are
-# not drafts, pushes to main, and the manual button. A pull request from a
-# fork gets every other check and is skipped here on purpose; nothing
-# external ever runs with the key. A draft (the bot's reproduction pull
-# requests are drafts) runs it once it is marked ready for review. A maintainer who wants this suite on a contributed change brings the
-# branch into the repository first (see CONTRIBUTING.md).
+# not drafts and that change code (the What changed job, on the
+# organisation's `code` list), pushes to main, and the manual button. A
+# pull request from a fork gets every other check and is skipped here on
+# purpose; nothing external ever runs with the key. A draft (the bot's
+# reproduction pull requests are drafts) runs it once it is marked ready
+# for review. A maintainer who wants this suite on a contributed change
+# brings the branch into the repository first (see CONTRIBUTING.md).
 #
 # Each run creates its own containers (e2e-<run id>-single, -network and
 # -php-* for PHPUnit) and deletes them at the end. A run that is cancelled
@@ -46,6 +48,10 @@ jobs:
     # "run", so this job failing never skips the suite.
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Runs the central's script from the mutable v1 tag: nothing beyond
+    # reading the checkout, whatever the workflow as a whole may write.
+    permissions:
+      contents: read
     outputs:
       code: ${{ steps.changes.outputs.code }}
     steps:
