@@ -155,7 +155,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 				<?php if ( $connected_at > 0 ) : ?>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Connected since', 'diluxone-offload' ); ?></th>
-					<td><?php echo esc_html( (string) wp_date( (string) get_option( 'date_format' ), $connected_at ) ); ?> <span class="description">(<?php echo esc_html( sprintf( /* translators: %s: a human time difference */ __( '%s ago', 'diluxone-offload' ), human_time_diff( $connected_at, time() ) ) ); ?>)</span></td>
+					<td><?php echo esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $connected_at ), (string) get_option( 'date_format' ) ) ); ?> <span class="description">(<?php echo esc_html( sprintf( /* translators: %s: a human time difference, e.g. "10 minutes" */ __( '%s ago', 'diluxone-offload' ), human_time_diff( $connected_at, time() ) ) ); ?>)</span></td>
 				</tr>
 				<?php endif; ?>
 			</table>
