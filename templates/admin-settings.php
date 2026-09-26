@@ -64,7 +64,7 @@ $config = $config ?? array(); // phpcs:ignore WordPress.NamingConventions.Prefix
 								max="600"
 								class="small-text">
 						<p class="description">
-							<?php esc_html_e( 'How long each transfer request to the cloud may take, upload or download (30-600 seconds). Raise it on a slow host.', 'diluxone-offload' ); ?>
+							<?php esc_html_e( 'How long each upload request to the cloud may take (30-600 seconds). Raise it on a slow host. Downloads wait at least 300 seconds, or this value when it is higher.', 'diluxone-offload' ); ?>
 						</p>
 					</td>
 				</tr>

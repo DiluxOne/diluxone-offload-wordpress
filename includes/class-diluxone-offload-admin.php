@@ -1028,7 +1028,7 @@ class Admin {
 					'title'     => __( 'Cloud Transfer Timed Out', 'diluxone-offload' ),
 					'detail'    => sprintf(
 						/* translators: %d: the Transfer Timeout setting, in seconds */
-						__( 'A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider.', 'diluxone-offload' ),
+						__( 'A transfer to the cloud took longer than allowed: the Transfer Timeout (%d seconds) for an upload, at least 300 seconds for a download. Raise the setting if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider.', 'diluxone-offload' ),
 						(int) ( ConfigManager::get_config()['timeout'] ?? 60 )
 					),
 					'cta_label' => __( 'Open Settings', 'diluxone-offload' ),

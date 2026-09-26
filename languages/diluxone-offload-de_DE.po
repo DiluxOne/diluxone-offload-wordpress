@@ -1526,8 +1526,8 @@ msgid "Transfer Timeout (seconds)"
 msgstr "Zeitlimit für Übertragungen (Sekunden)"
 
 #: templates/admin-settings.php:67
-msgid "How long each transfer request to the cloud may take, upload or download (30-600 seconds). Raise it on a slow host."
-msgstr "Wie lange jede Übertragungsanfrage an die Cloud dauern darf, Upload oder Download (30-600 Sekunden). Auf einem langsamen Host erhöhen."
+msgid "How long each upload request to the cloud may take (30-600 seconds). Raise it on a slow host. Downloads wait at least 300 seconds, or this value when it is higher."
+msgstr "Wie lange jede Upload-Anfrage an die Cloud dauern darf (30-600 Sekunden). Auf einem langsamen Host erhöhen. Downloads warten mindestens 300 Sekunden oder diesen Wert, wenn er höher ist."
 
 #: templates/admin-settings.php:78
 msgid "Offloading Settings"
@@ -2226,8 +2226,8 @@ msgid "Cloud Transfer Timed Out"
 msgstr "Cloud-Übertragung abgelaufen"
 
 #. translators: %d: the Transfer Timeout setting, in seconds
-msgid "A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
-msgstr "Eine Übertragung in die Cloud hat länger gedauert, als das Zeitlimit für Übertragungen erlaubt (%d Sekunden). Erhöhe es in den Einstellungen, wenn dieser Host oder seine Verbindung langsam ist; wenn Übertragungen mit diesem Wert bisher funktioniert haben, prüfe die Verbindung zum Anbieter."
+msgid "A transfer to the cloud took longer than allowed: the Transfer Timeout (%d seconds) for an upload, at least 300 seconds for a download. Raise the setting if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
+msgstr "Eine Übertragung in die Cloud hat länger gedauert als erlaubt: das Zeitlimit für Übertragungen (%d Sekunden) bei einem Upload, mindestens 300 Sekunden bei einem Download. Erhöhe die Einstellung, wenn dieser Host oder seine Verbindung langsam ist; wenn Übertragungen mit diesem Wert bisher funktioniert haben, prüfe die Verbindung zum Anbieter."
 
 msgid "Open Settings"
 msgstr "Einstellungen öffnen"

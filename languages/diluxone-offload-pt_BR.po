@@ -1509,8 +1509,8 @@ msgid "Transfer Timeout (seconds)"
 msgstr "Tempo limite de transferência (segundos)"
 
 #: templates/admin-settings.php:67
-msgid "How long each transfer request to the cloud may take, upload or download (30-600 seconds). Raise it on a slow host."
-msgstr "Quanto tempo cada solicitação de transferência para a nuvem pode levar, upload ou download (30-600 segundos). Aumente em um servidor lento."
+msgid "How long each upload request to the cloud may take (30-600 seconds). Raise it on a slow host. Downloads wait at least 300 seconds, or this value when it is higher."
+msgstr "Quanto tempo cada solicitação de upload para a nuvem pode levar (30-600 segundos). Aumente em um servidor lento. Os downloads esperam pelo menos 300 segundos, ou este valor quando for maior."
 
 #: templates/admin-settings.php:78
 msgid "Offloading Settings"
@@ -2191,8 +2191,8 @@ msgid "Cloud Transfer Timed Out"
 msgstr "Transferência para a nuvem expirou"
 
 #. translators: %d: the Transfer Timeout setting, in seconds
-msgid "A transfer to the cloud took longer than the Transfer Timeout allows (%d seconds). Raise it in Settings if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
-msgstr "Uma transferência para a nuvem demorou mais do que o tempo limite de transferência permite (%d segundos). Aumente-o em Configurações se este servidor ou sua conexão forem lentos; se as transferências funcionavam com este valor, verifique a conexão com o provedor."
+msgid "A transfer to the cloud took longer than allowed: the Transfer Timeout (%d seconds) for an upload, at least 300 seconds for a download. Raise the setting if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
+msgstr "Uma transferência para a nuvem demorou mais do que o permitido: o tempo limite de transferência (%d segundos) para um upload, pelo menos 300 segundos para um download. Aumente a configuração se este servidor ou sua conexão forem lentos; se as transferências funcionavam com este valor, verifique a conexão com o provedor."
 
 msgid "Open Settings"
 msgstr "Abrir Configurações"
