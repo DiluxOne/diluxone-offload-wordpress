@@ -1,82 +1,114 @@
-# Release process
+# Releases: how a change becomes a version
 
-For maintainers. End users get the plugin from [wordpress.org/plugins/diluxone-offload](https://wordpress.org/plugins/diluxone-offload/) — they don't need to read this document.
+For everyone who touches this repository: outside contributors, maintainers and coding agents. End users get the plugin from [wordpress.org/plugins/diluxone-offload](https://wordpress.org/plugins/diluxone-offload/) and never need this page. The short, enforceable version of these rules is in [`AGENTS.md`](../AGENTS.md).
 
-## Versioning
+## Who does what
 
-We follow [Semantic Versioning](https://semver.org/) for the plugin's public version (`MAJOR.MINOR.PATCH`):
+| | Outside contributor | Maintainer | The pipeline |
+| --- | --- | --- | --- |
+| Writes the change and its changelog bullet | yes, in the pull request | yes | never |
+| Decides the type of the change (`type:*` label) | no | can override with a label | the Claude review, from the diff |
+| Computes the next version | no | no | yes, from the labels |
+| Decides that a version is ready | no | yes, by removing one line in `readme.txt` | never |
+| Approves the publication | no | yes, in the `wordpress-org` environment | never |
+| Stamps, deploys, tags, creates the release | never | never, not even by hand | yes, after the approval |
 
-| Bump | When |
-| --- | --- |
-| **PATCH** (1.1.0 → 1.1.1) | Bug fixes only, no behaviour change beyond the fix itself. |
-| **MINOR** (1.1.0 → 1.2.0) | New user-visible functionality, backwards-compatible. |
-| **MAJOR** (1.x → 2.0)     | Backwards-incompatible changes. Avoid unless truly necessary. |
+Nobody types a version number, nobody pushes a tag, nobody touches SVN. If you are contributing from outside: open the pull request with its changelog bullet and you are done; your change ships in the next version. If you are a coding agent: the rules below are the ones you must not break.
 
-Repository-only changes (CI, dev tooling, this `docs/` directory, …) **do not** trigger a version bump. Those files are excluded from the wp.org deploy via [`.distignore`](../.distignore) and are invisible to end users.
+## The flow
 
-## Version markers and development builds
+1. **A pull request merges into `main`.** Only through a green pull request, squash-merged ([`CONTRIBUTING.md`](../CONTRIBUTING.md)). The Claude review labelled it `type:*` from the diff (a maintainer's label wins) and corrected the title's type to match.
+2. **The push to `main` runs the [`Release`](../.github/workflows/release.yml) workflow.** It does not run the suites again (the tree was tested in the pull request); it computes the next version from the `type:*` labels of everything merged since the last release tag, with the organisation's [`next-version.py`](https://github.com/DiluxOne/.github/blob/main/scripts/next-version.py): `type:breaking` → major, `type:feat` → minor, `type:fix` or `type:perf` → patch; a `version:major|minor|patch` label a maintainer sets on any merged pull request wins over the types.
+3. **A development build is uploaded**, every time, whatever the labels say: the shipped tree stamped `<next>-dev.<N>`, as the run's artifact `diluxone-offload-<next>-dev.<N>`. See [Development builds](#development-builds).
+4. **The readme says whether the version is ready.** The newest entry under `== Changelog ==` in [`readme.txt`](../readme.txt) is headed `= X.Y.Z =` and, while the version is being built, its first line is exactly `Unreleased.`. With that line in place the run ends green, its summary says **Not ready**, and nothing waits for anyone, however many pull requests merged. See [The changelog is the release switch](#the-changelog-is-the-release-switch).
+5. **The maintainer removes the `Unreleased.` line in a pull request.** That is the release decision. When it merges, the run's `Deploy to wordpress.org` job waits in the `wordpress-org` environment, and only the environment's required reviewers can approve it. The summary shows the version, the bump and the pull requests that justify it.
+6. **The maintainer approves the deployment** (Actions tab → the run → *Review deployments*, or the review email). Reject and nothing happens; a later push computes again. See [Approving a release](#approving-a-release).
+7. **The job publishes**, from the approved commit: stamps the three version markers in its checkout (never in the repository), validates them and the changelog, commits to the wordpress.org SVN, creates the tag `X.Y.Z` with the release App's token and the GitHub release with the changelog and what was merged, grouped by type. Within about ten minutes the version is on wordpress.org; sites with auto-update pick it up over the next twelve hours.
 
-Three markers carry the version: the `Version:` header and the `DILUXONE_OFFLOAD_VERSION` constant in `diluxone-offload.php`, and `Stable tag:` in `readme.txt`. On `main` all three hold the **last released version**, always; no commit moves them between releases. What moves is the build:
+Nothing to bump back afterwards: `main` keeps the released version in its markers, and the next development build stamps itself `<next>-dev.<N>` from the labels of what merges next.
 
-| Build | `Version:` / constant / `Stable tag:` | `Build:` header |
+## Versions
+
+[Semantic Versioning](https://semver.org/) for the plugin's public version, decided by the labels:
+
+| Label on a merged pull request | Bump | Example |
 | --- | --- | --- |
-| `main` as committed | `1.0.0` (last released) | none |
-| `make dist`, `make deploy-test` | `1.1.0-dev.14` | `a1b2c3d`, `a1b2c3d-dirty` with uncommitted changes |
-| the release | `1.1.0` | none |
+| `type:fix`, `type:perf` | patch | 1.0.0 → 1.0.1 |
+| `type:feat` | minor | 1.0.0 → 1.1.0 |
+| `type:breaking` | major | 1.0.0 → 2.0.0 |
+| `type:docs`, `type:test`, `type:ci`, `type:chore`, `type:refactor`, `type:style`, `type:build`, `type:revert` | none | nothing to release on its own |
+| `version:major`, `version:minor`, `version:patch` (set by a maintainer) | that bump, whatever the types say | the roadmap calls the next version 2.0.0 although nothing breaks |
 
-The development version is computed, never typed: `<next>` comes from the `type:*` labels of the pull requests merged since the last tag (a feature pending → minor, a fix → patch, a breaking change → major; nothing pending → the next patch), by the organisation's [`next-version.py`](https://github.com/DiluxOne/.github/blob/main/scripts/next-version.py); `N` counts the commits since the tag. A person who installs a build sees `1.1.0-dev.14` under Plugins and the commit under Status › System, and knows what is coming and which build it is. PHP orders `1.1.0-dev.14` before `1.1.0`, so a site with a development build updates to the release normally.
+The highest bump among the merged pull requests wins. `main` keeps the last released version in its three markers, always: the `Version:` header and the `DILUXONE_OFFLOAD_VERSION` constant in `diluxone-offload.php`, and `Stable tag:` in `readme.txt`. No pull request moves them; the release job and the development builds stamp their own copies. The CI alignment check accepts a pre-release suffix on `Version:` (`-dev`, `-alpha`, `-beta`, `-rc`, optionally `.N`) with a base at or ahead of `Stable tag:`; without a suffix the three must be equal, and on `main` they are.
 
-The CI version-alignment rule still accepts a pre-release suffix on `Version:` (`-dev`, `-alpha`, `-beta`, `-rc`, optionally `.N`): with one, the base version must be at or ahead of `Stable tag:`; without one, all three markers must agree exactly, and the release workflow checks them against the tag. `main` has no suffix, so on `main` the three are simply equal.
+If the readme announces a version the labels do not reach (`= 2.0.0 =` when the labels give 1.1.0), the job refuses and says so: a maintainer settles it with a `version:*` label on a merged pull request, or by fixing the readme. The roadmap and the labels must agree before anything ships; [`docs/roadmap.md`](roadmap.md) says which version does what.
 
-## Cutting a release
+## The changelog is the release switch
 
-A release is a **deployment that a person approves**, not a commit. [`.github/workflows/release.yml`](../.github/workflows/release.yml) runs on every push to `main` and calls the shared [`plugin-release-wp`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/plugin-release-wp.yml) workflow, pinned to a commit of `DiluxOne/.github` (never the moving tag: this is the one workflow that runs with the publishing credentials; Dependabot proposes the bump when the central releases).
+The newest entry under `== Changelog ==` in `readme.txt` looks like this while a version is being built:
 
-1. **The version is computed.** The `What is next` job runs the organisation's [`next-version.py`](https://github.com/DiluxOne/.github/blob/main/scripts/next-version.py): the `type:*` labels of the pull requests merged since the last tag give the bump (`type:breaking` → major, `type:feat` → minor, `type:fix` or `type:perf` → patch; a `version:major|minor|patch` label a person sets wins). Nothing pending, the run ends green and its summary says so. Nothing to type anywhere.
+```
+= 2.0.0 =
+Unreleased.
 
-2. **The readme announces it.** The newest entry under `== Changelog ==` in `readme.txt` is either `= X.Y.Z =` with the version the labels reach, or `= Unreleased =`, which the job renames (a first line saying just "Unreleased." goes too). Write the changelog in the pull requests that earn it, as they merge. If the readme says `2.0.0` and the labels only reach `1.1.0`, the job refuses and says so: put `version:major` on the pull request that justifies the major, or fix the readme. The roadmap and the labels must agree before anything ships.
+* The "Upload Timeout" setting is now "Transfer Timeout" and governs every upload request…
+* A transfer that runs past the timeout is reported as such…
+```
 
-3. **A person approves.** The `Deploy to wordpress.org` job waits in the `wordpress-org` environment. Its summary shows the version, the bump and the pull requests behind it. Approve in the Actions tab (or the deployment review email) and the job goes on; reject and nothing happens; merge more and a later push computes again. Only the environment's required reviewers can approve.
+- **Write the notes as the changes merge.** A pull request that changes what a user sees (a `feat`, a `fix`, a `perf`, a changed string or setting) adds its bullet under the `Unreleased.` line, in the same pull request; the checklist in the pull request template asks for it. Bullets are for users: what changed for them, not how.
+- **Never remove the `Unreleased.` line as part of another change.** It is the switch: the pull request that removes it is the release decision, made by a maintainer, and it should contain nothing else. Removing it by accident would leave a deployment waiting for approval; nothing is published without the approval, but do not make the maintainer reject it.
+- **The heading is the version the roadmap names**, `= 2.0.0 =`. A heading `= Unreleased =` is accepted too: the job renames it to the computed version in the build.
+- **After the release**, the next change that deserves a bullet opens the next entry, `= X.Y.Z =` with `Unreleased.` as its first line, above the released one. A version whose merged changes are all `docs`, `test`, `ci` or `chore` never becomes a release on its own and needs no entry.
 
-4. **The job does the rest**, from the approved commit: stamps the three markers to `X.Y.Z` in its checkout (`main` is never touched), validates them and the changelog, commits `/trunk`, `/tags/X.Y.Z` and `.wordpress-org/` → `/assets` to the wordpress.org SVN ([`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), pinned), creates the git tag `X.Y.Z` on that commit with the release App's token, and the GitHub release with the changelog and what was merged since the previous release, grouped by type (✨ Features, 🐛 Fixes…), with the zip attached.
+What you see in the Actions tab while the line is there: every push to `main` ends green, the `Release` run's summary says **Not ready** with the version the labels would give and the pull requests per type, and the development build is attached. A hand-pushed tag is refused with the same reason.
 
-5. **Verify on wp.org** within ~10 minutes at `https://wordpress.org/plugins/diluxone-offload/`. Sites with auto-update pick it up over the next ~12 hours.
+## Development builds
 
-Nothing to bump back: `main` keeps the released version in its markers, and every development build stamps itself `<next>-dev.<N>`.
+Every push to `main` produces a build of what is coming, with no release:
 
-**By hand.** An administrator can still push a tag `X.Y.Z` on `main`. It goes through the same job, and must be the version the labels say is next; anything else is refused before SVN. A tag the job created itself starts a second run that finds the release and stops.
+| Where | What | Version shown |
+| --- | --- | --- |
+| Actions → the `Release` run of the push → artifact `diluxone-offload-<next>-dev.<N>` | The shipped tree (minus `.distignore`), zipped, with the plugin folder named `diluxone-offload` | `2.0.0-dev.8` under Plugins; the commit under Status › System |
+| `make dist` | The same tree under `build/diluxone-offload/`, from your working tree | the same, `-dirty` on the commit when you have uncommitted changes |
+| `make deploy-test` | The same copied into a real site (`~/repos/cst-website` by default, `SITE=` to change it) | the same |
 
-**Rehearsal.** `dry-run: true` in `release.yml` does everything but the SVN commit and the tag, and leaves the GitHub release as a draft to inspect. The first run of a new pipeline, and any change to it, is rehearsed that way first.
+`<next>` is the version the labels give (the next patch when nothing is pending), `N` counts the commits since the last release tag. Both stamp the three markers in the copy and add a `Build:` header line with the commit; the plugin shows it under Status › System, so a person who installs a build knows what is coming and which commit it is. PHP orders `2.0.0-dev.8` before `2.0.0`, so a site with a development build updates to the release normally. Artifacts are kept 30 days; `make dist` needs `gh` logged in to read the labels (`STAMP=0` builds the tree as it is, which is how Plugin Check runs).
 
-Before the release, a `make release` on `main` still runs the full quality gate and the marker alignment locally.
+## Approving a release
 
-## Required secrets and the release App
+The `Deploy to wordpress.org` job runs in the repository environment `wordpress-org`. Its deployment policy admits `main` and `X.Y.Z` tags, and its **required reviewers** are the approval: without a reviewer the job would not wait, so the environment always has at least the maintainer. Approve in the Actions tab (the run → *Review deployments*) or from the review email; the summary of the `What is next` job shows the version, the bump and the pull requests behind it. Reject, and nothing happens. One release at a time: a push made while a run waits queues behind it and, once the first shipped, finds the tag and stops. After the approval the job checks that this is still the release to make (the labels still give this version, the commit is on `main`, the tag does not exist), then publishes. Verify on wordpress.org within about ten minutes.
 
-The release job runs in the repository environment `wordpress-org`, whose deployment policy admits `main` and `X.Y.Z` tags and whose **required reviewers** are the approval. Everything secret lives there, never as a repository or organisation secret. After rotating the SVN password, run **SVN credentials check** from the Actions tab: it authenticates from the environment without committing anything.
+**By hand.** An administrator can still push a tag `X.Y.Z` on `main`. It goes through the same job, and must be the version the labels say is next, with the readme ready; anything else is refused before SVN. A tag the job created itself starts a second run that finds the release and stops.
+
+**Rehearsal.** `dry-run: true` in `release.yml` does everything but the SVN commit, the tag and the release, and shows the notes in the run's summary. The first run of a new pipeline, and any change to it, is rehearsed that way first; the pipeline this page describes was rehearsed on 2026-09-26.
+
+Before a release, `make release` on `main` runs the full quality gate and the marker alignment locally.
+
+## Secrets and the release App
+
+Everything the publication needs lives in the environment `wordpress-org`, never as a repository or organisation secret. The `Release` caller passes `secrets: inherit` (the only way an environment's secrets reach a called workflow), which is why it runs only on `main` and on `X.Y.Z` tags and calls the shared workflow at a fixed commit. After rotating the SVN password, run **SVN credentials check** from the Actions tab: it authenticates from the environment without committing anything.
 
 | In the environment | What it's for |
 | --- | --- |
-| `SVN_USERNAME` (secret) | wp.org account username (the same one used for the plugin submission). |
-| `SVN_PASSWORD` (secret) | wp.org SVN-specific password (set it at <https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password>, **not** the regular login password). |
-| `DILUX_RELEASE_PRIVATE_KEY` (secret) | The private key of the GitHub App `dilux-release`, which has `contents: write` and nothing else, is installed on this repository and is in the bypass list of the ruleset that reserves `X.Y.Z` tags for administrators. Only the approved job ever holds a token from it. |
+| `SVN_USERNAME` (secret) | wordpress.org account username (the one used for the plugin submission). |
+| `SVN_PASSWORD` (secret) | wordpress.org SVN-specific password (<https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password>, **not** the login password). |
+| `DILUX_RELEASE_PRIVATE_KEY` (secret) | The private key of the GitHub App `dilux-release`. |
 | `DILUX_RELEASE_CLIENT_ID` (variable) | The App's client id. |
 
-If a secret is missing or wrong the job prints a clear error and exits non-zero before SVN. Fix it (`gh secret set SVN_PASSWORD --env wordpress-org`) and use **Re-run jobs** on the failed run.
+`dilux-release` is one App for the whole DiluxOne organisation, with `contents: write` and nothing else. It is installed on each plugin repository (a token it mints is scoped to the repository whose job asked), it is in the bypass list of the ruleset that reserves `X.Y.Z` tags for administrators, and only the approved job ever holds a token from it: the review bot, `dilux-bot`, cannot create tags. If a secret is missing or wrong the job prints a clear error and exits before SVN; fix it (`gh secret set SVN_PASSWORD --env wordpress-org`) and use **Re-run jobs**. What a new plugin repository needs is in the organisation's [adoption guide](https://github.com/DiluxOne/.github#adopt-it-in-a-new-repository).
 
 ## Release tags are permanent
 
-Two rulesets cover every tag shaped `X.Y.Z`: only an administrator or the release App can create one, and nobody can delete or move it, the maintainer included. That is deliberate — the tag is the record of what went to every WordPress site. So:
+Two rulesets cover every tag shaped `X.Y.Z`: only an administrator or the release App can create one, and nobody can delete or move it, the maintainer included. That is deliberate: the tag is the record of what went to every WordPress site. So:
 
 - **A deploy that failed before SVN** (a secret, a network error): fix the cause and **Re-run jobs**.
-- **A tag on the wrong commit, or with misaligned version markers**: the tag stays. Fix it in a PR and release the next patch version.
+- **A tag on the wrong commit, or with misaligned version markers**: the tag stays. Fix it in a pull request and release the next patch version.
 - **A tag in the wrong shape** (`1.2`, `1.2.0-rc1`): the release workflow does not even start, it fires only on `X.Y.Z`. A two-part tag can be deleted and replaced; anything that matches `*.*.*` (`1.2.0-rc1`, `v1.2.0`) is as permanent as a real release tag, so never push one.
 
 ## Rolling back
 
-There is no "undo" on wp.org for a published release — once a tag is on the SVN, it's there. To roll back, ship `X.Y.Z+1` with the previous version's code. Don't try to delete the bad tag from SVN; that is more disruptive than just re-releasing.
-
-For the GitHub side, you can delete a Release and its Git tag, but only do so if the wp.org SVN tag did *not* go out — once the SVN side has the version, the GitHub tag is the canonical historical record and shouldn't move.
+There is no undo on wordpress.org: once a tag is on the SVN, it's there. To roll back, ship `X.Y.Z+1` with the previous version's code. Don't try to delete the bad tag from SVN; that is more disruptive than re-releasing. On the GitHub side a release and its tag can be deleted only if the SVN tag did *not* go out; once it has, the GitHub tag is the canonical record and does not move.
 
 ## First release
 
-`1.0.0` was the first release, after the WordPress.org Plugin Review team approved the plugin on 2026-09-23. It went out through this same tag-driven flow, with the version markers already at `1.0.0` and no `-dev` step before it.
+`1.0.0` was the first release, after the WordPress.org Plugin Review team approved the plugin on 2026-09-23. It went out by a tag pushed by hand, with the version markers already at `1.0.0` and no development build before it; everything since follows this page.

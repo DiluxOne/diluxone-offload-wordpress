@@ -2,12 +2,15 @@ name: Release
 
 # Publishes DiluxOne Offload to wordpress.org as a deployment the maintainer
 # approves, through the shared workflow in DiluxOne/.github: every push to
-# main computes the next version from the type:* labels of what merged, and
-# when something is pending the job waits for approval in the environment
-# `wordpress-org`, then stamps, deploys, tags and creates the release. A tag
-# X.Y.Z an administrator pushes by hand goes through the same job and must
-# be that computed version. Release tags are permanent: a failed deploy is
-# fixed and re-run, never re-tagged. See docs/release.md.
+# main uploads a development build (the shipped tree stamped <next>-dev.<N>)
+# and computes the next version from the type:* labels of what merged. While
+# the newest changelog entry of readme.txt starts with the line `Unreleased.`
+# the version is not ready and nothing waits; once a pull request removed
+# that line, the job waits for approval in the environment `wordpress-org`,
+# then stamps, deploys, tags and creates the release. A tag X.Y.Z an
+# administrator pushes by hand goes through the same job and must be that
+# computed version. Release tags are permanent: a failed deploy is fixed and
+# re-run, never re-tagged. See docs/release.md.
 
 on:
   push:
@@ -42,8 +45,9 @@ jobs:
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
-      # Rehearsal of the new pipeline: everything but the SVN commit and the
-      # tag; the GitHub release stays a draft. Set to false once a rehearsal
-      # was approved and inspected.
-      dry-run: true
+      # Rehearsed on 2026-09-26 (run 36250947147, approved, "Rehearsal of
+      # 2.0.0"); since then an approval publishes. Set to true to rehearse a
+      # change to the pipeline: everything but the SVN commit, the tag and
+      # the release, with the notes in the summary.
+      dry-run: false
     secrets: inherit
