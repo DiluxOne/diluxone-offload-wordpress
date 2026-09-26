@@ -221,8 +221,13 @@ class AzureProviderTest extends TestCase {
 		$this->assertSame( 'DELETE', $this->requests()[0]['method'] );
 	}
 
-	public function test_delete_fails_on_404(): void {
+	public function test_delete_succeeds_on_404_the_blob_is_already_gone(): void {
 		$this->answer( fn() => self::reply( 404 ) );
+		$this->assertTrue( $this->provider->delete_file( 'a.jpg' )['success'] );
+	}
+
+	public function test_delete_fails_on_403(): void {
+		$this->answer( fn() => self::reply( 403 ) );
 		$this->assertFalse( $this->provider->delete_file( 'a.jpg' )['success'] );
 	}
 

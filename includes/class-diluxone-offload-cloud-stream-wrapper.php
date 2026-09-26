@@ -1381,22 +1381,12 @@ class CloudStreamWrapper {
 		// Cache as "deleted" so later stat checks do not ask the cloud again.
 		self::$stat_cache[ $parsed_path ] = false;
 
-		// The tracking table forgets the file once it is known to be gone: a
-		// delete that succeeded, or one that failed on a blob the provider
-		// no longer has. After a network failure the blob may still be there,
-		// and the row stays until the next reconcile.
-		if ( class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
-			$gone = $result['success'];
-			if ( ! $gone ) {
-				try {
-					$gone = ! $cloud_client->file_exists( $parsed_path );
-				} catch ( \Exception $e ) {
-					$gone = false;
-				}
-			}
-			if ( $gone ) {
-				\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
-			}
+		// The tracking table forgets the file once the provider says it is
+		// gone (a delete that succeeded, or one on a blob it no longer had:
+		// both are a success from the provider). After a network failure the
+		// blob may still be there, and the row stays until the next reconcile.
+		if ( $result['success'] && class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
 		}
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
