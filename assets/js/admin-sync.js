@@ -2119,7 +2119,7 @@ jQuery(document).ready(function($) {
 	var urlParams = new URLSearchParams(window.location.search);
 	if (urlParams.get('auto-start') === '1' && $('#start-sync-btn').length && !$('#start-sync-btn').prop('disabled')) {
 		// Clean URL to prevent re-trigger on refresh
-		var cleanUrl = window.location.pathname + '?page=diluxone-offload&tab=sync-offloading';
+		var cleanUrl = DiluxOneOffloadSync.data.urls.sync;
 		window.history.replaceState({}, '', cleanUrl);
 		// Trigger sync start after UI is ready
 		setTimeout(function() {

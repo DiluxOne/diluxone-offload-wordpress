@@ -9,11 +9,13 @@ import { test, expect } from '@playwright/test';
  * clearly when a provider form is incomplete.
  */
 
-const PLUGIN_PAGE = '/wp-admin/admin.php?page=diluxone-offload';
+const ADMIN = '/wp-admin/admin.php';
+const LOGGING = `${ADMIN}?page=diluxone-offload-settings&tab=logging`;
+const CONNECTION = `${ADMIN}?page=diluxone-offload-provider&tab=connection`;
 
-test.describe('Settings tab', () => {
+test.describe('Settings › Logging', () => {
 	test('debug logging toggle round-trips through save', async ({ page }) => {
-		await page.goto(`${PLUGIN_PAGE}&tab=settings`);
+		await page.goto(LOGGING);
 
 		const toggle = page.locator('input[name="enable_debug_logging"]');
 		await expect(toggle).toBeVisible();
@@ -22,8 +24,8 @@ test.describe('Settings tab', () => {
 		await toggle.setChecked(!before);
 		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
 
-		// Back on the settings tab with the new value persisted.
-		await expect(page).toHaveURL(/tab=settings/);
+		// Back on the Logging tab with the new value persisted.
+		await expect(page).toHaveURL(/page=diluxone-offload-settings&tab=logging/);
 		await expect(page.locator('input[name="enable_debug_logging"]')).toBeChecked({ checked: !before });
 
 		// Restore, so the run leaves the site as it found it.
@@ -33,15 +35,41 @@ test.describe('Settings tab', () => {
 	});
 
 	test('saving settings shows a confirmation notice', async ({ page }) => {
-		await page.goto(`${PLUGIN_PAGE}&tab=settings`);
+		await page.goto(LOGGING);
 		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
 		await expect(page.locator('.notice-success, .updated').first()).toBeVisible();
 	});
 });
 
-test.describe('Cloud Provider tab', () => {
+test.describe('Settings › Transfers', () => {
+	test('a save on one tab leaves the other tabs\' settings alone', async ({ page }) => {
+		// Serving: force HTTPS off.
+		await page.goto(`${ADMIN}?page=diluxone-offload-settings&tab=serving`);
+		const https = page.locator('input[name="force_https_on_cloud"]');
+		const before = await https.isChecked();
+		await https.setChecked(false);
+		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
+		await expect(page.locator('input[name="force_https_on_cloud"]')).not.toBeChecked();
+
+		// Transfers: save a timeout. The Serving checkbox must stay off.
+		await page.goto(`${ADMIN}?page=diluxone-offload-settings&tab=transfers`);
+		await page.locator('#timeout').fill('90');
+		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
+		await expect(page).toHaveURL(/tab=transfers/);
+		await expect(page.locator('#timeout')).toHaveValue('90');
+		await page.goto(`${ADMIN}?page=diluxone-offload-settings&tab=serving`);
+		await expect(page.locator('input[name="force_https_on_cloud"]')).not.toBeChecked();
+
+		// Restore.
+		await page.locator('input[name="force_https_on_cloud"]').setChecked(before);
+		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
+		await expect(page.locator('input[name="force_https_on_cloud"]')).toBeChecked({ checked: before });
+	});
+});
+
+test.describe('Cloud Provider › Connection', () => {
 	test('lists the implemented providers only', async ({ page }) => {
-		await page.goto(`${PLUGIN_PAGE}&tab=cloud-provider`);
+		await page.goto(CONNECTION);
 		// 1.0.0 ships one provider: the select offers Azure and nothing else.
 		const values = await page.locator('#cloud_provider option').evaluateAll((options) =>
 			options.map((o) => (o as HTMLOptionElement).value).filter((v) => v !== '')
@@ -50,7 +78,7 @@ test.describe('Cloud Provider tab', () => {
 	});
 
 	test('submitting Azure with empty fields does not silently succeed', async ({ page }) => {
-		await page.goto(`${PLUGIN_PAGE}&tab=cloud-provider`);
+		await page.goto(CONNECTION);
 
 		const azure = page.locator('input[type="radio"][value="azure"], select[name="cloud_provider"]').first();
 		if ((await azure.getAttribute('type')) === 'radio') {

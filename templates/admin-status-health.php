@@ -1,10 +1,9 @@
 <?php
 /**
- * Admin: Status tab template.
+ * Admin: Status › Health. The plugin state as four cards, and the connection health table.
  *
- * Local variables ($current_state, $is_configured, $plugin_config, etc.) are
- * populated by Admin::render_tab_content() in the calling scope. Suppress the
- * prefix sniff for this template:
+ * Local variables are populated by Admin::render_screen_content() in the
+ * calling scope. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -19,25 +18,16 @@ use DiluxOneOffload\Admin;
 use DiluxOneOffload\ConfigManager;
 use DiluxOneOffload\Enums\PluginState;
 
-// Count the plugin's own option rows for the diagnostic panel below. The
-// pattern is hardcoded to our own option-name prefix; cache layers don't apply
-// since this is a one-shot admin diagnostic page.
-global $wpdb;
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Diagnostic-only read; $wpdb->options is the WP-managed table name.
-$diluxone_offload_option_count = (int) $wpdb->get_var(
-	$wpdb->prepare(
-		"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE %s",
-		$wpdb->esc_like( 'diluxone_offload_' ) . '%'
-	)
-);
+$config        = $config ?? array();
+$health        = $health ?? array();
+$tracking_rows = (int) ( $tracking_rows ?? 0 );
+$screen_urls   = $screen_urls ?? array();
 
 // Get current state
 $current_state = ConfigManager::get_state();
 $is_configured = ConfigManager::is_configured();
 $is_offloading = ConfigManager::is_offloading_enabled();
-
-// Get plugin config for basic info
-$plugin_config = ConfigManager::get_config();
+$plugin_config = $config;
 
 // Health context — when the cloud connection is unhealthy (decrypt failure,
 // permission denied, etc.) the cards below switch to "paused" copy so the
@@ -45,23 +35,26 @@ $plugin_config = ConfigManager::get_config();
 // the underlying credentials are unreadable). The state machine itself is
 // left untouched; we only change how it is *displayed*. The full diagnosis
 // and CTA live in the red banner rendered above this template.
-$health      = ConfigManager::get_connection_health();
-$is_paused   = $health['status'] === 'unhealthy';
+$is_paused   = ( $health['status'] ?? '' ) === 'unhealthy';
 $pause_cause = (string) ( $health['error_code'] ?? '' );
 $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 
+$health_status = (string) ( $health['status'] ?? 'unknown' );
+$last_check    = (int) ( $health['last_check'] ?? 0 );
+$last_success  = (int) ( $health['last_success'] ?? 0 );
+$failures      = (int) ( $health['consecutive_failures'] ?? 0 );
+$error_source  = (string) ( $health['error_source'] ?? '' );
+$ago           = static function ( int $ts ): string {
+	if ( $ts <= 0 ) {
+		return __( 'never', 'diluxone-offload' );
+	}
+	/* translators: %s: a human time difference, e.g. "10 minutes" */
+	return sprintf( __( '%s ago', 'diluxone-offload' ), human_time_diff( $ts, time() ) );
+};
 ?>
 
 <div class="diluxone-offload-status">
 	<div class="status-section">
-		<!-- Header -->
-		<div class="section-header-main">
-			<h2><?php esc_html_e( 'System Status', 'diluxone-offload' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'View plugin status and system information.', 'diluxone-offload' ); ?>
-			</p>
-		</div>
-
 		<!-- Plugin State Cards -->
 		<div class="state-cards">
 			<!-- Plugin State -->
@@ -157,7 +150,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 						</p>
 						<p class="state-details">
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=diluxone-offload&tab=cloud-provider' ) ); ?>" class="button button-primary button-small">
+							<a href="<?php echo esc_url( $screen_urls['credentials'] ?? '' ); ?>" class="button button-primary button-small">
 								<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 							</a>
 						</p>
@@ -202,121 +195,84 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				</div>
 			</div>
 
-			<!-- Database Status -->
+			<!-- Tracking table -->
 			<div class="state-card">
 				<div class="state-icon">
 					<span class="dashicons dashicons-database"></span>
 				</div>
 				<div class="state-content">
-					<h3><?php esc_html_e( 'Database', 'diluxone-offload' ); ?></h3>
+					<h3><?php esc_html_e( 'Tracking table', 'diluxone-offload' ); ?></h3>
 					<p class="state-value">
 						<span class="status-indicator status-success"></span>
 						<?php
-						/* translators: %d: number of stored options */
-						echo esc_html( sprintf( __( '%d options stored', 'diluxone-offload' ), $diluxone_offload_option_count ) );
+						/* translators: %s: number of rows in the plugin's tracking table */
+						echo esc_html( sprintf( _n( '%s file tracked', '%s files tracked', $tracking_rows, 'diluxone-offload' ), number_format_i18n( $tracking_rows ) ) );
 						?>
+					</p>
+					<p class="state-details">
+						<?php esc_html_e( 'One row per file the sync has seen: synced, pending or failed.', 'diluxone-offload' ); ?>
 					</p>
 				</div>
 			</div>
 		</div>
 
-		<!-- System Information -->
-		<div class="system-info-section">
+		<!-- Connection Health -->
+		<div class="system-info-section" id="connection-health">
 			<h3>
-				<span class="dashicons dashicons-info"></span>
-				<?php esc_html_e( 'System Information', 'diluxone-offload' ); ?>
+				<span class="dashicons dashicons-heart"></span>
+				<?php esc_html_e( 'Connection Health', 'diluxone-offload' ); ?>
 			</h3>
-
+			<?php if ( ! $is_configured ) : ?>
+				<p class="description"><?php esc_html_e( 'No provider is connected, so there is no connection to check.', 'diluxone-offload' ); ?></p>
+			<?php else : ?>
 			<div class="info-grid">
 				<div class="info-card">
-					<h4><?php esc_html_e( 'WordPress', 'diluxone-offload' ); ?></h4>
 					<table class="info-table">
 						<tr>
-							<td><?php esc_html_e( 'Version', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( get_bloginfo( 'version' ) ); ?></strong></td>
+							<td><?php esc_html_e( 'Status', 'diluxone-offload' ); ?></td>
+							<td>
+								<?php if ( $health_status === 'healthy' ) : ?>
+									<span class="diluxone-offload-pill diluxone-offload-pill--active"><?php esc_html_e( 'Healthy', 'diluxone-offload' ); ?></span>
+								<?php elseif ( $health_status === 'unhealthy' ) : ?>
+									<span class="diluxone-offload-pill diluxone-offload-pill--pending"><?php echo esc_html( sprintf( /* translators: %s: short reason */ __( 'Unhealthy (%s)', 'diluxone-offload' ), $pause_label ) ); ?></span>
+								<?php else : ?>
+									<span class="diluxone-offload-pill diluxone-offload-pill--off"><?php esc_html_e( 'Not checked yet', 'diluxone-offload' ); ?></span>
+								<?php endif; ?>
+							</td>
 						</tr>
 						<tr>
-							<td><?php esc_html_e( 'Multisite', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( is_multisite() ? __( 'Yes', 'diluxone-offload' ) : __( 'No', 'diluxone-offload' ) ); ?></strong></td>
+							<td><?php esc_html_e( 'Last check', 'diluxone-offload' ); ?></td>
+							<td><strong><?php echo esc_html( $ago( $last_check ) ); ?></strong></td>
 						</tr>
 						<tr>
-							<td><?php esc_html_e( 'Upload Directory', 'diluxone-offload' ); ?></td>
-							<td><code><?php echo esc_html( wp_upload_dir()['basedir'] ); ?></code></td>
-						</tr>
-					</table>
-				</div>
-
-				<div class="info-card">
-					<h4><?php esc_html_e( 'PHP Environment', 'diluxone-offload' ); ?></h4>
-					<table class="info-table">
-						<tr>
-							<td><?php esc_html_e( 'PHP Version', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( PHP_VERSION ); ?></strong></td>
+							<td><?php esc_html_e( 'Last success', 'diluxone-offload' ); ?></td>
+							<td><strong><?php echo esc_html( $ago( $last_success ) ); ?></strong></td>
 						</tr>
 						<tr>
-							<td><?php esc_html_e( 'Memory Limit', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( ini_get( 'memory_limit' ) ); ?></strong></td>
+							<td><?php esc_html_e( 'Consecutive failures', 'diluxone-offload' ); ?></td>
+							<td>
+								<strong><?php echo esc_html( number_format_i18n( $failures ) ); ?></strong>
+								<?php if ( $failures >= 3 ) : ?>
+									<span class="description"><?php esc_html_e( '(uploads refused from 3)', 'diluxone-offload' ); ?></span>
+								<?php endif; ?>
+							</td>
 						</tr>
+						<?php if ( $error_source !== '' ) : ?>
 						<tr>
-							<td><?php esc_html_e( 'Max Upload Size', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( (string) size_format( wp_max_upload_size() ) ); ?></strong></td>
-						</tr>
-						<tr>
-							<td><?php esc_html_e( 'Max Execution Time', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( ini_get( 'max_execution_time' ) ); ?>s</strong></td>
-						</tr>
-					</table>
-				</div>
-
-				<div class="info-card">
-					<h4><?php esc_html_e( 'Plugin', 'diluxone-offload' ); ?></h4>
-					<table class="info-table">
-						<tr>
-							<td><?php esc_html_e( 'Version', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( Admin::get_plugin_version() ); ?></strong></td>
-						</tr>
-						<?php $diluxone_offload_build = Admin::get_plugin_build(); ?>
-						<?php if ( $diluxone_offload_build !== '' ) : ?>
-						<tr>
-							<td><?php esc_html_e( 'Build', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $diluxone_offload_build ); ?></strong></td>
-						</tr>
-						<?php endif; ?>
-						<tr>
-							<td><?php esc_html_e( 'DB Schema Version', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( get_option( 'diluxone_offload_db_version', 'N/A' ) ); ?></strong></td>
-						</tr>
-						<tr>
-							<td><?php esc_html_e( 'Plugin Directory', 'diluxone-offload' ); ?></td>
-							<td><code><?php echo esc_html( defined( 'DILUXONE_OFFLOAD_DIR' ) ? DILUXONE_OFFLOAD_DIR : 'N/A' ); ?></code></td>
-						</tr>
-					</table>
-				</div>
-
-				<?php if ( $is_configured && ! empty( $plugin_config['provider_config'] ) ) : ?>
-				<div class="info-card">
-					<h4><?php esc_html_e( 'Cloud Provider', 'diluxone-offload' ); ?></h4>
-					<table class="info-table">
-						<tr>
-							<td><?php esc_html_e( 'Provider', 'diluxone-offload' ); ?></td>
-							<td><strong>Azure Blob Storage</strong></td>
-						</tr>
-						<?php if ( ! empty( $plugin_config['provider_config']['storage_account'] ) ) : ?>
-						<tr>
-							<td><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $plugin_config['provider_config']['storage_account'] ); ?></strong></td>
-						</tr>
-						<?php endif; ?>
-						<?php if ( ! empty( $plugin_config['provider_config']['container_name'] ) ) : ?>
-						<tr>
-							<td><?php esc_html_e( 'Container', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $plugin_config['provider_config']['container_name'] ); ?></strong></td>
+							<td><?php esc_html_e( 'Error source', 'diluxone-offload' ); ?></td>
+							<td><code><?php echo esc_html( $error_source ); ?></code></td>
 						</tr>
 						<?php endif; ?>
 					</table>
 				</div>
-				<?php endif; ?>
+				<div class="info-card">
+					<h4><?php esc_html_e( 'How it checks', 'diluxone-offload' ); ?></h4>
+					<p class="description">
+						<?php esc_html_e( 'Every upload and every listing of the container records a success or a failure; a check against the provider runs when a screen opens and the last one is older than five minutes. Three consecutive failures pause new uploads, which are refused rather than written elsewhere, until the next success.', 'diluxone-offload' ); ?>
+					</p>
+				</div>
 			</div>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>

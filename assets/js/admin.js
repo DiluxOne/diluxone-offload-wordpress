@@ -1,5 +1,5 @@
 /**
- * DiluxOne Offload — admin JavaScript shared by every tab.
+ * DiluxOne Offload — admin JavaScript shared by every screen.
  */
 jQuery(document).ready(function($) {
 
@@ -11,7 +11,7 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Auto-refresh the Status tab every 5 minutes
+    // Auto-refresh the Status screen every 5 minutes
     if ($('.diluxone-offload-status').length && diluxOneOffloadAdmin.autoRefresh) {
         setInterval(function() {
             location.reload();

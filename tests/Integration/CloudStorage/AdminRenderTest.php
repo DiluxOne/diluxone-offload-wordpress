@@ -11,13 +11,15 @@ use DiluxOneOffload\DiluxOneOffloadDB as DB;
 use WPAjaxDieContinueException;
 
 /**
- * Integration tests for the Admin class: hooks, tab routing, asset
- * enqueuing and — above all — rendering every tab in every plugin state,
- * including each flavour of the connection-health banner.
+ * Integration tests for the Admin class: hooks, screen and tab routing, the
+ * redirects of the old tab URLs, asset enqueuing and — above all — rendering
+ * every screen and tab in every plugin state, including each flavour of the
+ * connection-health banner.
  *
- * Rendering is asserted on structure (the wrapper, the tab, the banner) and
- * on the absence of PHP notices in the output, because that is what a user
- * sees: a page, or a page with a warning splattered across it.
+ * Rendering is asserted on structure (the wrapper, the heading, the tab
+ * strip, the rail, the banner) and on the absence of PHP notices in the
+ * output, because that is what a user sees: a page, or a page with a warning
+ * splattered across it.
  */
 class AdminRenderTest extends IntegrationTestCase {
 
@@ -25,7 +27,20 @@ class AdminRenderTest extends IntegrationTestCase {
     private ?FakeCloudClient $fake = null;
     private int $admin_id = 0;
 
-    private const TABS = ['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status'];
+    /** Every view: the tab slug (or the screen key for a screen without tabs) => [page, tab]. */
+    private const VIEWS = [
+        'overview'    => ['diluxone-offload', ''],
+        'connection'  => ['diluxone-offload-provider', 'connection'],
+        'credentials' => ['diluxone-offload-provider', 'credentials'],
+        'sync'        => ['diluxone-offload-sync', 'sync'],
+        'offloading'  => ['diluxone-offload-sync', 'offloading'],
+        'disconnect'  => ['diluxone-offload-sync', 'disconnect'],
+        'transfers'   => ['diluxone-offload-settings', 'transfers'],
+        'serving'     => ['diluxone-offload-settings', 'serving'],
+        'logging'     => ['diluxone-offload-settings', 'logging'],
+        'health'      => ['diluxone-offload-status', 'health'],
+        'system'      => ['diluxone-offload-status', 'system'],
+    ];
 
     public static function setUpBeforeClass(): void {
         parent::setUpBeforeClass();
@@ -96,12 +111,18 @@ class AdminRenderTest extends IntegrationTestCase {
     }
 
     /**
-     * Renders a tab and fails on any PHP warning/notice/deprecation raised
-     * while doing so — an undefined array key in a template is a bug even
-     * when display_errors is off.
+     * Renders a view (a screen, or a tab of one) and fails on any PHP
+     * warning/notice/deprecation raised while doing so — an undefined array
+     * key in a template is a bug even when display_errors is off.
      */
-    private function render(string $tab): string {
-        $_GET['tab'] = $tab;
+    private function render(string $view): string {
+        [$page, $tab] = self::VIEWS[$view];
+        $_GET['page'] = $page;
+        if ($tab === '') {
+            unset($_GET['tab']);
+        } else {
+            $_GET['tab'] = $tab;
+        }
         $GLOBALS['wp_scripts'] = null;
         $GLOBALS['wp_styles'] = null;
         $problems = [];
@@ -119,9 +140,15 @@ class AdminRenderTest extends IntegrationTestCase {
             $html = (string) ob_get_clean();
             restore_error_handler();
         }
-        $this->assertSame([], $problems, "PHP notices while rendering tab $tab");
-        $this->assertStringContainsString('diluxone-offload-admin', $html, "wrapper missing in tab $tab");
+        $this->assertSame([], $problems, "PHP notices while rendering $view");
+        $this->assertStringContainsString('diluxone-offload-admin', $html, "wrapper missing in $view");
+        $this->assertStringContainsString('DiluxOne Offload | ', $html, "$view has the screen heading");
+        $this->assertStringContainsString('diluxone-offload-rail-state', $html, "$view has the rail");
         return $html;
+    }
+
+    private function views(): array {
+        return array_keys(self::VIEWS);
     }
 
     // ── Identity and routing ────────────────────────────────
@@ -157,22 +184,87 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertSame('Dashboard ‹ Site', Admin::admin_title('Dashboard ‹ Site', 'Dashboard'), 'other screens are left alone');
     }
 
-    public function test_tabs_and_aliases(): void {
-        $tabs = Admin::tabs();
-        foreach (['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status'] as $t) {
-            $this->assertArrayHasKey($t, $tabs);
+    public function test_screens_their_pages_and_their_tabs(): void {
+        $screens = Admin::screens();
+        $this->assertSame(['overview', 'cloud-provider', 'sync-offloading', 'settings', 'status'], array_keys($screens), 'in the order a person walks through them');
+        $this->assertSame([], $screens['overview']['tabs'], 'Overview has no tabs');
+        $this->assertSame(['connection', 'credentials'], array_keys($screens['cloud-provider']['tabs']));
+        $this->assertSame(['sync', 'offloading', 'disconnect'], array_keys($screens['sync-offloading']['tabs']));
+        $this->assertSame(['transfers', 'serving', 'logging'], array_keys($screens['settings']['tabs']));
+        $this->assertSame(['health', 'system'], array_keys($screens['status']['tabs']));
+        $this->assertArrayNotHasKey('tools', $screens, 'the Tools tab went out with import/export');
+        $this->assertArrayNotHasKey('filenames', $screens, 'Filenames is 4.0.0');
+        foreach (self::VIEWS as [$page]) {
+            $expected = $page === 'diluxone-offload' ? 'overview' : Admin::screen_for_page($page);
+            $this->assertSame($expected, Admin::screen_for_page($page));
+            $this->assertSame($page, $screens[Admin::screen_for_page($page)]['page'], "$page belongs to a screen");
         }
-        $this->assertArrayNotHasKey('tools', $tabs, 'the Tools tab went out with import/export');
-        $this->assertArrayNotHasKey('activity', $tabs, 'the Activity stub went out until it has data behind it');
-        $this->assertSame('overview', Admin::current_tab('activity'), 'the old Activity URL falls back');
-        $this->assertSame('sync-offloading', Admin::current_tab('sync'), 'legacy alias');
-        $this->assertSame('status', Admin::current_tab('status-tools'), 'legacy alias');
-        $this->assertSame('overview', Admin::current_tab('nope'), 'unknown falls back');
+        $this->assertSame('overview', Admin::screen_for_page('diluxone-offload-nope'), 'an unknown page lands on Overview');
     }
 
-    public function test_add_admin_menu_registers_the_top_level_page(): void {
-        global $menu;
+    public function test_tab_for_takes_the_requested_tab_or_the_first_one(): void {
+        $this->assertSame('credentials', Admin::tab_for('cloud-provider', 'credentials'));
+        $this->assertSame('connection', Admin::tab_for('cloud-provider', 'nope'), 'unknown tab: the first one');
+        $this->assertSame('connection', Admin::tab_for('cloud-provider', ''), 'no tab: the first one');
+        $this->assertSame('', Admin::tab_for('overview', 'anything'), 'a screen without tabs has none');
+    }
+
+    public function test_the_old_tab_urls_map_to_their_screens(): void {
+        $this->assertSame(['cloud-provider', 'connection'], Admin::legacy_tab('cloud-provider'));
+        $this->assertSame(['sync-offloading', 'sync'], Admin::legacy_tab('sync-offloading'));
+        $this->assertSame(['sync-offloading', 'sync'], Admin::legacy_tab('sync'), 'older alias');
+        $this->assertSame(['settings', 'transfers'], Admin::legacy_tab('settings'));
+        $this->assertSame(['status', 'health'], Admin::legacy_tab('status'));
+        $this->assertSame(['status', 'health'], Admin::legacy_tab('status-tools'), 'older alias');
+        $this->assertSame(['overview', ''], Admin::legacy_tab('activity'), 'the old Activity URL falls back');
+        $this->assertSame(['overview', ''], Admin::legacy_tab('nope'), 'unknown falls back');
+    }
+
+    public function test_screen_urls_name_every_tab(): void {
+        $urls = Admin::screen_urls();
+        $this->assertSame(array_keys(self::VIEWS), array_keys($urls));
+        $this->assertStringContainsString('page=diluxone-offload-provider&tab=credentials', $urls['credentials']);
+        $this->assertStringNotContainsString('tab=', $urls['overview'], 'Overview has no tab argument');
+        $this->assertSame($urls['sync'], Admin::screen_url('sync-offloading', 'sync'));
+        $this->assertSame(Admin::screen_url('sync-offloading'), Admin::screen_url('sync-offloading', 'not-a-tab'), 'an unknown tab is dropped: the screen opens on its first tab');
+        $this->assertStringContainsString('auto-start=1', Admin::screen_url('sync-offloading', 'sync', ['auto-start' => '1']));
+    }
+
+    public function captureRedirect(string $location) {
+        throw new \RuntimeException('redirect:' . $location);
+    }
+
+    /** @dataProvider legacyRedirects */
+    public function test_an_old_tab_url_on_the_top_level_page_redirects_to_its_screen(array $get, string $expect): void {
+        $_GET = $get;
+        add_filter('wp_redirect', [$this, 'captureRedirect']);
+        try {
+            Admin::redirect_legacy_tab();
+            $this->assertSame('', $expect, 'no redirect happened');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString($expect, $e->getMessage());
+        } finally {
+            remove_filter('wp_redirect', [$this, 'captureRedirect']);
+            $_GET = [];
+        }
+    }
+
+    /** @return array<string, array{array<string, string>, string}> */
+    public function legacyRedirects(): array {
+        return [
+            'cloud-provider' => [['page' => 'diluxone-offload', 'tab' => 'cloud-provider'], 'page=diluxone-offload-provider&tab=connection'],
+            'sync alias'     => [['page' => 'diluxone-offload', 'tab' => 'sync'], 'page=diluxone-offload-sync&tab=sync'],
+            'auto-start'     => [['page' => 'diluxone-offload', 'tab' => 'sync-offloading', 'auto-start' => '1'], 'auto-start=1'],
+            'status-tools'   => [['page' => 'diluxone-offload', 'tab' => 'status-tools'], 'page=diluxone-offload-status&tab=health'],
+            'unknown'        => [['page' => 'diluxone-offload', 'tab' => 'nope'], 'page=diluxone-offload'],
+            'no tab'         => [['page' => 'diluxone-offload'], ''],
+        ];
+    }
+
+    public function test_add_admin_menu_registers_the_menu_and_a_submenu_per_screen(): void {
+        global $menu, $submenu;
         $menu = [];
+        $submenu = [];
         Admin::add_admin_menu();
         $found = false;
         foreach ((array) $menu as $item) {
@@ -181,42 +273,75 @@ class AdminRenderTest extends IntegrationTestCase {
             }
         }
         $this->assertTrue($found, 'menu slug diluxone-offload registered');
+        $pages = array_map(fn($i) => $i[2], (array) ($submenu['diluxone-offload'] ?? []));
+        $this->assertSame(['diluxone-offload', 'diluxone-offload-provider', 'diluxone-offload-sync', 'diluxone-offload-settings', 'diluxone-offload-status'], $pages, 'one submenu per screen, Overview first on the parent slug');
+        $this->assertNotFalse(has_action('load-toplevel_page_diluxone-offload', [Admin::class, 'redirect_legacy_tab']), 'the old tab URLs are redirected on load');
+    }
+
+    public function test_accent_colour_is_a_css_colour(): void {
+        $this->assertMatchesRegularExpression('/^#[0-9a-fA-F]{3,8}$/', Admin::accent_color());
+    }
+
+    public function test_a_screen_with_tabs_shows_the_strip_and_marks_the_open_tab(): void {
+        $html = $this->render('credentials');
+        $this->assertStringContainsString('nav-tab-wrapper', $html);
+        $this->assertMatchesRegularExpression('/class="nav-tab nav-tab-active"\s+aria-current="page">\s*Credentials/', $html);
+        $this->assertStringContainsString('DiluxOne Offload | Cloud Provider', $html, 'the heading names the screen, not the tab');
+        $this->assertStringNotContainsString('nav-tab-wrapper', $this->render('overview'), 'Overview has no tab strip');
     }
 
     // ── Rendering: every tab, every state ───────────────────
 
-    public function test_all_tabs_render_when_not_configured(): void {
-        foreach (self::TABS as $tab) {
-            $html = $this->render($tab);
+    public function test_every_view_renders_when_not_configured(): void {
+        foreach ($this->views() as $view) {
+            $html = $this->render($view);
             $this->assertNotSame('', $html);
         }
+        $this->assertStringContainsString('Sync &amp; Offloading Not Available', $this->render('sync'));
+        $this->assertStringContainsString('Connect a provider in the Connection tab first', $this->render('credentials'));
     }
 
-    public function test_all_tabs_render_when_configured(): void {
+    public function test_every_view_renders_when_configured(): void {
         $this->configure(PluginState::CONFIGURED);
         $this->useFakeClient();
-        foreach (self::TABS as $tab) {
-            $this->render($tab);
+        foreach ($this->views() as $view) {
+            $this->render($view);
         }
+        $this->assertStringContainsString('remove-provider', $this->render('credentials'), 'the provider can be deleted before offloading');
+        $this->assertStringContainsString('Run the sync first', $this->render('offloading'));
+        $this->assertStringContainsString('nothing to bring back', $this->render('disconnect'));
     }
 
-    public function test_all_tabs_render_when_synced(): void {
+    public function test_every_view_renders_when_synced(): void {
         $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
         $this->addTestFiles(3);
-        foreach (self::TABS as $tab) {
-            $this->render($tab);
+        foreach ($this->views() as $view) {
+            $this->render($view);
         }
+        // Three files the sync never took are "synced with errors": Offloading points back at Sync.
+        $this->assertStringContainsString('could not be uploaded', $this->render('offloading'));
+        $this->assertStringNotContainsString('enable-offloading-btn', $this->render('offloading'));
+        foreach ([1, 2, 3] as $i) {
+            DB::mark_synced("/2024/01/test-file-$i.jpg");
+        }
+        $this->assertStringContainsString('enable-offloading-btn', $this->render('offloading'), 'Enable Offloading lives on the Offloading tab once every file is in the cloud');
+        $this->assertStringNotContainsString('enable-offloading-btn"', $this->render('sync'), 'and not on the Sync tab');
     }
 
-    public function test_all_tabs_render_when_offloading_is_active(): void {
+    public function test_every_view_renders_when_offloading_is_active(): void {
         $this->configure(PluginState::OFFLOADING_ACTIVE);
         $this->useFakeClient();
         $this->addTestFiles(2);
         \DiluxOneOffload\DiluxOneOffloadDB::mark_synced('/2024/01/test-file-1.jpg');
-        foreach (self::TABS as $tab) {
-            $this->render($tab);
+        foreach ($this->views() as $view) {
+            $this->render($view);
         }
+        $this->assertStringContainsString('delete-local-files-btn', $this->render('offloading'));
+        $this->assertStringContainsString('disconnect-from-cloud-btn', $this->render('disconnect'));
+        $this->assertStringNotContainsString('disconnect-from-cloud-btn', $this->render('sync'), 'Disconnect has its own tab');
+        $this->assertStringNotContainsString('remove-provider"', $this->render('credentials'), 'the provider cannot be deleted while offloading');
+        $this->assertStringContainsString('Disconnect first', $this->render('credentials'));
     }
 
     public function test_overview_uses_cached_stats_when_present(): void {
@@ -245,7 +370,7 @@ class AdminRenderTest extends IntegrationTestCase {
         $cfg['provider_config']['access_key'] = 'DILUXONEOFFLOADENC1:not-base64!!';
         update_option('diluxone_offload_config', $cfg);
         update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => 'decrypt_failed', 'error_message' => 'x', 'consecutive_failures' => 1, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'crypto']);
-        $html = $this->render('sync-offloading');
+        $html = $this->render('sync');
         $this->assertStringContainsString('Unreadable', $html);
     }
 
@@ -299,7 +424,7 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->configure(PluginState::SYNCING);
         $this->useFakeClient();
         update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'gone', 'last_heartbeat' => time() - 600], false);
-        $this->render('sync-offloading');
+        $this->render('sync');
         $this->assertSame(PluginState::SYNCED, ConfigManager::get_state(), 'stale syncing state is healed on render');
     }
 
@@ -307,8 +432,8 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->configure(PluginState::SYNCING);
         $this->useFakeClient();
         update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'live', 'last_heartbeat' => time()], false);
-        $this->render('sync');
-        $this->assertSame(PluginState::SYNCING, ConfigManager::get_state());
+        $this->render('offloading');
+        $this->assertSame(PluginState::SYNCING, ConfigManager::get_state(), 'every tab of the screen heals or keeps the state alike');
     }
 
     public function test_pause_reason_short_has_a_fallback(): void {
@@ -317,8 +442,8 @@ class AdminRenderTest extends IntegrationTestCase {
 
     // ── Template branches ───────────────────────────────────
 
-    public function test_every_tab_shows_a_queued_notice_exactly_once(): void {
-        foreach (self::TABS as $tab) {
+    public function test_every_view_shows_a_queued_notice_exactly_once(): void {
+        foreach ($this->views() as $tab) {
             Admin::flash_notice('success', 'Saved fine <b>');
             $html = $this->render($tab);
             $this->assertStringContainsString('notice-success', $html, $tab);
@@ -336,7 +461,7 @@ class AdminRenderTest extends IntegrationTestCase {
         $_GET['success'] = 'Not from us';
         $_GET['error']   = 'Not from us either';
         try {
-            $html = $this->render('settings');
+            $html = $this->render('transfers');
         } finally {
             unset($_GET['success'], $_GET['error']);
         }
@@ -399,7 +524,7 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->configure($state);
         $this->useFakeClient();
         update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => '403', 'error_message' => 'x', 'consecutive_failures' => 3, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'azure']);
-        $html = $this->render('status');
+        $html = $this->render('health');
         $this->assertStringContainsString('Paused (', $html);
         $this->assertStringContainsString($expect, $html);
     }
@@ -415,7 +540,7 @@ class AdminRenderTest extends IntegrationTestCase {
     public function test_status_tab_flags_unreadable_credentials(): void {
         $this->configure(PluginState::SYNCED);
         update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => 'decrypt_failed', 'error_message' => 'x', 'consecutive_failures' => 1, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'crypto']);
-        $html = $this->render('status');
+        $html = $this->render('health');
         $this->assertStringContainsString('Awaiting Re-entry', $html);
         $this->assertStringContainsString('Re-enter Credentials', $html);
     }
@@ -426,7 +551,7 @@ class AdminRenderTest extends IntegrationTestCase {
         DB::add_file('/2026/09/pending.jpg', 10);
         DB::add_file('/2026/09/done.jpg', 10);
         DB::mark_synced('/2026/09/done.jpg');
-        $html = $this->render('sync-offloading');
+        $html = $this->render('sync');
         $this->assertStringContainsString('Sync Not Completed', $html);
         $this->assertStringContainsString('start-sync-btn', $html);
     }
@@ -436,8 +561,39 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->useFakeClient();
         DB::add_file('/2026/09/done.jpg', 10);
         DB::mark_synced('/2026/09/done.jpg');
-        $html = $this->render('sync-offloading');
+        $html = $this->render('sync');
         $this->assertStringContainsString('Sync Not Completed', $html);
+    }
+
+    public function test_status_health_shows_the_connection_table_and_the_tracking_rows(): void {
+        $this->configure(PluginState::SYNCED);
+        $this->useFakeClient();
+        $this->addTestFiles(3);
+        update_option('diluxone_offload_connection_health', ['status' => 'healthy', 'error_code' => '', 'error_message' => '', 'consecutive_failures' => 0, 'last_check' => time() - 120, 'last_success' => time() - 120, 'error_source' => '']);
+        $html = $this->render('health');
+        $this->assertStringContainsString('Connection Health', $html);
+        $this->assertStringContainsString('2 minutes ago', $html);
+        $this->assertStringContainsString('3 files tracked', $html);
+        $this->assertStringContainsString('Free disk', $this->render('system'));
+    }
+
+    public function test_status_system_shows_the_free_disk_while_offloading_is_active(): void {
+        // While offloading is on, wp_upload_dir() answers with the cloud path,
+        // which has no disk: the row must read the server's own directory.
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        \DiluxOneOffload\CloudStreamWrapper::register();
+        \DiluxOneOffload\CloudStreamWrapper::activate_offloading();
+        try {
+            $this->assertStringStartsWith('diluxoneoffload://', (string) wp_upload_dir()['basedir'], 'the filter is on');
+            $html = $this->render('system');
+        } finally {
+            \DiluxOneOffload\CloudStreamWrapper::deactivate_offloading();
+            \DiluxOneOffload\CloudStreamWrapper::unregister();
+        }
+        $this->assertStringNotContainsString('not available', $html);
+        $this->assertMatchesRegularExpression('/Free disk.*?<strong>[\d.,]+\s?[KMGT]?B<\/strong>/s', $html, 'a size, read from the server\'s uploads directory');
+        $this->assertStringNotContainsString('diluxoneoffload://', substr($html, strpos($html, 'Upload Directory')), 'the rows show the server path, not the cloud one');
     }
 
 
@@ -453,15 +609,16 @@ class AdminRenderTest extends IntegrationTestCase {
     public function test_each_tab_gets_its_own_script_and_localized_strings(): void {
         $this->configure(PluginState::SYNCED);
         $this->useFakeClient();
-        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'cloud-provider' => 'DiluxOneOffloadProvider', 'sync-offloading' => 'DiluxOneOffloadSync'];
-        foreach ($with_js as $tab => $object) {
-            $this->render($tab);
+        $with_js = ['overview' => 'DiluxOneOffloadOverview', 'connection' => 'DiluxOneOffloadProvider', 'credentials' => 'DiluxOneOffloadProvider', 'sync' => 'DiluxOneOffloadSync', 'offloading' => 'DiluxOneOffloadSync', 'disconnect' => 'DiluxOneOffloadSync'];
+        foreach ($with_js as $view => $object) {
+            $this->render($view);
             $handles = array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0);
-            $this->assertCount(1, $handles, "tab $tab enqueues exactly one tab script");
+            $this->assertCount(1, $handles, "$view enqueues exactly one screen script");
             $data = wp_scripts()->get_data(reset($handles), 'data');
-            $this->assertStringContainsString($object, (string) $data, "tab $tab localizes $object");
+            $this->assertStringContainsString($object, (string) $data, "$view localizes $object");
+            $this->assertStringContainsString('"urls"', (string) $data, "$view hands the screen URLs to the script");
         }
-        foreach (['settings', 'status'] as $css_only) {
+        foreach (['transfers', 'serving', 'logging', 'health', 'system'] as $css_only) {
             $this->render($css_only);
             $this->assertCount(0, array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0), "$css_only has css only");
         }

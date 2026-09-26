@@ -1,44 +1,199 @@
 /* DiluxOne Offload — admin styles */
 
 /* =============================================================================
-   Tab Navigation with Icons
+   The screen: heading, tab strip, content beside the rail
    ========================================================================== */
 
+/* "DiluxOne Offload | Overview": WordPress' own h1, nothing added. */
+.diluxone-offload-admin h1 {
+	margin-bottom: 12px;
+}
+
+/* WordPress' nav-tab-wrapper, no icons. The open tab is marked by a 3 px top
+   border in the accent colour of the user's admin colour scheme (the colour is
+   set inline by Admin::enqueue_admin_assets()), not by being a shade lighter. */
 .diluxone-offload-admin .nav-tab-wrapper {
-    border-bottom: 1px solid #c3c4c7;
-    padding: 0;
-    margin: 20px 0 0 0;
+	margin: 0 0 16px;
 }
 
 .diluxone-offload-admin .nav-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    padding: 10px 15px;
+	font-size: 14px;
+	border-top: 3px solid transparent;
+	padding-top: 3px;
 }
 
-.diluxone-offload-admin .nav-tab .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
+.diluxone-offload-admin .nav-tab-active {
+	border-top-color: #2271b1;
 }
 
-.diluxone-offload-admin h1 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* Main column at a readable measure, the rail beside it; one column on narrow screens. */
+.diluxone-offload-studio {
+	display: grid;
+	grid-template-columns: minmax(0, 1000px) minmax(240px, 1fr);
+	gap: 32px;
+	align-items: start;
+	margin-top: 16px;
 }
 
-.diluxone-offload-admin h1 .dashicons {
-    color: #0073aa;
+.diluxone-offload-studio__main {
+	min-width: 0;
+}
+
+.diluxone-offload-studio__aside {
+	position: sticky;
+	top: 46px;
+	display: grid;
+	gap: 16px;
+}
+
+@media (max-width: 1100px) {
+	.diluxone-offload-studio {
+		grid-template-columns: 1fr;
+	}
+
+	.diluxone-offload-studio__aside {
+		position: static;
+	}
+}
+
+/* The rail: "Right now", a note, related screens. */
+.diluxone-offload-rail-state {
+	padding: 16px;
+	border: 1px solid #dcdcde;
+	border-top: 3px solid #2271b1;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.diluxone-offload-rail-state__label {
+	font-size: 12px;
+	color: #646970;
+	margin-bottom: 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.diluxone-offload-rail-state__line {
+	font-size: 14px;
+	line-height: 1.5;
+	color: #1d2327;
+	margin: 0 0 8px;
+}
+
+.diluxone-offload-rail-note,
+.diluxone-offload-rail-links {
+	padding: 16px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.diluxone-offload-rail-note__title,
+.diluxone-offload-rail-links__title {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.diluxone-offload-rail-note p {
+	margin: 0 0 8px;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.diluxone-offload-rail-note p:last-child {
+	margin: 0;
+}
+
+.diluxone-offload-rail-links ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.diluxone-offload-rail-links li {
+	padding: 4px 0;
+	font-size: 13px;
+}
+
+/* Pills: the state vocabulary, one shape everywhere. */
+.diluxone-offload-pill {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 100px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.8;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+.diluxone-offload-pill--active {
+	background: #d6f2e4;
+	color: #0a5c3e;
+}
+
+.diluxone-offload-pill--pending {
+	background: #fdf0d5;
+	color: #7a5200;
+}
+
+.diluxone-offload-pill--off {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+.diluxone-offload-pill__why {
+	color: #50575e;
+	font-weight: 400;
+	margin-left: 6px;
+}
+
+/* A callout: one message and its action, inside a section. */
+.diluxone-offload-callout {
+	border-left: 4px solid #2271b1;
+	background: #f0f6fc;
+	padding: 12px 15px;
+	border-radius: 4px;
+	margin: 12px 0 0;
+}
+
+.diluxone-offload-callout--warn {
+	border-left-color: #dba617;
+	background: #fcf9e8;
+}
+
+.diluxone-offload-callout p:last-child {
+	margin-bottom: 0;
+}
+
+/* Sections of a screen: title, description, then the form rows or cards. */
+.diluxone-offload-section,
+.settings-section {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px 20px;
+	margin: 0 0 20px;
+}
+
+.diluxone-offload-section h3,
+.settings-section h3 {
+	margin: 0 0 6px;
+	font-size: 15px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
 }
 
 .diluxone-offload-settings,
 .diluxone-offload-overview,
-.diluxone-offload-migration,
 .diluxone-offload-status {
-    margin-top: 20px;
+    margin-top: 0;
 }
 
 /* Configuration Section */
@@ -325,14 +480,6 @@
     }
 }
 
-/* WordPress Admin Compatibility */
-.wrap h1 {
-    margin-bottom: 20px;
-}
-
-.nav-tab-wrapper {
-    margin-bottom: 20px;
-}
 /* ---------------------------------------------------------------------------
  * Loading state for cloud-backed panels
  *

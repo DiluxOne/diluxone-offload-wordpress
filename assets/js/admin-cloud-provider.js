@@ -111,7 +111,8 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					window.location.reload();
+					// The provider is gone: the Connection tab shows the form again.
+					window.location.href = DiluxOneOffloadProvider.data.urls.connection;
 				} else {
 					alert('Error: ' + (response.data.message || 'Unknown error'));
 					$button.prop('disabled', false).css('opacity', '1');
@@ -129,40 +130,32 @@ jQuery(document).ready(function($) {
 	});
 
 	// ========================================================================
-	// Update Credentials Modal (provider-aware)
+	// Credentials tab: test the new key, then save it
 	// ========================================================================
-	$(document).on('click', '.update-credentials-trigger', function() {
-		$('#modal-azure-fields').show();
-		$('#update-credentials-modal').show();
-		$('#modal-connection-result').empty();
-		$('#modal-save-credentials').prop('disabled', true);
+	$('#show_new_account_key').on('change', function() {
+		$('#new_account_key').attr('type', $(this).is(':checked') ? 'text' : 'password');
 	});
 
-	$('.modal-close, #update-credentials-modal .diluxone-offload-modal-overlay').on('click', function() {
-		$('#update-credentials-modal').hide();
-		$('#modal_account_key').val('');
-		$('#modal-connection-result').empty();
-		$('#modal-save-credentials').prop('disabled', true);
+	$('#new_account_key').on('input change', function() {
+		// A key that changed after a test has not been tested.
+		$('#save-new-credentials').prop('disabled', true);
 	});
 
-	$('#modal_show_key').on('change', function() {
-		$('#modal_account_key').attr('type', $(this).is(':checked') ? 'text' : 'password');
-	});
-
-	$('#modal-test-connection').on('click', function() {
-		var $button = $(this);
-		var $result = $('#modal-connection-result');
-		var provider = getCurrentProvider();
-
-		var data = {
-			action: 'diluxone_offload_test_connection',
+	function newCredentials() {
+		return {
 			nonce: diluxOneOffloadAdmin.nonce,
-			provider: provider
+			provider: getCurrentProvider(),
+			account_name: $('#credentials_account_name').text().trim(),
+			account_key: $('#new_account_key').val(),
+			container_name: $('#credentials_container_name').text().trim()
 		};
+	}
 
-		data.account_name = $('#modal_account_name').text().trim();
-		data.account_key = $('#modal_account_key').val();
-		data.container_name = $('#modal_container_name').text().trim();
+	$('#test-new-credentials').on('click', function() {
+		var $button = $(this);
+		var $result = $('#new-credentials-result');
+		var data = $.extend({ action: 'diluxone_offload_test_connection' }, newCredentials());
+
 		if (!data.account_key) {
 			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
 			return;
@@ -181,34 +174,24 @@ jQuery(document).ready(function($) {
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
 				if (response.success) {
 					$result.html('<div style="padding: 10px; background: #d4edda; border-left: 3px solid #28a745; color: #155724; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</div>');
-					$('#modal-save-credentials').prop('disabled', false);
+					$('#save-new-credentials').prop('disabled', false);
 				} else {
 					$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</div>');
-					$('#modal-save-credentials').prop('disabled', true);
+					$('#save-new-credentials').prop('disabled', true);
 				}
 			},
 			error: function(xhr, status, error) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
 				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">Error: ' + error + '</div>');
-				$('#modal-save-credentials').prop('disabled', true);
+				$('#save-new-credentials').prop('disabled', true);
 			}
 		});
 	});
 
-	$('#modal-save-credentials').on('click', function() {
+	$('#save-new-credentials').on('click', function() {
 		var $button = $(this);
-		var provider = getCurrentProvider();
-
-		var data = {
-			action: 'diluxone_offload_save_updated_credentials',
-			nonce: diluxOneOffloadAdmin.nonce,
-			provider: provider
-		};
-
-		data.account_name = $('#modal_account_name').text().trim();
-		data.account_key = $('#modal_account_key').val();
-		data.container_name = $('#modal_container_name').text().trim();
+		var data = $.extend({ action: 'diluxone_offload_save_updated_credentials' }, newCredentials());
 
 		$button.prop('disabled', true);
 		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + DiluxOneOffloadProvider.i18n.saving);
@@ -220,7 +203,7 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				if (response.success) {
 					// The server queued the confirmation notice; the reload shows it.
-					window.location.href = window.location.pathname + '?page=diluxone-offload&tab=cloud-provider';
+					window.location.href = DiluxOneOffloadProvider.data.urls.credentials;
 				} else {
 					alert('Error: ' + (response.data.message || 'Unknown error'));
 					$button.prop('disabled', false);

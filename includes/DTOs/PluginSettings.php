@@ -117,6 +117,38 @@ class PluginSettings {
 	}
 
 	/**
+	 * The settings with one Settings tab's posted fields applied.
+	 *
+	 * Each tab of the Settings screen is its own form and posts only its own
+	 * fields, so a save must not touch the others: an unchecked box on
+	 * Serving is absent from a Transfers post, and absence there means
+	 * "leave it", not "off". The numbers are clamped to the range the form
+	 * offers, like fromPost().
+	 *
+	 * @param string               $group `transfers`, `serving` or `logging`.
+	 * @param array<string, mixed> $post  The posted fields, unslashed and sanitized as text.
+	 * @return self
+	 * @throws \InvalidArgumentException For a group that is not a Settings tab.
+	 */
+	public function withPostedGroup( string $group, array $post ): self {
+		switch ( $group ) {
+			case 'transfers':
+				return $this->merge(
+					array(
+						'timeout'       => max( 30, min( 600, intval( $post['timeout'] ?? $this->timeout ) ) ),
+						'max_file_size' => max( 1, min( 500, intval( $post['max_file_size'] ?? round( $this->maxFileSize / 1048576 ) ) ) ) * 1048576,
+					)
+				);
+			case 'serving':
+				return $this->merge( array( 'force_https_on_cloud' => isset( $post['force_https_on_cloud'] ) ) );
+			case 'logging':
+				return $this->merge( array( 'debug_enabled' => isset( $post['enable_debug_logging'] ) ) );
+		}
+
+		throw new \InvalidArgumentException( 'Unknown settings group: ' . esc_html( $group ) );
+	}
+
+	/**
 	 * Check if debug is enabled
 	 *
 	 * @return bool

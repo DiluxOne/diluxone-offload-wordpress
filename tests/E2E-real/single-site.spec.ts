@@ -30,23 +30,23 @@ test.describe.serial( 'single site journey', () => {
 		wrongKey = Buffer.from( 'not the key, but the right shape for one....................' ).toString( 'base64' );
 	} );
 
-	test( 'every tab renders before anything is configured', async ( { page } ) => {
-		for ( const tab of [ 'overview', 'cloud-provider', 'sync-offloading', 'settings', 'status' ] ) {
-			await ui.goTab( page, base, tab );
+	test( 'every screen and tab renders before anything is configured', async ( { page } ) => {
+		for ( const view of Object.keys( ui.VIEWS ) ) {
+			await ui.goTab( page, base, view );
 		}
 		await ui.goTab( page, base, 'overview' );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Not Configured/ );
 	} );
 
 	test( 'a wrong key is refused and Save stays disabled', async ( { page } ) => {
-		await ui.goTab( page, base, 'cloud-provider' );
+		await ui.goTab( page, base, 'connection' );
 		const result = await ui.testConnection( page, { account: run.account, key: wrongKey, container: run.container } );
 		expect( result ).not.toMatch( /success/i );
 		await expect( page.locator( '#submit' ) ).toBeDisabled();
 	} );
 
 	test( 'a container that does not exist is refused', async ( { page } ) => {
-		await ui.goTab( page, base, 'cloud-provider' );
+		await ui.goTab( page, base, 'connection' );
 		const result = await ui.testConnection( page, { account: run.account, key: run.key, container: `${ run.container }-missing` } );
 		expect( result ).not.toMatch( /success/i );
 		await expect( page.locator( '#submit' ) ).toBeDisabled();
@@ -56,7 +56,7 @@ test.describe.serial( 'single site journey', () => {
 		const name = `${ run.container }-private`;
 		await createPrivateContainer( run, name );
 		try {
-			await ui.goTab( page, base, 'cloud-provider' );
+			await ui.goTab( page, base, 'connection' );
 			const result = await ui.testConnection( page, { account: run.account, key: run.key, container: name } );
 			expect( result ).toMatch( /private/i );
 			expect( result ).toMatch( /public access level/i );
@@ -67,7 +67,7 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'the right credentials pass Test Connection and save', async ( { page } ) => {
-		await ui.goTab( page, base, 'cloud-provider' );
+		await ui.goTab( page, base, 'connection' );
 		const warning = page.locator( '#azure-config .test-status-message' );
 		// A failed test keeps the "test before saving" warning and Save disabled...
 		expect( await ui.testConnection( page, { account: run.account, key: wrongKey, container: run.container } ) ).not.toMatch( /success/i );
@@ -85,17 +85,24 @@ test.describe.serial( 'single site journey', () => {
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Configured/ );
 	} );
 
-	test( 'settings round-trip through the form and into the option', async ( { page } ) => {
-		await ui.goTab( page, base, 'settings' );
+	test( 'settings round-trip through the three tabs and into the option', async ( { page } ) => {
+		await ui.goTab( page, base, 'transfers' );
 		await page.locator( '#timeout' ).fill( '120' );
 		await page.locator( '#max_file_size' ).fill( '100' );
+		await page.getByRole( 'button', { name: /Save Settings/ } ).click();
+		await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
+		await ui.goTab( page, base, 'logging' );
 		await page.locator( 'input[name="enable_debug_logging"]' ).check();
+		await page.getByRole( 'button', { name: /Save Settings/ } ).click();
+		await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
+		await ui.goTab( page, base, 'serving' );
 		await page.locator( 'input[name="force_https_on_cloud"]' ).check();
 		await page.getByRole( 'button', { name: /Save Settings/ } ).click();
 		await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
-		await ui.goTab( page, base, 'settings' );
+		await ui.goTab( page, base, 'transfers' );
 		await expect( page.locator( '#timeout' ) ).toHaveValue( '120' );
 		await expect( page.locator( '#max_file_size' ) ).toHaveValue( '100' );
+		await ui.goTab( page, base, 'logging' );
 		await expect( page.locator( 'input[name="enable_debug_logging"]' ) ).toBeChecked();
 		const config = JSON.parse( wp( site, [ 'option', 'get', 'diluxone_offload_config', '--format=json' ] ) );
 		expect( config.timeout ).toBe( 120 );
@@ -123,7 +130,7 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'a sync can be cancelled and then reset to a clean start', async ( { page } ) => {
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		await ui.startSyncAndCancel( page );
 		expect( pluginState( site ) ).toBe( 'configured' );
 		expect( ( await listKeys( run, 'uploads/' ) ).length ).toBeGreaterThan( 0 );
@@ -134,11 +141,11 @@ test.describe.serial( 'single site journey', () => {
 	test( 'a key that stops working fails the sync visibly, and Retry finishes it once fixed', async ( { page } ) => {
 		// Swap the stored key for a wrong one the way a rotated key would look.
 		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['access_key'] = '${ wrongKey }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => $c ) );` ] );
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		const outcome = await ui.runSyncToCompletion( page, 'scratch' );
 		expect( outcome ).not.toBe( 'success' );
 		await page.locator( '#accept-errors-btn, #sync-complete-close-btn' ).first().click();
-		await page.waitForURL( /tab=sync/ );
+		await page.waitForURL( ui.onScreen( 'sync' ) );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Synced with Errors/ );
 
 		await page.locator( '.view-failed-btn' ).first().click();
@@ -148,16 +155,16 @@ test.describe.serial( 'single site journey', () => {
 
 		// The real key comes back and the failed files are retried, nothing else.
 		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['access_key'] = '${ run.key }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => $c ) );` ] );
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		expect( await ui.retryFailedFiles( page ) ).toBe( 'success' );
 		await page.locator( '#later-btn' ).click();
-		await page.waitForURL( /tab=sync/ );
+		await page.waitForURL( ui.onScreen( 'sync' ) );
 		expect( pluginState( site ) ).toBe( 'synced' );
 		await ui.resetSync( page );
 	} );
 
 	test( 'the initial sync puts every local file in the container, byte for byte', async ( { page } ) => {
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		expect( await ui.runSyncToCompletion( page, 'scratch' ) ).toBe( 'success' );
 		const local = filesUnder( site, uploadsDir );
 		const keys = await listKeys( run, 'uploads/' );
@@ -187,15 +194,20 @@ test.describe.serial( 'single site journey', () => {
 		}
 	} );
 
-	test( 'the Overview and Status tabs report the container', async ( { page } ) => {
+	test( 'the Overview, the Connection and Status › System report the container', async ( { page } ) => {
 		await ui.goTab( page, base, 'overview' );
 		const shown = await ui.refreshStats( page );
 		expect( shown ).toBe( ( await listKeys( run, 'uploads/' ) ).length );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Active/ );
-		await ui.goTab( page, base, 'status' );
+		await ui.goTab( page, base, 'connection' );
+		await expect( page.locator( '#provider-info' ) ).toContainText( run.container );
+		await expect( page.locator( '#provider-info' ) ).toContainText( /Connected/ );
+		await ui.goTab( page, base, 'system' );
 		const body = await page.locator( '.wrap.diluxone-offload-admin' ).innerText();
 		expect( body ).toContain( run.account );
 		expect( body ).toContain( run.container );
+		await ui.goTab( page, base, 'health' );
+		await expect( page.locator( '#connection-health' ) ).toContainText( /Healthy/ );
 	} );
 
 	test( 'a Media Library upload lands in the container with its thumbnails and a public URL', async ( { page } ) => {
@@ -227,7 +239,7 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'deleting the local copies frees the disk and the site keeps serving', async ( { page } ) => {
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'offloading' );
 		const { total } = await ui.deleteLocalFiles( page );
 		expect( total ).toBeGreaterThan( 0 );
 		// Only the empty file the scan skipped is left: it was never tracked, so it is never deleted.
@@ -239,7 +251,7 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'a download can be cancelled and resumed', async ( { page } ) => {
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'disconnect' );
 		await ui.startDisconnectAndCancel( page );
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
 		// The batch in flight when the page reloaded finishes on the server; once
@@ -251,10 +263,11 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'disconnecting brings every file back, byte for byte, and turns offloading off', async ( { page } ) => {
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'disconnect' );
 		await ui.disconnectToCompletion( page );
 		// Offloading is off and the plugin asks for a sync before it comes back.
 		expect( pluginState( site ) ).toBe( 'configured' );
+		await ui.goTab( page, base, 'sync' );
 		await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Complete Sync/i );
 		const keys = await listKeys( run, 'uploads/' );
 		const local = filesUnder( site, uploadsDir );
@@ -266,23 +279,25 @@ test.describe.serial( 'single site journey', () => {
 		expect( local.filter( ( f ) => f.endsWith( '.dlxpart' ) ).length ).toBe( 0 );
 	} );
 
-	test( 'the access key can be rotated through the Update Key modal', async ( { page } ) => {
-		await ui.goTab( page, base, 'cloud-provider' );
+	test( 'the access key can be rotated on the Credentials tab', async ( { page } ) => {
+		await ui.goTab( page, base, 'credentials' );
 		await ui.updateKey( page, wrongKey, false );
 		await ui.updateKey( page, run.key, true );
-		await expect( page.locator( '#provider-info' ) ).toContainText( run.account );
+		await expect( page.locator( '#credentials_account_name' ) ).toContainText( run.account );
 		expect( pluginState( site ) ).toBe( 'configured' );
 	} );
 
 	test( 'Complete Sync finds nothing new, Later leaves it synced, Resync All starts over, and offloading comes back', async ( { page } ) => {
 		// Complete Sync: everything is already in the cloud, so the summary comes straight away.
-		await ui.goTab( page, base, 'sync-offloading' );
+		await ui.goTab( page, base, 'sync' );
 		expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
 		// Later records the finished sync and then reloads; the URL does not
 		// change, so the state is what proves the reload happened.
 		await page.locator( '#sync-modal-summary #later-btn' ).click();
 		await expect.poll( () => pluginState( site ) ).toBe( 'synced' );
+		await ui.goTab( page, base, 'offloading' );
 		await expect( page.locator( '#enable-offloading-btn[data-confirm]' ) ).toBeVisible();
+		await ui.goTab( page, base, 'sync' );
 
 		// Resync All clears the tracking and asks for a fresh sync.
 		await ui.resyncAll( page );
@@ -290,12 +305,13 @@ test.describe.serial( 'single site journey', () => {
 		expect( await ui.runSyncToCompletion( page, 'scratch' ) ).toBe( 'success' );
 		await ui.enableOffloadingFromModal( page );
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
+		await ui.goTab( page, base, 'disconnect' );
 		await ui.disconnectToCompletion( page );
 		expect( pluginState( site ) ).toBe( 'configured' );
 	} );
 
 	test( 'removing the provider resets the plugin to unconfigured', async ( { page } ) => {
-		await ui.goTab( page, base, 'cloud-provider' );
+		await ui.goTab( page, base, 'credentials' );
 		await ui.removeProvider( page );
 		expect( pluginState( site ) ).toBe( 'not_configured' );
 		expect( wp( site, [ 'eval', "echo get_option( 'diluxone_offload_config' ) === false ? 'gone' : 'still there';" ] ) ).toBe( 'gone' );

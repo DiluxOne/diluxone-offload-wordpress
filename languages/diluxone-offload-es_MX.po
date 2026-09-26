@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DiluxOne Offload – Media Storage 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
-"POT-Creation-Date: 2026-09-25T16:52:50+00:00\n"
+"POT-Creation-Date: 2026-09-26T19:56:26+00:00\n"
 "PO-Revision-Date: 2026-04-22 19:31+0000\n"
 "Last-Translator: Pablo Ariel Di Loreto <pablodiloreto@gmail.com>\n"
 "Language-Team: Spanish\n"
@@ -51,56 +51,109 @@ msgstr "https://diluxone.com/plugins-wordpress"
 msgid "DiluxOne Offload"
 msgstr "DiluxOne Offload"
 
-#: includes/class-diluxone-offload-admin.php:61
+#: includes/class-diluxone-offload-admin.php:62
 msgid "Overview"
 msgstr "Vista general"
 
-#: includes/class-diluxone-offload-admin.php:67 templates/admin-status.php:291
+#: includes/class-diluxone-offload-admin.php:67
+#: templates/admin-status-system.php:131
 msgid "Cloud Provider"
 msgstr "Proveedor en la nube"
 
-#: includes/class-diluxone-offload-admin.php:73
+#: includes/class-diluxone-offload-admin.php:70
+#: includes/class-diluxone-offload-admin.php:1270
+msgid "Connection"
+msgstr "Conexión"
+
+#: includes/class-diluxone-offload-admin.php:71
+#: templates/admin-provider-connection.php:167
+msgid "Credentials"
+msgstr "Credenciales"
+
+#: includes/class-diluxone-offload-admin.php:75
 msgid "Sync & Offloading"
 msgstr "Sincronización y descarga"
 
+#: includes/class-diluxone-offload-admin.php:78
+#: includes/class-diluxone-offload-admin.php:1300
+msgid "Sync"
+msgstr "Sincronización"
+
 #: includes/class-diluxone-offload-admin.php:79
+#: includes/class-diluxone-offload-admin.php:1286
+#: templates/admin-overview.php:201 templates/admin-status-health.php:172
+#: templates/admin-sync-offloading.php:35 templates/admin-sync-sync.php:373
+msgid "Offloading"
+msgstr "Descarga"
+
+#: includes/class-diluxone-offload-admin.php:80
+#: includes/class-diluxone-offload-admin.php:1301
+#: templates/admin-sync-sync.php:374
+msgid "Disconnect"
+msgstr "Desconectar"
+
+#: includes/class-diluxone-offload-admin.php:84
 msgid "Settings"
 msgstr "Configuración"
 
-#: includes/class-diluxone-offload-admin.php:85
+#: includes/class-diluxone-offload-admin.php:87
+#: templates/admin-settings-transfers.php:30
+msgid "Transfers"
+msgstr "Transferencias"
+
+#: includes/class-diluxone-offload-admin.php:88
+#: templates/admin-settings-serving.php:30
+msgid "Serving"
+msgstr "Entrega"
+
+#: includes/class-diluxone-offload-admin.php:89
+msgid "Logging"
+msgstr "Registro"
+
+#: includes/class-diluxone-offload-admin.php:93
+#: templates/admin-status-health.php:237
 msgid "Status"
 msgstr "Estado"
 
+#: includes/class-diluxone-offload-admin.php:96
+#: includes/class-diluxone-offload-admin.php:1384
+msgid "Health"
+msgstr "Salud"
+
+#: includes/class-diluxone-offload-admin.php:97
+msgid "System"
+msgstr "Sistema"
+
 #. translators: 1: plugin name, 2: name of the screen
-#: includes/class-diluxone-offload-admin.php:139
+#: includes/class-diluxone-offload-admin.php:286
 #, php-format
 msgctxt "a dashboard screen title"
 msgid "%1$s | %2$s"
 msgstr "%1$s | %2$s"
 
-#: includes/class-diluxone-offload-admin.php:491
+#: includes/class-diluxone-offload-admin.php:674
 msgid "Connection Failed"
 msgstr "La conexión falló."
 
-#: includes/class-diluxone-offload-admin.php:492
+#: includes/class-diluxone-offload-admin.php:675
 msgid "Please fill in all required fields."
 msgstr "Completá todos los campos obligatorios."
 
-#: includes/class-diluxone-offload-admin.php:493
+#: includes/class-diluxone-offload-admin.php:676
 msgid "Testing..."
 msgstr "Probando..."
 
-#: includes/class-diluxone-offload-admin.php:494
-#: templates/admin-cloud-provider.php:113
-#: templates/admin-cloud-provider.php:273
+#: includes/class-diluxone-offload-admin.php:677
+#: templates/admin-provider-connection.php:104
+#: templates/admin-provider-credentials.php:69
 msgid "Test Connection"
 msgstr "Probar conexión"
 
-#: includes/class-diluxone-offload-admin.php:495
+#: includes/class-diluxone-offload-admin.php:678
 msgid "Connection Successful"
 msgstr "Conexión exitosa."
 
-#: includes/class-diluxone-offload-admin.php:496
+#: includes/class-diluxone-offload-admin.php:679
 msgid ""
 "Storage Account Name must be 3-24 characters long and contain only lowercase "
 "letters and numbers."
@@ -108,220 +161,221 @@ msgstr ""
 "El Nombre de la Cuenta de Almacenamiento debe tener entre 3-24 caracteres y "
 "contener solo letras minúsculas y números."
 
-#: includes/class-diluxone-offload-admin.php:497
+#: includes/class-diluxone-offload-admin.php:680
 msgid ""
 "Container Name must contain only lowercase letters, numbers, and hyphens."
 msgstr ""
 "El Nombre del Contenedor debe contener solo letras minúsculas, números y "
 "guiones."
 
-#: includes/class-diluxone-offload-admin.php:498
+#: includes/class-diluxone-offload-admin.php:681
 msgid "Deleting configuration..."
 msgstr "Eliminando configuración..."
 
-#: includes/class-diluxone-offload-admin.php:499
-#: templates/admin-cloud-provider.php:197
+#: includes/class-diluxone-offload-admin.php:682
+#: templates/admin-provider-credentials.php:116
 msgid "Yes, Delete Configuration"
 msgstr "Sí, eliminar configuración"
 
-#: includes/class-diluxone-offload-admin.php:500
+#: includes/class-diluxone-offload-admin.php:683
 msgid "Please enter the new access key."
 msgstr "Ingresa la nueva clave de acceso."
 
-#: includes/class-diluxone-offload-admin.php:501
+#: includes/class-diluxone-offload-admin.php:684
 msgid "Saving..."
 msgstr "Guardando..."
 
-#: includes/class-diluxone-offload-admin.php:502
-#: templates/admin-cloud-provider.php:293
+#: includes/class-diluxone-offload-admin.php:685
 msgid "Save"
 msgstr "Guardar"
 
-#: includes/class-diluxone-offload-admin.php:503
+#: includes/class-diluxone-offload-admin.php:686
 msgid "Error deleting configuration:"
 msgstr "Error al eliminar la configuración:"
 
-#: includes/class-diluxone-offload-admin.php:504
+#: includes/class-diluxone-offload-admin.php:687
 msgid "Error saving credentials:"
 msgstr "Error al guardar las credenciales:"
 
-#: includes/class-diluxone-offload-admin.php:517
+#: includes/class-diluxone-offload-admin.php:701
 msgid "Not available"
 msgstr "No disponible"
 
-#: includes/class-diluxone-offload-admin.php:518
+#: includes/class-diluxone-offload-admin.php:702
 msgid "Images"
 msgstr "Imágenes"
 
-#: includes/class-diluxone-offload-admin.php:519
+#: includes/class-diluxone-offload-admin.php:703
 msgid "Videos"
 msgstr "Videos"
 
-#: includes/class-diluxone-offload-admin.php:520
+#: includes/class-diluxone-offload-admin.php:704
 msgid "Audio"
 msgstr "Audio"
 
-#: includes/class-diluxone-offload-admin.php:521
+#: includes/class-diluxone-offload-admin.php:705
 msgid "Other"
 msgstr "Otros"
 
-#: includes/class-diluxone-offload-admin.php:522
+#: includes/class-diluxone-offload-admin.php:706
 msgid "Last updated:"
 msgstr "Última actualización:"
 
-#: includes/class-diluxone-offload-admin.php:523
+#: includes/class-diluxone-offload-admin.php:707
 #: templates/admin-overview.php:435
 msgid "just now"
 msgstr "ahora mismo"
 
-#: includes/class-diluxone-offload-admin.php:524
+#: includes/class-diluxone-offload-admin.php:708
 #: templates/admin-overview.php:338 templates/admin-overview.php:364
 msgid "Storage"
 msgstr "Almacenamiento"
 
-#: includes/class-diluxone-offload-admin.php:525
+#: includes/class-diluxone-offload-admin.php:709
 #: templates/admin-overview.php:347 templates/admin-overview.php:375
 msgid "Total Files"
 msgstr "Total de archivos"
 
-#: includes/class-diluxone-offload-admin.php:526
+#: includes/class-diluxone-offload-admin.php:710
 msgid "Request timed out. Try again later."
 msgstr "La solicitud expiró. Intenta de nuevo más tarde."
 
-#: includes/class-diluxone-offload-admin.php:537
+#: includes/class-diluxone-offload-admin.php:721
 msgid "Cancelling sync..."
 msgstr "Cancelando sincronización..."
 
-#: includes/class-diluxone-offload-admin.php:538 templates/admin-sync.php:492
-#: templates/admin-sync.php:575 templates/admin-sync.php:784
+#: includes/class-diluxone-offload-admin.php:722
+#: templates/admin-sync-disconnect.php:249 templates/admin-sync-sync.php:438
+#: templates/admin-sync-sync.php:521
 msgid "Close"
 msgstr "Cerrar"
 
-#: includes/class-diluxone-offload-admin.php:539
+#: includes/class-diluxone-offload-admin.php:723
 msgid "Upload Summary"
 msgstr "Resumen de carga"
 
-#: includes/class-diluxone-offload-admin.php:540
+#: includes/class-diluxone-offload-admin.php:724
 msgid "Total files:"
 msgstr "Total de archivos:"
 
-#: includes/class-diluxone-offload-admin.php:541
+#: includes/class-diluxone-offload-admin.php:725
 msgid "Already uploaded:"
 msgstr "Ya cargados:"
 
-#: includes/class-diluxone-offload-admin.php:542
+#: includes/class-diluxone-offload-admin.php:726
 msgid "New files:"
 msgstr "Archivos nuevos:"
 
-#: includes/class-diluxone-offload-admin.php:543
+#: includes/class-diluxone-offload-admin.php:727
 msgid "Pending:"
 msgstr "Pendiente:"
 
-#: includes/class-diluxone-offload-admin.php:544
+#: includes/class-diluxone-offload-admin.php:728
 msgid "Upload Performance:"
 msgstr "Rendimiento de carga:"
 
-#: includes/class-diluxone-offload-admin.php:545
+#: includes/class-diluxone-offload-admin.php:729
 msgid "Balanced (5 parallel)"
 msgstr "Equilibrado (5 en paralelo)"
 
-#: includes/class-diluxone-offload-admin.php:546
+#: includes/class-diluxone-offload-admin.php:730
 msgid "Fast (20 parallel)"
 msgstr "Rápido (20 en paralelo)"
 
-#: includes/class-diluxone-offload-admin.php:547
+#: includes/class-diluxone-offload-admin.php:731
 msgid "Intensive (40 parallel)"
 msgstr "Intensivo (40 en paralelo)"
 
-#: includes/class-diluxone-offload-admin.php:548
+#: includes/class-diluxone-offload-admin.php:732
 msgid "Continue Upload"
 msgstr "Continuar carga"
 
-#: includes/class-diluxone-offload-admin.php:549
+#: includes/class-diluxone-offload-admin.php:733
 msgid "Upload from Scratch"
 msgstr "Cargar desde cero"
 
-#: includes/class-diluxone-offload-admin.php:550
+#: includes/class-diluxone-offload-admin.php:734
 msgid "Scan and Complete Sync"
 msgstr "Escanear y completar sincronización"
 
-#: includes/class-diluxone-offload-admin.php:551
-#: templates/admin-cloud-provider.php:161 templates/admin-sync.php:808
+#: includes/class-diluxone-offload-admin.php:735
+#: templates/admin-provider-connection.php:161
+#: templates/partials/sync-modal.php:32
 msgid "Sync Files to Cloud"
 msgstr "Sincronizar archivos a la nube"
 
-#: includes/class-diluxone-offload-admin.php:552
+#: includes/class-diluxone-offload-admin.php:736
 msgid "Error processing batch:"
 msgstr "Error procesando lote:"
 
-#: includes/class-diluxone-offload-admin.php:553
+#: includes/class-diluxone-offload-admin.php:737
 msgid "⚠️ Max retries exceeded. Sync stopped. Please check logs and try again."
 msgstr ""
 "⚠️ Máximo de reintentos excedido. Sincronización detenida. Por favor revisa "
 "los registros e intenta de nuevo."
 
-#: includes/class-diluxone-offload-admin.php:554
+#: includes/class-diluxone-offload-admin.php:738
 msgid "Sync Completed Successfully!"
 msgstr "¡Sincronización completada exitosamente!"
 
-#: includes/class-diluxone-offload-admin.php:555
+#: includes/class-diluxone-offload-admin.php:739
 msgid "All files have been synced to cloud storage."
 msgstr "Todos los archivos se sincronizaron al almacenamiento en la nube."
 
-#: includes/class-diluxone-offload-admin.php:556
+#: includes/class-diluxone-offload-admin.php:740
 msgid "Sync Completed with Errors"
 msgstr "Sincronización completada con errores"
 
-#: includes/class-diluxone-offload-admin.php:557
+#: includes/class-diluxone-offload-admin.php:741
 msgid "Some files could not be synced."
 msgstr "Algunos archivos no pudieron sincronizarse."
 
-#: includes/class-diluxone-offload-admin.php:558
+#: includes/class-diluxone-offload-admin.php:742
 msgid "Sync Failed"
 msgstr "Sincronización fallida"
 
-#: includes/class-diluxone-offload-admin.php:559
+#: includes/class-diluxone-offload-admin.php:743
 msgid "Unknown error"
 msgstr "Error desconocido"
 
-#: includes/class-diluxone-offload-admin.php:560
+#: includes/class-diluxone-offload-admin.php:744
 msgid "Successful:"
 msgstr "Exitosos:"
 
-#: includes/class-diluxone-offload-admin.php:561
+#: includes/class-diluxone-offload-admin.php:745
 msgid "Failed:"
 msgstr "Fallidos:"
 
-#: includes/class-diluxone-offload-admin.php:562
+#: includes/class-diluxone-offload-admin.php:746
 #: templates/admin-overview.php:495
 msgid "Enable Offloading"
 msgstr "Habilitar descarga"
 
-#: includes/class-diluxone-offload-admin.php:563
+#: includes/class-diluxone-offload-admin.php:747
 msgid "Later"
 msgstr "Más tarde"
 
-#: includes/class-diluxone-offload-admin.php:564
+#: includes/class-diluxone-offload-admin.php:748
 msgid "Accept"
 msgstr "Aceptar"
 
-#: includes/class-diluxone-offload-admin.php:565
+#: includes/class-diluxone-offload-admin.php:749
 msgid "Cannot enable offloading: "
 msgstr "No se puede habilitar la descarga: "
 
-#: includes/class-diluxone-offload-admin.php:566
+#: includes/class-diluxone-offload-admin.php:750
 msgid "failed files"
 msgstr "archivos fallidos"
 
-#: includes/class-diluxone-offload-admin.php:567
+#: includes/class-diluxone-offload-admin.php:751
 msgid "and"
 msgstr "y"
 
-#: includes/class-diluxone-offload-admin.php:568
+#: includes/class-diluxone-offload-admin.php:752
 msgid "pending files"
 msgstr "archivos pendientes"
 
-#: includes/class-diluxone-offload-admin.php:569
+#: includes/class-diluxone-offload-admin.php:753
 msgid ""
 "Please resolve errors first using \"Clear Failed & Enable\" or retry failed "
 "files."
@@ -329,81 +383,81 @@ msgstr ""
 "Por favor resuelve los errores primero usando \"Limpiar Fallidos y "
 "Habilitar\" o reintenta los archivos fallidos."
 
-#: includes/class-diluxone-offload-admin.php:570
+#: includes/class-diluxone-offload-admin.php:754
 msgid "Enabling cloud storage offloading..."
 msgstr "Habilitando descarga de almacenamiento en la nube..."
 
-#: includes/class-diluxone-offload-admin.php:571
+#: includes/class-diluxone-offload-admin.php:755
 msgid "Enabling..."
 msgstr "Habilitando..."
 
-#: includes/class-diluxone-offload-admin.php:572
+#: includes/class-diluxone-offload-admin.php:756
 msgid "Offloading enabled successfully!"
 msgstr "¡Descarga habilitada exitosamente!"
 
-#: includes/class-diluxone-offload-admin.php:573
+#: includes/class-diluxone-offload-admin.php:757
 msgid "Connection error"
 msgstr "Error de conexión"
 
-#: includes/class-diluxone-offload-admin.php:574
-#: includes/class-diluxone-offload-admin.php:635
+#: includes/class-diluxone-offload-admin.php:758
+#: includes/class-diluxone-offload-admin.php:819
 msgid "Connection error. Please try again."
 msgstr "Error de conexión. Por favor intenta de nuevo."
 
-#: includes/class-diluxone-offload-admin.php:575
+#: includes/class-diluxone-offload-admin.php:759
 msgid "Failed to take control:"
 msgstr "No se pudo tomar el control:"
 
-#: includes/class-diluxone-offload-admin.php:576
+#: includes/class-diluxone-offload-admin.php:760
 msgid "Connection error while taking control."
 msgstr "Error de conexión al tomar el control."
 
-#: includes/class-diluxone-offload-admin.php:577
+#: includes/class-diluxone-offload-admin.php:761
 msgid "Cancelling..."
 msgstr "Cancelando..."
 
-#: includes/class-diluxone-offload-admin.php:578
+#: includes/class-diluxone-offload-admin.php:762
 msgid "Cancelling sync... Please wait."
 msgstr "Cancelando sincronización... Por favor espera."
 
-#: includes/class-diluxone-offload-admin.php:579
+#: includes/class-diluxone-offload-admin.php:763
 msgid "Sync cancelled. Refreshing..."
 msgstr "Sincronización cancelada. Actualizando..."
 
-#: includes/class-diluxone-offload-admin.php:580 templates/admin-sync.php:274
-#: templates/admin-sync.php:445
+#: includes/class-diluxone-offload-admin.php:764
+#: templates/admin-sync-sync.php:272 templates/admin-sync-sync.php:391
 msgid "Retry Failed Files"
 msgstr "Reintentar archivos fallidos"
 
-#: includes/class-diluxone-offload-admin.php:581
+#: includes/class-diluxone-offload-admin.php:765
 msgid "Failed files to retry:"
 msgstr "Archivos fallidos a reintentar:"
 
-#: includes/class-diluxone-offload-admin.php:582
+#: includes/class-diluxone-offload-admin.php:766
 msgid "Previously failed:"
 msgstr "Fallidos anteriormente:"
 
-#: includes/class-diluxone-offload-admin.php:583
+#: includes/class-diluxone-offload-admin.php:767
 msgid "New files found:"
 msgstr "Archivos nuevos encontrados:"
 
-#: includes/class-diluxone-offload-admin.php:584
+#: includes/class-diluxone-offload-admin.php:768
 msgid "Performance Level:"
 msgstr "Nivel de rendimiento:"
 
-#: includes/class-diluxone-offload-admin.php:585
+#: includes/class-diluxone-offload-admin.php:769
 msgid "Balanced (5 parallel - Recommended)"
 msgstr "Equilibrado (5 en paralelo - Recomendado)"
 
-#: includes/class-diluxone-offload-admin.php:586
+#: includes/class-diluxone-offload-admin.php:770
 msgid "Fast (20 parallel - More resources)"
 msgstr "Rápido (20 en paralelo - Más recursos)"
 
-#: includes/class-diluxone-offload-admin.php:587
+#: includes/class-diluxone-offload-admin.php:771
 msgid "Intensive (40 parallel - Maximum speed)"
 msgstr "Intensivo (40 en paralelo - Velocidad máxima)"
 
-#: includes/class-diluxone-offload-admin.php:588
+#: includes/class-diluxone-offload-admin.php:772
 msgid ""
 "Higher values = faster upload but more server resources. Start with Balanced "
 "if unsure."
@@ -411,140 +465,143 @@ msgstr ""
 "Valores más altos = carga más rápida pero más recursos del servidor. "
 "Comienza con Balanceado si no estás seguro."
 
-#: includes/class-diluxone-offload-admin.php:589
+#: includes/class-diluxone-offload-admin.php:773
 msgid "Retry Upload"
 msgstr "Reintentar carga"
 
-#: includes/class-diluxone-offload-admin.php:590
-#: templates/admin-cloud-provider.php:201
-#: templates/admin-cloud-provider.php:290 templates/admin-sync.php:533
-#: templates/admin-sync.php:652 templates/admin-sync.php:684
-#: templates/admin-sync.php:852 templates/admin-sync.php:938
+#: includes/class-diluxone-offload-admin.php:774
+#: templates/admin-provider-credentials.php:120
+#: templates/admin-sync-disconnect.php:117
+#: templates/admin-sync-disconnect.php:149
+#: templates/admin-sync-offloading.php:215 templates/admin-sync-sync.php:479
+#: templates/partials/sync-modal.php:76
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: includes/class-diluxone-offload-admin.php:591
+#: includes/class-diluxone-offload-admin.php:775
 msgid "Error calculating failed files"
 msgstr "Error calculando archivos fallidos"
 
-#: includes/class-diluxone-offload-admin.php:592
+#: includes/class-diluxone-offload-admin.php:776
 msgid "Confirm Complete Resync"
 msgstr "Confirmar resincronización completa"
 
-#: includes/class-diluxone-offload-admin.php:593
+#: includes/class-diluxone-offload-admin.php:777
 msgid "Are you sure you want to resynchronize all files?"
 msgstr "¿Estás seguro de que quieres resincronizar todos los archivos?"
 
-#: includes/class-diluxone-offload-admin.php:594
+#: includes/class-diluxone-offload-admin.php:778
 msgid "All sync history will be cleared"
 msgstr "Todo el historial de sincronización será borrado"
 
-#: includes/class-diluxone-offload-admin.php:595
+#: includes/class-diluxone-offload-admin.php:779
 msgid "Files will be scanned from scratch"
 msgstr "Los archivos se escanearán desde cero"
 
-#: includes/class-diluxone-offload-admin.php:596
+#: includes/class-diluxone-offload-admin.php:780
 msgid "Already synced files will be detected and skipped"
 msgstr "Los archivos ya sincronizados serán detectados y omitidos"
 
-#: includes/class-diluxone-offload-admin.php:597
-#: templates/admin-cloud-provider.php:194
+#: includes/class-diluxone-offload-admin.php:781
+#: templates/admin-provider-credentials.php:113
 msgid "This action cannot be undone."
 msgstr "Esta acción no se puede deshacer."
 
-#: includes/class-diluxone-offload-admin.php:598
+#: includes/class-diluxone-offload-admin.php:782
 msgid "Yes, Resync All Files"
 msgstr "Sí, resincronizar todos los archivos"
 
-#: includes/class-diluxone-offload-admin.php:599 templates/admin-sync.php:545
+#: includes/class-diluxone-offload-admin.php:783
+#: templates/admin-sync-sync.php:491
 msgid "Processing..."
 msgstr "Procesando..."
 
-#: includes/class-diluxone-offload-admin.php:600
+#: includes/class-diluxone-offload-admin.php:784
 msgid "Clearing sync data..."
 msgstr "Limpiando datos de sincronización..."
 
-#: includes/class-diluxone-offload-admin.php:601
+#: includes/class-diluxone-offload-admin.php:785
 msgid "Sync Data Cleared"
 msgstr "Datos de sincronización borrados"
 
-#: includes/class-diluxone-offload-admin.php:602
+#: includes/class-diluxone-offload-admin.php:786
 msgid "Reloading page..."
 msgstr "Recargando página..."
 
-#: includes/class-diluxone-offload-admin.php:603
+#: includes/class-diluxone-offload-admin.php:787
 msgid "Error preparing resync"
 msgstr "Error preparando resincronización"
 
-#: includes/class-diluxone-offload-admin.php:604
+#: includes/class-diluxone-offload-admin.php:788
 msgid "Are you sure you want to clear the failed files list?"
 msgstr "¿Estás seguro de que quieres limpiar la lista de archivos fallidos?"
 
-#: includes/class-diluxone-offload-admin.php:605
+#: includes/class-diluxone-offload-admin.php:789
 msgid "Clearing..."
 msgstr "Limpiando..."
 
-#: includes/class-diluxone-offload-admin.php:606 templates/admin-sync.php:453
+#: includes/class-diluxone-offload-admin.php:790
+#: templates/admin-sync-sync.php:399
 msgid "Clear List"
 msgstr "Limpiar Lista"
 
-#: includes/class-diluxone-offload-admin.php:607
+#: includes/class-diluxone-offload-admin.php:791
 msgid "Files discarded but failed to enable offloading"
 msgstr "Archivos descartados pero falló al habilitar la descarga"
 
-#: includes/class-diluxone-offload-admin.php:608
+#: includes/class-diluxone-offload-admin.php:792
 msgid "Connection error while enabling offloading"
 msgstr "Error de conexión al habilitar la descarga"
 
-#: includes/class-diluxone-offload-admin.php:609
+#: includes/class-diluxone-offload-admin.php:793
 msgid "Failed to discard files"
 msgstr "Error al descartar archivos"
 
-#: includes/class-diluxone-offload-admin.php:610
+#: includes/class-diluxone-offload-admin.php:794
 msgid "Sync cancelled and reset to configured state"
 msgstr "Sincronización cancelada y restablecida al estado configurado"
 
-#: includes/class-diluxone-offload-admin.php:611
+#: includes/class-diluxone-offload-admin.php:795
 msgid "Failed to cancel sync"
 msgstr "Error al cancelar la sincronización"
 
-#: includes/class-diluxone-offload-admin.php:612
+#: includes/class-diluxone-offload-admin.php:796
 msgid "Connection error while cancelling sync"
 msgstr "Error de conexión al cancelar la sincronización"
 
-#: includes/class-diluxone-offload-admin.php:613
+#: includes/class-diluxone-offload-admin.php:797
 msgid "Connection error. Deletion interrupted."
 msgstr "Error de conexión. Eliminación interrumpida."
 
-#: includes/class-diluxone-offload-admin.php:614
+#: includes/class-diluxone-offload-admin.php:798
 msgid "Deletion Completed Successfully!"
 msgstr "¡Eliminación completada exitosamente!"
 
-#: includes/class-diluxone-offload-admin.php:615
+#: includes/class-diluxone-offload-admin.php:799
 msgid "All local files have been deleted."
 msgstr "Todos los archivos locales han sido eliminados."
 
-#: includes/class-diluxone-offload-admin.php:616
+#: includes/class-diluxone-offload-admin.php:800
 msgid "Deletion Completed with Errors"
 msgstr "Eliminación completada con errores"
 
-#: includes/class-diluxone-offload-admin.php:617
+#: includes/class-diluxone-offload-admin.php:801
 msgid "Some files could not be deleted."
 msgstr "Algunos archivos no pudieron ser eliminados."
 
-#: includes/class-diluxone-offload-admin.php:618
+#: includes/class-diluxone-offload-admin.php:802
 msgid "Deleted:"
 msgstr "Eliminados:"
 
-#: includes/class-diluxone-offload-admin.php:619
+#: includes/class-diluxone-offload-admin.php:803
 msgid "Deactivating Offloading..."
 msgstr "Desactivando descarga..."
 
-#: includes/class-diluxone-offload-admin.php:620
+#: includes/class-diluxone-offload-admin.php:804
 msgid "files already exist locally."
 msgstr "archivos ya existen localmente."
 
-#: includes/class-diluxone-offload-admin.php:621
+#: includes/class-diluxone-offload-admin.php:805
 msgid ""
 "Files are already local but failed to disable offloading. Please disable "
 "manually."
@@ -552,66 +609,67 @@ msgstr ""
 "Los archivos ya están locales pero falló al deshabilitar la descarga. Por "
 "favor deshabilita manualmente."
 
-#: includes/class-diluxone-offload-admin.php:622
+#: includes/class-diluxone-offload-admin.php:806
 msgid "Total files in cloud:"
 msgstr "Total de archivos en la nube:"
 
-#: includes/class-diluxone-offload-admin.php:623
+#: includes/class-diluxone-offload-admin.php:807
 msgid "Already local:"
 msgstr "Ya locales:"
 
-#: includes/class-diluxone-offload-admin.php:624
+#: includes/class-diluxone-offload-admin.php:808
 msgid "Pending download:"
 msgstr "Descarga pendiente:"
 
-#: includes/class-diluxone-offload-admin.php:625
+#: includes/class-diluxone-offload-admin.php:809
 msgid "Disconnecting..."
 msgstr "Desconectando..."
 
-#: includes/class-diluxone-offload-admin.php:626
+#: includes/class-diluxone-offload-admin.php:810
 msgid "Disconnected. Reloading..."
 msgstr "Desconectado. Recargando…"
 
-#: includes/class-diluxone-offload-admin.php:627 templates/admin-sync.php:787
+#: includes/class-diluxone-offload-admin.php:811
+#: templates/admin-sync-disconnect.php:252
 msgid "Force Disconnect Without Sync"
 msgstr "Forzar desconexión sin sincronizar"
 
-#: includes/class-diluxone-offload-admin.php:628
+#: includes/class-diluxone-offload-admin.php:812
 msgid "Failed to disconnect"
 msgstr "No se pudo desconectar."
 
-#: includes/class-diluxone-offload-admin.php:629
+#: includes/class-diluxone-offload-admin.php:813
 msgid "Cancelling download..."
 msgstr "Cancelando descarga..."
 
-#: includes/class-diluxone-offload-admin.php:630
+#: includes/class-diluxone-offload-admin.php:814
 msgid "Download Completed with Errors"
 msgstr "Descarga completada con errores"
 
-#: includes/class-diluxone-offload-admin.php:631
+#: includes/class-diluxone-offload-admin.php:815
 msgid "Some files could not be downloaded."
 msgstr "Algunos archivos no pudieron ser descargados."
 
-#: includes/class-diluxone-offload-admin.php:632
+#: includes/class-diluxone-offload-admin.php:816
 msgid "Downloaded:"
 msgstr "Descargados:"
 
-#: includes/class-diluxone-offload-admin.php:633
+#: includes/class-diluxone-offload-admin.php:817
 msgid "Skipped:"
 msgstr "Omitidos:"
 
-#: includes/class-diluxone-offload-admin.php:634
+#: includes/class-diluxone-offload-admin.php:818
 msgid ""
 "Files downloaded but failed to disable offloading. Please disable manually."
 msgstr ""
 "Archivos descargados pero falló al deshabilitar la descarga. Por favor "
 "deshabilita manualmente."
 
-#: includes/class-diluxone-offload-admin.php:636
+#: includes/class-diluxone-offload-admin.php:820
 msgid "Max retries exceeded. Please try again later."
 msgstr "Máximo de reintentos excedido. Por favor intenta de nuevo más tarde."
 
-#: includes/class-diluxone-offload-admin.php:637
+#: includes/class-diluxone-offload-admin.php:821
 msgid ""
 "DEV MODE: Enable offloading without syncing files? This assumes cloud "
 "already has all files."
@@ -619,11 +677,11 @@ msgstr ""
 "MODO DEV: ¿Habilitar offloading sin sincronizar archivos? Asume que la nube "
 "ya tiene todos los archivos."
 
-#: includes/class-diluxone-offload-admin.php:638
+#: includes/class-diluxone-offload-admin.php:822
 msgid "DEV MODE: Offloading enabled without sync!"
 msgstr "MODO DEV: ¡Offloading habilitado sin sincronizar!"
 
-#: includes/class-diluxone-offload-admin.php:639
+#: includes/class-diluxone-offload-admin.php:823
 msgid ""
 "DEV MODE: Disconnect without downloading files? This assumes local already "
 "has all files."
@@ -631,16 +689,22 @@ msgstr ""
 "MODO DEV: ¿Desconectar sin descargar los archivos? Asume que el servidor "
 "local ya tiene todos los archivos."
 
-#: includes/class-diluxone-offload-admin.php:640
+#: includes/class-diluxone-offload-admin.php:824
 msgid "DEV MODE: Offloading disabled without sync!"
 msgstr "MODO DEV: ¡Offloading deshabilitado sin sincronizar!"
 
-#: includes/class-diluxone-offload-admin.php:817
-#: includes/class-diluxone-offload-admin.php:991
+#. translators: %s: relative template file path
+#: includes/class-diluxone-offload-admin.php:1030
+#, php-format
+msgid "Template not found: %s"
+msgstr "No se encontró la plantilla: %s"
+
+#: includes/class-diluxone-offload-admin.php:1049
+#: includes/class-diluxone-offload-admin.php:1475
 msgid "Stored Credentials Unreadable"
 msgstr "No se pueden leer las credenciales guardadas"
 
-#: includes/class-diluxone-offload-admin.php:818
+#: includes/class-diluxone-offload-admin.php:1050
 msgid ""
 "Sync is paused because the saved cloud credentials cannot be decrypted. This "
 "is not the same as \"never configured\" — the cloud provider details are "
@@ -653,86 +717,437 @@ msgstr ""
 "que se guardaron (algo habitual después de restaurar una base de otro "
 "entorno)."
 
-#: includes/class-diluxone-offload-admin.php:819
+#: includes/class-diluxone-offload-admin.php:1051
 msgid ""
-"Re-enter the credentials in the Cloud Provider tab. Everything else "
+"Re-enter the credentials in Cloud Provider › Credentials. Everything else "
 "(provider selection, container name, sync state) is preserved."
 msgstr ""
-"Volvé a ingresar las credenciales en la pestaña Proveedor en la nube. Todo "
-"lo demás —el proveedor elegido, el nombre del contenedor, el estado de la "
-"sincronización— se conserva."
+"Volvé a ingresar las credenciales en Proveedor de nube › Credenciales. Todo "
+"lo demás (proveedor elegido, nombre del contenedor, estado de la "
+"sincronización) se conserva."
 
-#: includes/class-diluxone-offload-admin.php:822
-#: includes/class-diluxone-offload-admin.php:993
-#: templates/admin-overview.php:117 templates/admin-status.php:161
+#: includes/class-diluxone-offload-admin.php:1054
+#: includes/class-diluxone-offload-admin.php:1477
+#: templates/admin-overview.php:117 templates/admin-status-health.php:155
 msgid "Re-enter Credentials"
 msgstr "Volver a ingresar las credenciales"
 
-#: includes/class-diluxone-offload-admin.php:833
+#: includes/class-diluxone-offload-admin.php:1063
 msgid "Sync & Offloading Not Available"
 msgstr "Sincronización y descarga no disponibles"
 
-#: includes/class-diluxone-offload-admin.php:834
-msgid "Please configure a cloud provider in the Cloud Provider tab first."
-msgstr ""
-"Primero configura un proveedor en la nube en la pestaña Proveedor en la nube."
+#: includes/class-diluxone-offload-admin.php:1064
+msgid "Connect a cloud provider in Cloud Provider › Connection first."
+msgstr "Primero conectá un proveedor en Proveedor de nube › Conexión."
 
-#: includes/class-diluxone-offload-admin.php:837
+#: includes/class-diluxone-offload-admin.php:1067
 #: templates/admin-overview.php:487
 msgid "Go to Cloud Provider"
 msgstr "Ir al proveedor de nube"
 
-#: includes/class-diluxone-offload-admin.php:843
+#: includes/class-diluxone-offload-admin.php:1073
 msgid "Steps to Enable Sync"
 msgstr "Pasos para habilitar la sincronización"
 
-#: includes/class-diluxone-offload-admin.php:845
-msgid "Go to the Cloud Provider tab"
-msgstr "Ve a la pestaña Proveedor en la nube"
+#: includes/class-diluxone-offload-admin.php:1075
+msgid "Go to Cloud Provider › Connection"
+msgstr "Ir a Proveedor de nube › Conexión"
 
-#: includes/class-diluxone-offload-admin.php:846
+#: includes/class-diluxone-offload-admin.php:1076
 msgid "Configure your cloud storage provider"
 msgstr "Configura tu proveedor de almacenamiento en la nube"
 
-#: includes/class-diluxone-offload-admin.php:847
+#: includes/class-diluxone-offload-admin.php:1077
 msgid "Test the connection"
 msgstr "Prueba la conexión"
 
-#: includes/class-diluxone-offload-admin.php:848
+#: includes/class-diluxone-offload-admin.php:1078
 msgid "Save your configuration"
 msgstr "Guarda tu configuración"
 
-#: includes/class-diluxone-offload-admin.php:849
-msgid "Return to this tab to sync files"
-msgstr "Vuelve a esta pestaña para sincronizar archivos"
+#: includes/class-diluxone-offload-admin.php:1079
+msgid "Return to this screen to sync files"
+msgstr "Volvé a esta pantalla para sincronizar los archivos"
 
-#. translators: %s: relative template file path
-#: includes/class-diluxone-offload-admin.php:944
+#. translators: %s: the name of the storage container
+#: includes/class-diluxone-offload-admin.php:1155
 #, php-format
-msgid "Template not found: %s"
-msgstr "No se encontró la plantilla: %s"
+msgid "the Azure Blob Storage container %s"
+msgstr "el contenedor de Azure Blob Storage %s"
 
-#: includes/class-diluxone-offload-admin.php:963
+#: includes/class-diluxone-offload-admin.php:1156
+#: templates/admin-provider-connection.php:70
+msgid "Azure Blob Storage"
+msgstr "Azure Blob Storage"
+
+#: includes/class-diluxone-offload-admin.php:1161
+msgid "No cloud provider is connected. Media is served from this server."
+msgstr ""
+"No hay ningún proveedor de nube conectado. Los medios se sirven desde este "
+"servidor."
+
+#: includes/class-diluxone-offload-admin.php:1163
+msgid "Off"
+msgstr "Apagado"
+
+#. translators: 1: short reason for the pause, 2: number of consecutive failures
+#: includes/class-diluxone-offload-admin.php:1170
+#, php-format
+msgid ""
+"Paused (%1$s): %2$d consecutive failures. Uploads are refused until the next "
+"successful connection."
+msgstr ""
+"En pausa (%1$s): %2$d fallos consecutivos. Las subidas se rechazan hasta la "
+"próxima conexión exitosa."
+
+#: includes/class-diluxone-offload-admin.php:1175
+#: includes/class-diluxone-offload-admin.php:1228
+msgid "Pending"
+msgstr "Pendiente"
+
+#. translators: 1: number of files synced, 2: where they are, 3: number of files that still have a local copy
+#: includes/class-diluxone-offload-admin.php:1182
+#, php-format
+msgid "%1$s files synced to %2$s; %3$s still have a copy on this server."
+msgstr ""
+"%1$s archivos sincronizados en %2$s; %3$s todavía tienen una copia en este "
+"servidor."
+
+#: includes/class-diluxone-offload-admin.php:1188
+#: templates/admin-overview.php:203 templates/admin-status-health.php:176
+msgid "Active"
+msgstr "Activo"
+
+#. translators: 1: number of files synced, 2: where they are
+#: includes/class-diluxone-offload-admin.php:1195
+#, php-format
+msgid ""
+"%1$s files synced to %2$s; still served from this server until offloading is "
+"enabled."
+msgstr ""
+"%1$s archivos sincronizados en %2$s; se siguen sirviendo desde este servidor "
+"hasta que se active el offloading."
+
+#: includes/class-diluxone-offload-admin.php:1200
+#: includes/Enums/class-plugin-state.php:55 templates/admin-overview.php:155
+#: templates/admin-overview.php:261
+msgid "Synced"
+msgstr "Sincronizado"
+
+#: includes/class-diluxone-offload-admin.php:1201
+msgid "offloading off"
+msgstr "offloading apagado"
+
+#. translators: 1: number of files synced so far, 2: number of files pending
+#: includes/class-diluxone-offload-admin.php:1207
+#, php-format
+msgid "A sync is in progress: %1$s files done, %2$s pending."
+msgstr ""
+"Hay una sincronización en curso: %1$s archivos listos, %2$s pendientes."
+
+#: includes/class-diluxone-offload-admin.php:1212
+#: templates/admin-overview.php:257
+msgid "Syncing"
+msgstr "Sincronizando"
+
+#. translators: 1: where the files go, 2: number of files synced so far, 3: number pending
+#: includes/class-diluxone-offload-admin.php:1220
+#, php-format
+msgid ""
+"Configured for %1$s. A sync was interrupted: %2$s files done, %3$s pending."
+msgstr ""
+"Configurado para %1$s. Una sincronización quedó interrumpida: %2$s archivos "
+"listos, %3$s pendientes."
+
+#. translators: %s: where the files go
+#: includes/class-diluxone-offload-admin.php:1226
+#, php-format
+msgid "Configured for %s. Nothing synced yet."
+msgstr "Configurado para %s. Todavía no se sincronizó nada."
+
+#: includes/class-diluxone-offload-admin.php:1229
+msgid "not synced"
+msgstr "sin sincronizar"
+
+#: includes/class-diluxone-offload-admin.php:1241
+msgid "Support forum"
+msgstr "Foro de soporte"
+
+#: includes/class-diluxone-offload-admin.php:1248
+msgid "Where the keys come from"
+msgstr "De dónde salen las claves"
+
+#: includes/class-diluxone-offload-admin.php:1250
+msgid ""
+"Azure portal › your storage account › Access keys. The container must allow "
+"anonymous read of blobs (public access level Blob); a private container is "
+"refused."
+msgstr ""
+"Portal de Azure › tu cuenta de almacenamiento › Claves de acceso. El "
+"contenedor tiene que permitir la lectura anónima de blobs (nivel de acceso "
+"público Blob); un contenedor privado se rechaza."
+
+#: includes/class-diluxone-offload-admin.php:1251
+msgid ""
+"Test Connection checks the credentials and the container's public access "
+"level. Both must pass before Save is enabled."
+msgstr ""
+"Probar conexión comprueba las credenciales y el nivel de acceso público del "
+"contenedor. Las dos cosas tienen que pasar antes de que se habilite Guardar."
+
+#: includes/class-diluxone-offload-admin.php:1255
+msgid "Credentials: rotate the key, or remove the provider"
+msgstr "Credenciales: rotar la clave o quitar el proveedor"
+
+#: includes/class-diluxone-offload-admin.php:1256
+#: includes/class-diluxone-offload-admin.php:1271
+#: includes/class-diluxone-offload-admin.php:1287
+#: includes/class-diluxone-offload-admin.php:1404
+msgid "Status › Health"
+msgstr "Estado › Salud"
+
+#: includes/class-diluxone-offload-admin.php:1257
+#: includes/class-diluxone-offload-admin.php:1302
+msgid "Settings › Serving (Force HTTPS)"
+msgstr "Ajustes › Entrega (forzar HTTPS)"
+
+#: includes/class-diluxone-offload-admin.php:1263
+msgid "What can change here"
+msgstr "Qué se puede cambiar acá"
+
+#: includes/class-diluxone-offload-admin.php:1265
+msgid ""
+"A new access key is tested against the same account and container before it "
+"replaces the saved one; the media in the cloud is not touched."
+msgstr ""
+"Una clave de acceso nueva se prueba contra la misma cuenta y el mismo "
+"contenedor antes de reemplazar la guardada; los medios en la nube no se "
+"tocan."
+
+#: includes/class-diluxone-offload-admin.php:1266
+msgid ""
+"Deleting the provider forgets the credentials and the tracking table. The "
+"files stay in the cloud. While offloading is active, disconnect first."
+msgstr ""
+"Borrar el proveedor olvida las credenciales y la tabla de seguimiento. Los "
+"archivos se quedan en la nube. Con el offloading activo, primero desconectá."
+
+#: includes/class-diluxone-offload-admin.php:1272
+#: templates/admin-provider-credentials.php:101
+msgid "Sync & Offloading › Disconnect"
+msgstr "Sincronización y offloading › Desconectar"
+
+#: includes/class-diluxone-offload-admin.php:1278
+msgid "How the sync runs"
+msgstr "Cómo corre la sincronización"
+
+#: includes/class-diluxone-offload-admin.php:1280
+msgid ""
+"The initial sync runs in this browser tab and stops if you close it; it "
+"resumes where it left off. Files already in the cloud are skipped, files "
+"over the size limit are left out."
+msgstr ""
+"La sincronización inicial corre en esta pestaña del navegador y se detiene "
+"si la cerrás; retoma donde quedó. Los archivos que ya están en la nube se "
+"saltean; los que superan el límite de tamaño quedan afuera."
+
+#: includes/class-diluxone-offload-admin.php:1281
+msgid ""
+"A file that fails is listed with its error and can be retried; the rest of "
+"the library is not held back by it."
+msgstr ""
+"Un archivo que falla queda listado con su error y se puede reintentar; el "
+"resto de la biblioteca no se frena por él."
+
+#: includes/class-diluxone-offload-admin.php:1285
+msgid "Settings › Transfers (size limit, timeout)"
+msgstr "Ajustes › Transferencias (límite de tamaño, tiempo de espera)"
+
+#: includes/class-diluxone-offload-admin.php:1293
+msgid "What it changes"
+msgstr "Qué cambia"
+
+#: includes/class-diluxone-offload-admin.php:1295
+msgid ""
+"With offloading on, WordPress hands out the cloud address for every file and "
+"new uploads go straight to the cloud. Nothing in your posts or your database "
+"changes."
+msgstr ""
+"Con el offloading activo, WordPress entrega la dirección de la nube para "
+"cada archivo y las subidas nuevas van directo a la nube. Nada cambia en tus "
+"entradas ni en tu base de datos."
+
+#: includes/class-diluxone-offload-admin.php:1296
+msgid ""
+"Deleting the local copies frees the disk; the files keep being served from "
+"the cloud. Disconnect brings them back."
+msgstr ""
+"Borrar las copias locales libera el disco; los archivos se siguen sirviendo "
+"desde la nube. Desconectar los trae de vuelta."
+
+#: includes/class-diluxone-offload-admin.php:1308
+msgid "What a disconnect does"
+msgstr "Qué hace una desconexión"
+
+#: includes/class-diluxone-offload-admin.php:1310
+msgid ""
+"Every file is downloaded from the cloud back to this server, then offloading "
+"is turned off. The files in the cloud are left as they are."
+msgstr ""
+"Cada archivo se descarga de la nube de vuelta a este servidor y después se "
+"apaga el offloading. Los archivos en la nube quedan como están."
+
+#: includes/class-diluxone-offload-admin.php:1311
+msgid ""
+"It needs enough free disk for the whole library; Status › System shows what "
+"is free."
+msgstr ""
+"Necesita disco libre suficiente para toda la biblioteca; Estado › Sistema "
+"muestra cuánto hay libre."
+
+#: includes/class-diluxone-offload-admin.php:1315
+#: includes/class-diluxone-offload-admin.php:1354
+msgid "Status › System"
+msgstr "Estado › Sistema"
+
+#: includes/class-diluxone-offload-admin.php:1316
+msgid "Cloud Provider › Credentials (delete the provider afterwards)"
+msgstr "Proveedor de nube › Credenciales (borrar el proveedor después)"
+
+#: includes/class-diluxone-offload-admin.php:1322
+#: includes/class-diluxone-offload-admin.php:1335
+#: includes/class-diluxone-offload-admin.php:1348
+#: includes/class-diluxone-offload-admin.php:1378
+#: includes/class-diluxone-offload-admin.php:1395
+msgid "What this screen is for"
+msgstr "Para qué sirve esta pantalla"
+
+#: includes/class-diluxone-offload-admin.php:1324
+msgid ""
+"The size limit decides which files the initial sync takes; the timeout "
+"decides how long each transfer request may take. Both apply to every "
+"provider."
+msgstr ""
+"El límite de tamaño decide qué archivos toma la sincronización inicial; el "
+"tiempo de espera decide cuánto puede tardar cada solicitud de transferencia. "
+"Los dos aplican a cualquier proveedor."
+
+#: includes/class-diluxone-offload-admin.php:1328
+#: includes/class-diluxone-offload-admin.php:1403
+msgid "Sync & Offloading › Sync"
+msgstr "Sincronización y offloading › Sincronización"
+
+#: includes/class-diluxone-offload-admin.php:1329
+msgid "Status › System (PHP limits)"
+msgstr "Estado › Sistema (límites de PHP)"
+
+#: includes/class-diluxone-offload-admin.php:1337
+msgid ""
+"How the media is handed out once it is in the cloud. Force HTTPS keeps the "
+"cloud URLs on https even when the site itself runs on http."
+msgstr ""
+"Cómo se entregan los medios una vez que están en la nube. Forzar HTTPS "
+"mantiene las URL de la nube en https aunque el sitio corra en http."
+
+#: includes/class-diluxone-offload-admin.php:1341
+#: includes/class-diluxone-offload-admin.php:1402
+msgid "Cloud Provider › Connection"
+msgstr "Proveedor de nube › Conexión"
+
+#: includes/class-diluxone-offload-admin.php:1342
+msgid "Sync & Offloading › Offloading"
+msgstr "Sincronización y offloading › Offloading"
+
+#: includes/class-diluxone-offload-admin.php:1350
+msgid ""
+"The plugin is quiet by default. Debug logging writes one line per operation "
+"to the PHP error log while you troubleshoot; credentials are never logged."
+msgstr ""
+"El plugin es silencioso por defecto. El registro de depuración escribe una "
+"línea por operación en el log de errores de PHP mientras diagnosticás; las "
+"credenciales nunca se registran."
+
+#: includes/class-diluxone-offload-admin.php:1361
+msgid "How health works"
+msgstr "Cómo funciona la salud"
+
+#: includes/class-diluxone-offload-admin.php:1363
+msgid ""
+"Every upload and every check of the connection records a success or a "
+"failure. After three consecutive failures the plugin refuses new uploads "
+"instead of writing them anywhere else, and says so on every screen until the "
+"next success."
+msgstr ""
+"Cada subida y cada comprobación de la conexión registra un éxito o un fallo. "
+"Después de tres fallos consecutivos el plugin rechaza las subidas nuevas en "
+"vez de escribirlas en otro lado, y lo dice en todas las pantallas hasta el "
+"siguiente éxito."
+
+#: includes/class-diluxone-offload-admin.php:1367
+#: templates/admin-sync-disconnect.php:76
+msgid "Cloud Provider › Credentials"
+msgstr "Proveedor de nube › Credenciales"
+
+#: includes/class-diluxone-offload-admin.php:1369
+msgid "Tools › Site Health"
+msgstr "Herramientas › Salud del sitio"
+
+#: includes/class-diluxone-offload-admin.php:1380
+msgid ""
+"The environment the plugin runs in, as a support request wants it: "
+"WordPress, PHP, the plugin build and the provider. Copy it into a report."
+msgstr ""
+"El entorno en el que corre el plugin, como lo pide una consulta de soporte: "
+"WordPress, PHP, la build del plugin y el proveedor. Copialo en un reporte."
+
+#: includes/class-diluxone-offload-admin.php:1386
+msgid "Report an issue on GitHub"
+msgstr "Reportar un problema en GitHub"
+
+#: includes/class-diluxone-offload-admin.php:1397
+msgid ""
+"The four cards are the plugin's state as a person sees it: whether a "
+"provider is connected, whether the library is in the cloud, whether the site "
+"serves it from there."
+msgstr ""
+"Las cuatro tarjetas son el estado del plugin como lo ve una persona: si hay "
+"un proveedor conectado, si la biblioteca está en la nube, si el sitio la "
+"sirve desde ahí."
+
+#: includes/class-diluxone-offload-admin.php:1398
+msgid ""
+"Storage Overview shows the last reading of the container, kept for five "
+"minutes; Refresh lists it again (a few seconds on a large library)."
+msgstr ""
+"Resumen de almacenamiento muestra la última lectura del contenedor, guardada "
+"cinco minutos; Actualizar lo vuelve a listar (unos segundos en una "
+"biblioteca grande)."
+
+#: includes/class-diluxone-offload-admin.php:1430
 msgid "credentials unreadable"
 msgstr "credenciales ilegibles"
 
-#: includes/class-diluxone-offload-admin.php:966
+#: includes/class-diluxone-offload-admin.php:1433
 msgid "permission denied"
 msgstr "permiso denegado"
 
-#: includes/class-diluxone-offload-admin.php:968
+#: includes/class-diluxone-offload-admin.php:1435
 msgid "container not found"
 msgstr "no se encontró el contenedor"
 
-#: includes/class-diluxone-offload-admin.php:970
+#: includes/class-diluxone-offload-admin.php:1437
+msgid "transfer timed out"
+msgstr "transferencia agotó el tiempo de espera"
+
+#: includes/class-diluxone-offload-admin.php:1439
 msgid "connection error"
 msgstr "error de conexión"
 
-#: includes/class-diluxone-offload-admin.php:972
+#: includes/class-diluxone-offload-admin.php:1441
 msgid "cloud unreachable"
 msgstr "no se llega a la nube"
 
-#: includes/class-diluxone-offload-admin.php:992
+#: includes/class-diluxone-offload-admin.php:1476
 msgid ""
 "Your saved cloud credentials cannot be decrypted. This usually means the "
 "WordPress salts (AUTH_KEY / SECURE_AUTH_KEY) changed since these credentials "
@@ -744,11 +1159,11 @@ msgstr ""
 "guardaron; por ejemplo, después de restaurar una base de otro entorno. Volvé "
 "a ingresarlas para resolverlo."
 
-#: includes/class-diluxone-offload-admin.php:999
+#: includes/class-diluxone-offload-admin.php:1483
 msgid "Cloud Permission Denied"
 msgstr "La nube denegó el permiso"
 
-#: includes/class-diluxone-offload-admin.php:1000
+#: includes/class-diluxone-offload-admin.php:1484
 msgid ""
 "The cloud provider rejected the credentials. The access key may have been "
 "rotated, the SAS token may have expired, or the role assignment is missing. "
@@ -758,15 +1173,15 @@ msgstr ""
 "acceso, que el token SAS haya vencido o que falte la asignación de rol. "
 "Revisalas y volvé a ingresarlas."
 
-#: includes/class-diluxone-offload-admin.php:1001
+#: includes/class-diluxone-offload-admin.php:1485
 msgid "Update Credentials"
 msgstr "Actualizar las credenciales"
 
-#: includes/class-diluxone-offload-admin.php:1006
+#: includes/class-diluxone-offload-admin.php:1490
 msgid "Container Not Found"
 msgstr "No se encontró el contenedor"
 
-#: includes/class-diluxone-offload-admin.php:1007
+#: includes/class-diluxone-offload-admin.php:1491
 msgid ""
 "The configured container or bucket does not exist on the cloud provider. "
 "Check that the name is spelled correctly and that it has been created."
@@ -774,26 +1189,49 @@ msgstr ""
 "El contenedor o bucket configurado no existe en el proveedor. Fijate que el "
 "nombre esté bien escrito y que esté creado."
 
-#: includes/class-diluxone-offload-admin.php:1008
+#: includes/class-diluxone-offload-admin.php:1492
 msgid "Open Cloud Provider Settings"
 msgstr "Abrir los ajustes del proveedor"
 
-#: includes/class-diluxone-offload-admin.php:1013
-#: includes/class-diluxone-offload-admin.php:1023
+#: includes/class-diluxone-offload-admin.php:1497
+msgid "Cloud Transfer Timed Out"
+msgstr "Transferencia a la nube agotó el tiempo de espera"
+
+#. translators: %d: the Transfer Timeout setting, in seconds
+#: includes/class-diluxone-offload-admin.php:1500
+#, php-format
+msgid ""
+"A transfer to the cloud took longer than allowed: the Transfer Timeout (%d "
+"seconds) for an upload, at least 300 seconds for a download. Raise the "
+"setting if this host or its connection is slow; if transfers used to work at "
+"this value, check the connection to the provider."
+msgstr ""
+"Una transferencia a la nube tardó más de lo permitido: el tiempo de espera "
+"de transferencia (%d segundos) para una subida, al menos 300 segundos para "
+"una descarga. Sube el ajuste si este servidor o su conexión son lentos; si "
+"las transferencias funcionaban con este valor, revisa la conexión con el "
+"proveedor."
+
+#: includes/class-diluxone-offload-admin.php:1503
+msgid "Open Settings"
+msgstr "Abrir Configuración"
+
+#: includes/class-diluxone-offload-admin.php:1509
+#: includes/class-diluxone-offload-admin.php:1519
 msgid "Cloud Connection Error"
 msgstr "Error de conexion con la nube"
 
-#: includes/class-diluxone-offload-admin.php:1016
+#: includes/class-diluxone-offload-admin.php:1512
 msgid "An unexpected error occurred while talking to the cloud provider."
 msgstr "Hubo un error inesperado al hablar con el proveedor."
 
-#: includes/class-diluxone-offload-admin.php:1017
-#: includes/class-diluxone-offload-admin.php:1025
+#: includes/class-diluxone-offload-admin.php:1513
+#: includes/class-diluxone-offload-admin.php:1521
 msgid "Update your credentials in the Cloud Provider tab"
 msgstr "Actualiza tus credenciales en la pestana Proveedor Cloud"
 
 #. translators: %d: number of minutes
-#: includes/class-diluxone-offload-admin.php:1054
+#: includes/class-diluxone-offload-admin.php:1550
 #: templates/admin-overview.php:439
 #, php-format
 msgid "%d minute ago"
@@ -802,7 +1240,7 @@ msgstr[0] "hace %d minuto"
 msgstr[1] "hace %d minutos"
 
 #. translators: %d: number of hours
-#: includes/class-diluxone-offload-admin.php:1058
+#: includes/class-diluxone-offload-admin.php:1554
 #: templates/admin-overview.php:443
 #, php-format
 msgid "%d hour ago"
@@ -811,7 +1249,7 @@ msgstr[0] "hace %d hora"
 msgstr[1] "hace %d horas"
 
 #. translators: %d: number of days
-#: includes/class-diluxone-offload-admin.php:1062
+#: includes/class-diluxone-offload-admin.php:1558
 #, php-format
 msgid "%d day ago"
 msgid_plural "%d days ago"
@@ -819,52 +1257,52 @@ msgstr[0] "hace %d día"
 msgstr[1] "hace %d días"
 
 #. translators: %s: human-readable time, e.g. "5 minutes ago"
-#: includes/class-diluxone-offload-admin.php:1080
+#: includes/class-diluxone-offload-admin.php:1576
 #, php-format
 msgid "Last successful connection: %s"
 msgstr "Ultima conexion exitosa: %s"
 
-#: includes/class-diluxone-offload-admin.php:1086
-#: templates/admin-overview.php:218 templates/admin-status.php:199
+#: includes/class-diluxone-offload-admin.php:1582
+#: templates/admin-overview.php:218 templates/admin-status-health.php:193
 msgid "New uploads are refused until the connection recovers."
 msgstr "Las subidas nuevas se rechazan hasta que la conexión se recupere."
 
-#: includes/class-diluxone-offload-admin.php:1145
-#: includes/class-diluxone-offload-admin.php:1257
+#: includes/class-diluxone-offload-admin.php:1641
+#: includes/class-diluxone-offload-admin.php:1742
 msgid "Security check failed"
 msgstr "Falló la verificación de seguridad."
 
-#: includes/class-diluxone-offload-admin.php:1150
-#: includes/class-diluxone-offload-admin.php:1262
-#: includes/class-diluxone-offload-admin.php:1372
-#: includes/class-diluxone-offload-admin.php:1487
-#: includes/class-diluxone-offload-admin.php:1562
-#: includes/class-diluxone-offload-admin.php:1619
-#: includes/class-diluxone-offload-admin.php:1642
+#: includes/class-diluxone-offload-admin.php:1646
+#: includes/class-diluxone-offload-admin.php:1747
+#: includes/class-diluxone-offload-admin.php:1857
+#: includes/class-diluxone-offload-admin.php:1972
+#: includes/class-diluxone-offload-admin.php:2047
+#: includes/class-diluxone-offload-admin.php:2104
+#: includes/class-diluxone-offload-admin.php:2127
 msgid "Insufficient permissions"
 msgstr "Permisos insuficientes"
 
-#: includes/class-diluxone-offload-admin.php:1271
+#: includes/class-diluxone-offload-admin.php:1756
 msgid "Unsupported cloud provider"
 msgstr "Proveedor de nube no compatible"
 
-#: includes/class-diluxone-offload-admin.php:1283
+#: includes/class-diluxone-offload-admin.php:1768
 msgid "Missing required fields"
 msgstr "Faltan campos obligatorios."
 
-#: includes/class-diluxone-offload-admin.php:1306
+#: includes/class-diluxone-offload-admin.php:1791
 msgid "Could not instantiate cloud client for the selected provider."
 msgstr "No se pudo crear el cliente para el proveedor elegido."
 
-#: includes/class-diluxone-offload-admin.php:1377
+#: includes/class-diluxone-offload-admin.php:1862
 msgid "Cloud client not available"
 msgstr "El cliente de la nube no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:1385
+#: includes/class-diluxone-offload-admin.php:1870
 msgid "Unknown provider type"
 msgstr "Tipo de proveedor desconocido."
 
-#: includes/class-diluxone-offload-admin.php:1408
+#: includes/class-diluxone-offload-admin.php:1893
 #: includes/class-diluxone-offload-plugin-enhanced.php:213
 #: includes/class-diluxone-offload-plugin-enhanced.php:368
 #: includes/class-diluxone-offload-plugin-enhanced.php:394
@@ -887,49 +1325,49 @@ msgstr "Tipo de proveedor desconocido."
 msgid "Unauthorized"
 msgstr "No autorizado."
 
-#: includes/class-diluxone-offload-admin.php:1414
+#: includes/class-diluxone-offload-admin.php:1899
 msgid "You must test the connection first"
 msgstr "Primero tienes que probar la conexión."
 
-#: includes/class-diluxone-offload-admin.php:1426
+#: includes/class-diluxone-offload-admin.php:1911
 msgid "Credentials do not match tested values. Please test again."
 msgstr ""
 "Las credenciales no coinciden con los valores probados. Probá la conexión "
 "nuevamente."
 
-#: includes/class-diluxone-offload-admin.php:1448
+#: includes/class-diluxone-offload-admin.php:1933
 msgid "Credentials were not saved: the provider configuration is invalid."
 msgstr ""
 "No se guardaron las credenciales: la configuración del proveedor no es "
 "válida."
 
-#: includes/class-diluxone-offload-admin.php:1483
-#: includes/class-diluxone-offload-admin.php:1558
-#: includes/class-diluxone-offload-admin.php:1615
+#: includes/class-diluxone-offload-admin.php:1968
+#: includes/class-diluxone-offload-admin.php:2043
+#: includes/class-diluxone-offload-admin.php:2100
 msgid "Invalid nonce"
 msgstr "Nonce no válido."
 
-#: includes/class-diluxone-offload-admin.php:1504
+#: includes/class-diluxone-offload-admin.php:1989
 msgid "Cannot cancel sync: Another tab is currently syncing"
 msgstr ""
 "No se puede cancelar la sincronización: Otra pestaña está sincronizando "
 "actualmente"
 
-#: includes/class-diluxone-offload-admin.php:1520
+#: includes/class-diluxone-offload-admin.php:2005
 msgid "Sync cancelled successfully"
 msgstr "Sincronización cancelada correctamente"
 
-#: includes/class-diluxone-offload-admin.php:1542
+#: includes/class-diluxone-offload-admin.php:2027
 msgid "Plugin reset to configured state successfully"
 msgstr "Plugin restablecido al estado configurado correctamente"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:1549
+#: includes/class-diluxone-offload-admin.php:2034
 #, php-format
 msgid "Error: %s"
 msgstr "Error: %s"
 
-#: includes/class-diluxone-offload-admin.php:1570
+#: includes/class-diluxone-offload-admin.php:2055
 #: includes/class-diluxone-offload-plugin-enhanced.php:217
 #: includes/class-diluxone-offload-plugin-enhanced.php:372
 #: includes/class-diluxone-offload-plugin-enhanced.php:398
@@ -943,18 +1381,18 @@ msgstr "Error: %s"
 msgid "Sync manager not available"
 msgstr "El gestor de sincronización no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:1590
+#: includes/class-diluxone-offload-admin.php:2075
 msgid "The sync is not complete"
 msgstr "La sincronización no está completa"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:1606
+#: includes/class-diluxone-offload-admin.php:2091
 #, php-format
 msgid "Error completing sync: %s"
 msgstr "Error al completar la sincronización: %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:1629
+#: includes/class-diluxone-offload-admin.php:2114
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Error al limpiar los archivos fallidos: %s"
@@ -1094,12 +1532,12 @@ msgid "Error getting failed files count: %s"
 msgstr "Error al obtener la cantidad de archivos fallidos: %s"
 
 #: includes/Enums/class-plugin-state.php:52 templates/admin-overview.php:133
-#: templates/admin-overview.php:249 templates/admin-status.php:142
+#: templates/admin-overview.php:249 templates/admin-status-health.php:136
 msgid "Not Configured"
 msgstr "No configurado"
 
 #: includes/Enums/class-plugin-state.php:53 templates/admin-overview.php:82
-#: templates/admin-overview.php:253 templates/admin-status.php:127
+#: templates/admin-overview.php:253 templates/admin-status-health.php:121
 msgid "Configured"
 msgstr "Configurado"
 
@@ -1107,184 +1545,10 @@ msgstr "Configurado"
 msgid "Syncing Files"
 msgstr "Sincronizando archivos"
 
-#: includes/Enums/class-plugin-state.php:55 templates/admin-overview.php:155
-#: templates/admin-overview.php:261
-msgid "Synced"
-msgstr "Sincronizado"
-
 #: includes/Enums/class-plugin-state.php:56 templates/admin-overview.php:265
-#: templates/admin-sync.php:118
+#: templates/admin-sync-offloading.php:44 templates/admin-sync-sync.php:116
 msgid "Offloading Active"
 msgstr "Descarga activa"
-
-#: templates/admin-cloud-provider.php:52
-msgid "Cloud Provider Configuration"
-msgstr "Configuración del proveedor en la nube"
-
-#: templates/admin-cloud-provider.php:54
-msgid ""
-"Select your cloud storage provider and configure the connection settings."
-msgstr ""
-"Selecciona tu proveedor de almacenamiento en la nube y configura los ajustes "
-"de conexión."
-
-#: templates/admin-cloud-provider.php:60 templates/admin-cloud-provider.php:137
-msgid "Cloud Storage Provider"
-msgstr "Proveedor de almacenamiento en la nube"
-
-#: templates/admin-cloud-provider.php:64
-msgid "Select a provider..."
-msgstr "Selecciona un proveedor..."
-
-#: templates/admin-cloud-provider.php:66
-msgid "Microsoft Azure Blob Storage"
-msgstr "Microsoft Azure Blob Storage"
-
-#: templates/admin-cloud-provider.php:70
-msgid ""
-"Choose your preferred cloud storage provider. Configuration options will "
-"appear below."
-msgstr ""
-"Elige tu proveedor de almacenamiento en la nube preferido. Las opciones de "
-"configuración aparecerán abajo."
-
-#: templates/admin-cloud-provider.php:79
-msgid "Azure Blob Storage"
-msgstr "Azure Blob Storage"
-
-#: templates/admin-cloud-provider.php:80
-msgid "Enter your Azure Storage credentials."
-msgstr "Ingresa tus credenciales de Azure Storage."
-
-#: templates/admin-cloud-provider.php:83
-msgid "Storage Account Name"
-msgstr "Nombre de cuenta de almacenamiento"
-
-#: templates/admin-cloud-provider.php:88
-msgid "Your storage account name (3-24 lowercase characters and numbers only)."
-msgstr ""
-"Tu nombre de cuenta de almacenamiento (3-24 caracteres en minúsculas y "
-"números solamente)."
-
-#: templates/admin-cloud-provider.php:92
-msgid "Account Key"
-msgstr "Clave de cuenta"
-
-#: templates/admin-cloud-provider.php:97
-msgid "Primary or secondary access key from your storage account."
-msgstr "Clave de acceso primaria o secundaria de tu cuenta de almacenamiento."
-
-#: templates/admin-cloud-provider.php:101
-msgid "Container Name"
-msgstr "Nombre del contenedor"
-
-#: templates/admin-cloud-provider.php:106
-msgid "Container name for storing your media files."
-msgstr "Nombre del contenedor donde se guardarán los archivos multimedia."
-
-#: templates/admin-cloud-provider.php:117
-msgid "You must test the connection successfully before saving credentials."
-msgstr ""
-"Debes probar la conexión correctamente antes de guardar las credenciales."
-
-#: templates/admin-cloud-provider.php:125
-msgid "Save Cloud Provider"
-msgstr "Guardar proveedor en la nube"
-
-#: templates/admin-cloud-provider.php:140 templates/admin-status.php:294
-msgid "Provider"
-msgstr "Proveedor"
-
-#: templates/admin-cloud-provider.php:145 templates/admin-status.php:299
-msgid "Storage Account"
-msgstr "Cuenta de almacenamiento"
-
-#: templates/admin-cloud-provider.php:149 templates/admin-status.php:305
-msgid "Container"
-msgstr "Contenedor"
-
-#: templates/admin-cloud-provider.php:157
-msgid ""
-"Your cloud provider is configured. Start syncing your media files to the "
-"cloud."
-msgstr ""
-"Tu proveedor en la nube está configurado. Comienza a sincronizar tus "
-"archivos multimedia."
-
-#: templates/admin-cloud-provider.php:169 templates/admin-overview.php:80
-#: templates/admin-status.php:118
-msgid "Configuration"
-msgstr "Configuración"
-
-#: templates/admin-cloud-provider.php:171
-msgid "Update your credentials or remove the cloud provider configuration."
-msgstr ""
-"Actualizá tus credenciales o eliminá la configuración del proveedor de la "
-"nube."
-
-#: templates/admin-cloud-provider.php:176
-msgid "Update Key"
-msgstr "Actualizar clave"
-
-#: templates/admin-cloud-provider.php:180
-msgid "Delete Cloud Provider"
-msgstr "Eliminar proveedor en la nube"
-
-#: templates/admin-cloud-provider.php:191
-msgid "Delete Cloud Provider Configuration"
-msgstr "Eliminar configuración del proveedor en la nube"
-
-#: templates/admin-cloud-provider.php:192
-msgid "Are you sure you want to delete your cloud storage configuration?"
-msgstr ""
-"¿Estás seguro de que quieres eliminar tu configuración de almacenamiento en "
-"la nube?"
-
-#: templates/admin-cloud-provider.php:193
-msgid "This will remove all saved credentials and reset the plugin."
-msgstr ""
-"Esto eliminará todas las credenciales guardadas y restablecerá el plugin."
-
-#: templates/admin-cloud-provider.php:212
-msgid "Update Cloud Provider Credentials"
-msgstr "Actualizar credenciales del proveedor en la nube"
-
-#: templates/admin-cloud-provider.php:218
-msgid "WARNING:"
-msgstr "ADVERTENCIA:"
-
-#: templates/admin-cloud-provider.php:219
-msgid ""
-"Updating the access key will temporarily interrupt file operations while "
-"testing the new connection. Current uploads/downloads may fail."
-msgstr ""
-"Actualizar la clave de acceso interrumpirá temporalmente las operaciones de "
-"archivos mientras se prueba la nueva conexión. Las cargas/descargas actuales "
-"pueden fallar."
-
-#: templates/admin-cloud-provider.php:227
-msgid "Storage Account:"
-msgstr "Cuenta de almacenamiento:"
-
-#: templates/admin-cloud-provider.php:233
-msgid "Container:"
-msgstr "Contenedor:"
-
-#: templates/admin-cloud-provider.php:243
-msgid "New Account Key"
-msgstr "Nueva clave de cuenta"
-
-#: templates/admin-cloud-provider.php:251
-msgid "Enter new access key"
-msgstr "Introduce la nueva clave de acceso"
-
-#: templates/admin-cloud-provider.php:263
-msgid "Show key"
-msgstr "Mostrar clave"
-
-#: templates/admin-cloud-provider.php:287
-msgid "You must test the connection before saving."
-msgstr "Debes probar la conexión antes de guardar."
 
 #: templates/admin-overview.php:51
 msgid "Welcome to DiluxOne Offload"
@@ -1301,6 +1565,10 @@ msgstr ""
 msgid "More Info"
 msgstr "Más información"
 
+#: templates/admin-overview.php:80 templates/admin-status-health.php:112
+msgid "Configuration"
+msgstr "Configuración"
+
 #. translators: %s: cloud provider name
 #: templates/admin-overview.php:92
 #, php-format
@@ -1313,24 +1581,24 @@ msgstr "Proveedor: <strong>%s</strong>"
 msgid "Account: <strong>%s</strong>"
 msgstr "Cuenta: <strong>%s</strong>"
 
-#: templates/admin-overview.php:112 templates/admin-status.php:130
+#: templates/admin-overview.php:112 templates/admin-status-health.php:124
 msgid "Awaiting Re-entry"
 msgstr "Esperando que las vuelvas a ingresar"
 
-#: templates/admin-overview.php:114 templates/admin-status.php:157
+#: templates/admin-overview.php:114 templates/admin-status-health.php:151
 msgid "Stored credentials cannot be decrypted. See banner above."
 msgstr ""
 "No se pueden descifrar las credenciales guardadas. Mirá el aviso de arriba."
 
 #. translators: %s: short reason for the pause
 #: templates/admin-overview.php:124 templates/admin-overview.php:164
-#: templates/admin-overview.php:212 templates/admin-status.php:136
-#: templates/admin-status.php:188
+#: templates/admin-overview.php:212 templates/admin-status-health.php:130
+#: templates/admin-status-health.php:182
 #, php-format
 msgid "Paused (%s)"
 msgstr "En pausa (%s)"
 
-#: templates/admin-overview.php:130 templates/admin-status.php:166
+#: templates/admin-overview.php:130 templates/admin-status-health.php:160
 msgid "See banner above for details."
 msgstr "Mirá el aviso de arriba para el detalle."
 
@@ -1369,23 +1637,15 @@ msgstr "Listo para sincronizar tus archivos"
 msgid "Configure cloud storage first"
 msgstr "Configura primero el almacenamiento en la nube"
 
-#: templates/admin-overview.php:185 templates/admin-sync.php:236
+#: templates/admin-overview.php:185 templates/admin-sync-sync.php:234
 msgid "Start Sync"
 msgstr "Iniciar sincronización"
-
-#: templates/admin-overview.php:201 templates/admin-status.php:178
-msgid "Offloading"
-msgstr "Descarga"
-
-#: templates/admin-overview.php:203 templates/admin-status.php:182
-msgid "Active"
-msgstr "Activo"
 
 #: templates/admin-overview.php:205
 msgid "Files served from cloud storage"
 msgstr "Archivos servidos desde almacenamiento en la nube"
 
-#: templates/admin-overview.php:221 templates/admin-status.php:194
+#: templates/admin-overview.php:221 templates/admin-status-health.php:188
 msgid "Inactive"
 msgstr "Inactivo"
 
@@ -1397,16 +1657,12 @@ msgstr "Archivos aún servidos localmente"
 msgid "Sync files first to enable"
 msgstr "Sincroniza archivos primero para habilitar"
 
-#: templates/admin-overview.php:241 templates/admin-status.php:73
+#: templates/admin-overview.php:241 templates/admin-status-health.php:67
 msgid "Plugin State"
 msgstr "Estado del plugin"
 
-#: templates/admin-overview.php:257
-msgid "Syncing"
-msgstr "Sincronizando"
-
 #. translators: %s: short reason for the pause
-#: templates/admin-overview.php:279 templates/admin-status.php:103
+#: templates/admin-overview.php:279 templates/admin-status-health.php:97
 #, php-format
 msgid "Paused (%s) — see banner above."
 msgstr "En pausa (%s): mirá el aviso de arriba."
@@ -1496,52 +1752,257 @@ msgstr "Sube tus archivos multimedia existentes a la nube"
 msgid "Serve files directly from the cloud"
 msgstr "Sirve archivos directamente desde la nube"
 
-#: templates/admin-settings.php:30
-msgid "Upload Settings"
-msgstr "Configuración de carga"
+#: templates/admin-provider-connection.php:24
+#: templates/admin-provider-connection.php:57
+msgid "Microsoft Azure Blob Storage"
+msgstr "Microsoft Azure Blob Storage"
 
-#: templates/admin-settings.php:32
-msgid "Configure how files are uploaded to cloud storage."
-msgstr "Configura cómo se cargan los archivos al almacenamiento en la nube."
+#: templates/admin-provider-connection.php:43
+msgid "Cloud Provider Configuration"
+msgstr "Configuración del proveedor en la nube"
 
-#: templates/admin-settings.php:38
-msgid "Maximum File Size (MB)"
-msgstr "Tamaño máximo de archivo (MB)"
-
-#: templates/admin-settings.php:49
-msgid "Files larger than this are skipped by the initial sync (1-500 MB)."
+#: templates/admin-provider-connection.php:45
+msgid ""
+"Select your cloud storage provider and configure the connection settings."
 msgstr ""
-"Los archivos más grandes que este tamaño se omiten en la sincronización "
-"inicial (1-500 MB)."
+"Selecciona tu proveedor de almacenamiento en la nube y configura los ajustes "
+"de conexión."
 
-#: templates/admin-settings.php:56
-msgid "Transfer Timeout (seconds)"
-msgstr "Tiempo de espera de transferencia (segundos)"
+#: templates/admin-provider-connection.php:51
+#: templates/admin-provider-connection.php:127
+msgid "Cloud Storage Provider"
+msgstr "Proveedor de almacenamiento en la nube"
 
-#: templates/admin-settings.php:67
-msgid "How long each upload request to the cloud may take (30-600 seconds). Raise it on a slow host. Downloads wait at least 300 seconds, or this value when it is higher."
-msgstr "Cuánto puede tardar cada petición de subida a la nube (30-600 segundos). Súbelo en un servidor lento. Las descargas esperan al menos 300 segundos, o este valor si es mayor."
+#: templates/admin-provider-connection.php:55
+msgid "Select a provider..."
+msgstr "Selecciona un proveedor..."
 
-#: templates/admin-settings.php:78
-msgid "Offloading Settings"
-msgstr "Configuración de offloading"
+#: templates/admin-provider-connection.php:61
+msgid ""
+"Choose your preferred cloud storage provider. Configuration options will "
+"appear below."
+msgstr ""
+"Elige tu proveedor de almacenamiento en la nube preferido. Las opciones de "
+"configuración aparecerán abajo."
 
-#: templates/admin-settings.php:80
+#: templates/admin-provider-connection.php:71
+msgid "Enter your Azure Storage credentials."
+msgstr "Ingresa tus credenciales de Azure Storage."
+
+#: templates/admin-provider-connection.php:74
+msgid "Storage Account Name"
+msgstr "Nombre de cuenta de almacenamiento"
+
+#: templates/admin-provider-connection.php:79
+msgid "Your storage account name (3-24 lowercase characters and numbers only)."
+msgstr ""
+"Tu nombre de cuenta de almacenamiento (3-24 caracteres en minúsculas y "
+"números solamente)."
+
+#: templates/admin-provider-connection.php:83
+msgid "Account Key"
+msgstr "Clave de cuenta"
+
+#: templates/admin-provider-connection.php:88
+msgid "Primary or secondary access key from your storage account."
+msgstr "Clave de acceso primaria o secundaria de tu cuenta de almacenamiento."
+
+#: templates/admin-provider-connection.php:92
+msgid "Container Name"
+msgstr "Nombre del contenedor"
+
+#: templates/admin-provider-connection.php:97
+msgid "Container name for storing your media files."
+msgstr "Nombre del contenedor donde se guardarán los archivos multimedia."
+
+#: templates/admin-provider-connection.php:108
+msgid "You must test the connection successfully before saving credentials."
+msgstr ""
+"Debes probar la conexión correctamente antes de guardar las credenciales."
+
+#: templates/admin-provider-connection.php:116
+msgid "Save Cloud Provider"
+msgstr "Guardar proveedor en la nube"
+
+#: templates/admin-provider-connection.php:129
+msgid "Unhealthy"
+msgstr "Con problemas"
+
+#: templates/admin-provider-connection.php:131
+msgid "Connected"
+msgstr "Conectado"
+
+#: templates/admin-provider-connection.php:136
+#: templates/admin-status-system.php:134
+msgid "Provider"
+msgstr "Proveedor"
+
+#: templates/admin-provider-connection.php:141
+#: templates/admin-provider-credentials.php:48
+#: templates/admin-status-system.php:139
+msgid "Storage Account"
+msgstr "Cuenta de almacenamiento"
+
+#: templates/admin-provider-connection.php:145
+#: templates/admin-provider-credentials.php:52
+#: templates/admin-status-system.php:145
+msgid "Container"
+msgstr "Contenedor"
+
+#: templates/admin-provider-connection.php:149
+msgid "Media served from"
+msgstr "Medios servidos desde"
+
+#: templates/admin-provider-connection.php:157
+msgid ""
+"Your cloud provider is configured. Start syncing your media files to the "
+"cloud."
+msgstr ""
+"Tu proveedor en la nube está configurado. Comienza a sincronizar tus "
+"archivos multimedia."
+
+#: templates/admin-provider-connection.php:166
+msgid ""
+"To rotate the access key or to remove the provider, use the Credentials tab."
+msgstr ""
+"Para rotar la clave de acceso o quitar el proveedor, usá la solapa "
+"Credenciales."
+
+#: templates/admin-provider-credentials.php:31
+msgid ""
+"Connect a provider in the Connection tab first. Once one is saved, this is "
+"where its key is rotated and where the provider is removed."
+msgstr ""
+"Primero conectá un proveedor en la solapa Conexión. Una vez guardado, acá se "
+"rota su clave y acá se quita el proveedor."
+
+#: templates/admin-provider-credentials.php:33
+msgid "Go to Connection"
+msgstr "Ir a Conexión"
+
+#: templates/admin-provider-credentials.php:38
+msgid "Update Cloud Provider Credentials"
+msgstr "Actualizar credenciales del proveedor en la nube"
+
+#: templates/admin-provider-credentials.php:41
+msgid "WARNING:"
+msgstr "ADVERTENCIA:"
+
+#: templates/admin-provider-credentials.php:42
+msgid ""
+"Updating the access key will temporarily interrupt file operations while "
+"testing the new connection. Current uploads/downloads may fail."
+msgstr ""
+"Actualizar la clave de acceso interrumpirá temporalmente las operaciones de "
+"archivos mientras se prueba la nueva conexión. Las cargas/descargas actuales "
+"pueden fallar."
+
+#: templates/admin-provider-credentials.php:56
+msgid "New Account Key"
+msgstr "Nueva clave de cuenta"
+
+#: templates/admin-provider-credentials.php:58
+msgid "Enter new access key"
+msgstr "Introduce la nueva clave de acceso"
+
+#: templates/admin-provider-credentials.php:60
+msgid "Show key"
+msgstr "Mostrar clave"
+
+#: templates/admin-provider-credentials.php:73
+msgid "You must test the connection before saving."
+msgstr "Debes probar la conexión antes de guardar."
+
+#: templates/admin-provider-credentials.php:79
+msgid "Save New Key"
+msgstr "Guardar la clave nueva"
+
+#: templates/admin-provider-credentials.php:86
+#: templates/admin-provider-credentials.php:93
+msgid "Delete Cloud Provider"
+msgstr "Eliminar proveedor en la nube"
+
+#: templates/admin-provider-credentials.php:89
+msgid ""
+"Forgets the saved credentials and the sync state, and returns the plugin to "
+"Not Configured. The files already in the cloud are not touched."
+msgstr ""
+"Olvida las credenciales guardadas y el estado de la sincronización, y "
+"devuelve el plugin a Sin configurar. Los archivos que ya están en la nube no "
+"se tocan."
+
+#: templates/admin-provider-credentials.php:98
+msgid ""
+"While offloading is active the provider cannot be deleted: the library is "
+"served from the cloud. Disconnect first, which brings every file back to "
+"this server."
+msgstr ""
+"Con el offloading activo el proveedor no se puede borrar: la biblioteca se "
+"sirve desde la nube. Primero desconectá, lo que trae cada archivo de vuelta "
+"a este servidor."
+
+#: templates/admin-provider-credentials.php:110
+msgid "Delete Cloud Provider Configuration"
+msgstr "Eliminar configuración del proveedor en la nube"
+
+#: templates/admin-provider-credentials.php:111
+msgid "Are you sure you want to delete your cloud storage configuration?"
+msgstr ""
+"¿Estás seguro de que quieres eliminar tu configuración de almacenamiento en "
+"la nube?"
+
+#: templates/admin-provider-credentials.php:112
+msgid "This will remove all saved credentials and reset the plugin."
+msgstr ""
+"Esto eliminará todas las credenciales guardadas y restablecerá el plugin."
+
+#: templates/admin-settings-logging.php:30
+msgid "Debug & Logging"
+msgstr "Depuración y registro"
+
+#: templates/admin-settings-logging.php:32
+msgid ""
+"Enable debug logging to troubleshoot issues. Only enable when needed as it "
+"may impact performance."
+msgstr ""
+"Habilita el registro de depuración para solucionar problemas. Solo habilita "
+"cuando sea necesario ya que puede impactar el rendimiento."
+
+#: templates/admin-settings-logging.php:37
+msgid "Debug Logging"
+msgstr "Registro de depuración"
+
+#: templates/admin-settings-logging.php:44
+msgid "Enable detailed debug logging"
+msgstr "Habilitar registro detallado de depuración"
+
+#: templates/admin-settings-logging.php:47
+msgid "Enable this only when troubleshooting issues. May impact performance."
+msgstr ""
+"Habilitar solo cuando resuelvas problemas. Puede impactar el rendimiento."
+
+#: templates/admin-settings-logging.php:56
+#: templates/admin-settings-serving.php:56
+#: templates/admin-settings-transfers.php:76
+msgid "Save Settings"
+msgstr "Guardar configuración"
+
+#: templates/admin-settings-serving.php:32
 msgid ""
 "Settings that control how cloud-offloaded media is served to the front-end."
 msgstr ""
 "Opciones que controlan cómo se sirven al frontend los archivos descargados "
 "en la nube."
 
-#: templates/admin-settings.php:85
+#: templates/admin-settings-serving.php:37
 msgid "Cloud URL Scheme"
 msgstr "Esquema de URL de la nube"
 
-#: templates/admin-settings.php:92
+#: templates/admin-settings-serving.php:44
 msgid "Force HTTPS for cloud storage URLs"
 msgstr "Forzar HTTPS para las URLs del almacenamiento en la nube"
 
-#: templates/admin-settings.php:95
+#: templates/admin-settings-serving.php:47
 msgid ""
 "Re-applies https:// to URLs WordPress emits for the cloud storage. Needed "
 "when the site is served over plain http (typical in local dev): WP "
@@ -1553,345 +2014,215 @@ msgstr ""
 "simple (típico en desarrollo local): WP las degrada a http y Azure las "
 "rechaza con HTTP 400. Déjalo activado salvo que sepas lo que estás haciendo."
 
-#: templates/admin-settings.php:106
-msgid "Debug & Logging"
-msgstr "Depuración y registro"
+#: templates/admin-settings-transfers.php:32
+msgid "Configure how files are uploaded to cloud storage."
+msgstr "Configura cómo se cargan los archivos al almacenamiento en la nube."
 
-#: templates/admin-settings.php:108
+#: templates/admin-settings-transfers.php:38
+msgid "Maximum File Size (MB)"
+msgstr "Tamaño máximo de archivo (MB)"
+
+#: templates/admin-settings-transfers.php:49
+msgid "Files larger than this are skipped by the initial sync (1-500 MB)."
+msgstr ""
+"Los archivos más grandes que este tamaño se omiten en la sincronización "
+"inicial (1-500 MB)."
+
+#: templates/admin-settings-transfers.php:56
+msgid "Transfer Timeout (seconds)"
+msgstr "Tiempo de espera de transferencia (segundos)"
+
+#: templates/admin-settings-transfers.php:67
 msgid ""
-"Enable debug logging to troubleshoot issues. Only enable when needed as it "
-"may impact performance."
+"How long each upload request to the cloud may take (30-600 seconds). Raise "
+"it on a slow host. Downloads wait at least 300 seconds, or this value when "
+"it is higher."
 msgstr ""
-"Habilita el registro de depuración para solucionar problemas. Solo habilita "
-"cuando sea necesario ya que puede impactar el rendimiento."
+"Cuánto puede tardar cada petición de subida a la nube (30-600 segundos). "
+"Súbelo en un servidor lento. Las descargas esperan al menos 300 segundos, o "
+"este valor si es mayor."
 
-#: templates/admin-settings.php:113
-msgid "Debug Logging"
-msgstr "Registro de depuración"
+#: templates/admin-status-health.php:49
+msgid "never"
+msgstr "nunca"
 
-#: templates/admin-settings.php:120
-msgid "Enable detailed debug logging"
-msgstr "Habilitar registro detallado de depuración"
-
-#: templates/admin-settings.php:123
-msgid "Enable this only when troubleshooting issues. May impact performance."
-msgstr ""
-"Habilitar solo cuando resuelvas problemas. Puede impactar el rendimiento."
-
-#: templates/admin-settings.php:138
-msgid "Save Settings"
-msgstr "Guardar configuración"
-
-#: templates/admin-status.php:59
-msgid "System Status"
-msgstr "Estado del sistema"
-
-#: templates/admin-status.php:61
-msgid "View plugin status and system information."
-msgstr "Ver estado del plugin e información del sistema."
+#. translators: %s: a human time difference, e.g. "10 minutes"
+#: templates/admin-status-health.php:52
+#, php-format
+msgid "%s ago"
+msgstr "hace %s"
 
 #. translators: %s: storage provider name (Azure) wrapped in <strong>
-#: templates/admin-status.php:150
+#: templates/admin-status-health.php:144
 #, php-format
 msgid "Provider: %s"
 msgstr "Proveedor: %s"
 
-#: templates/admin-status.php:211
-msgid "Database"
-msgstr "Base de datos"
+#: templates/admin-status-health.php:209
+msgid "Tracking table"
+msgstr "Tabla de seguimiento"
 
-#. translators: %d: number of stored options
-#: templates/admin-status.php:216
+#. translators: %s: number of rows in the plugin's tracking table
+#: templates/admin-status-health.php:214
 #, php-format
-msgid "%d options stored"
-msgstr "%d opciones almacenadas"
+msgid "%s file tracked"
+msgid_plural "%s files tracked"
+msgstr[0] "%s archivo registrado"
+msgstr[1] "%s archivos registrados"
 
-#: templates/admin-status.php:227
+#: templates/admin-status-health.php:218
+msgid "One row per file the sync has seen: synced, pending or failed."
+msgstr ""
+"Una fila por cada archivo que vio la sincronización: sincronizado, pendiente "
+"o fallido."
+
+#: templates/admin-status-health.php:228
+msgid "Connection Health"
+msgstr "Salud de la conexión"
+
+#: templates/admin-status-health.php:231
+msgid "No provider is connected, so there is no connection to check."
+msgstr ""
+"No hay ningún proveedor conectado, así que no hay conexión que revisar."
+
+#: templates/admin-status-health.php:240
+msgid "Healthy"
+msgstr "Saludable"
+
+#. translators: %s: short reason
+#: templates/admin-status-health.php:242
+#, php-format
+msgid "Unhealthy (%s)"
+msgstr "Con problemas (%s)"
+
+#: templates/admin-status-health.php:244
+msgid "Not checked yet"
+msgstr "Todavía sin revisar"
+
+#: templates/admin-status-health.php:249
+msgid "Last check"
+msgstr "Última revisión"
+
+#: templates/admin-status-health.php:253
+msgid "Last success"
+msgstr "Último éxito"
+
+#: templates/admin-status-health.php:257
+msgid "Consecutive failures"
+msgstr "Fallos consecutivos"
+
+#: templates/admin-status-health.php:261
+msgid "(uploads refused from 3)"
+msgstr "(las subidas se rechazan a partir de 3)"
+
+#: templates/admin-status-health.php:267
+msgid "Error source"
+msgstr "Origen del error"
+
+#: templates/admin-status-health.php:274
+msgid "How it checks"
+msgstr "Cómo revisa"
+
+#: templates/admin-status-health.php:276
+msgid ""
+"Every upload and every listing of the container records a success or a "
+"failure; a check against the provider runs when a screen opens and the last "
+"one is older than five minutes. Three consecutive failures pause new "
+"uploads, which are refused rather than written elsewhere, until the next "
+"success."
+msgstr ""
+"Cada subida y cada listado del contenedor registra un éxito o un fallo; al "
+"abrir una pantalla se hace una comprobación contra el proveedor si la última "
+"tiene más de cinco minutos. Tres fallos consecutivos pausan las subidas "
+"nuevas, que se rechazan en vez de escribirse en otro lado, hasta el "
+"siguiente éxito."
+
+#: templates/admin-status-system.php:39
 msgid "System Information"
 msgstr "Información del sistema"
 
-#: templates/admin-status.php:232
+#: templates/admin-status-system.php:44
 msgid "WordPress"
 msgstr "WordPress"
 
-#: templates/admin-status.php:235 templates/admin-status.php:275
+#: templates/admin-status-system.php:47 templates/admin-status-system.php:108
 msgid "Version"
 msgstr "Versión"
 
-#: templates/admin-status.php:239
+#: templates/admin-status-system.php:51
 msgid "Multisite"
 msgstr "Multisitio"
 
-#: templates/admin-status.php:240
+#: templates/admin-status-system.php:52 templates/admin-status-system.php:73
 msgid "Yes"
 msgstr "Sí"
 
-#: templates/admin-status.php:240
+#: templates/admin-status-system.php:52 templates/admin-status-system.php:73
 msgid "No"
 msgstr "No"
 
-#: templates/admin-status.php:243
+#: templates/admin-status-system.php:55 templates/admin-status-system.php:76
 msgid "Upload Directory"
 msgstr "Directorio de carga"
 
-#: templates/admin-status.php:250
+#: templates/admin-status-system.php:59
+msgid "Free disk"
+msgstr "Disco libre"
+
+#: templates/admin-status-system.php:63
+msgid "(what a disconnect can bring back)"
+msgstr "(lo que una desconexión puede traer de vuelta)"
+
+#: templates/admin-status-system.php:65
+msgid "not available"
+msgstr "no disponible"
+
+#: templates/admin-status-system.php:66
+msgid "The host does not allow reading it."
+msgstr "El hosting no permite leerlo."
+
+#: templates/admin-status-system.php:83
 msgid "PHP Environment"
 msgstr "Entorno PHP"
 
-#: templates/admin-status.php:253
+#: templates/admin-status-system.php:86
 msgid "PHP Version"
 msgstr "PHP Versión"
 
-#: templates/admin-status.php:257
+#: templates/admin-status-system.php:90
 msgid "Memory Limit"
 msgstr "Límite de memoria"
 
-#: templates/admin-status.php:261
+#: templates/admin-status-system.php:94
 msgid "Max Upload Size"
 msgstr "Tamaño máximo de carga"
 
-#: templates/admin-status.php:265
+#: templates/admin-status-system.php:98
 msgid "Max Execution Time"
 msgstr "Tiempo máximo de ejecución"
 
-#: templates/admin-status.php:272
+#: templates/admin-status-system.php:105
 msgid "Plugin"
 msgstr "Plugin"
 
-#: templates/admin-status.php:279
+#: templates/admin-status-system.php:114
+msgid "Build"
+msgstr "Build"
+
+#: templates/admin-status-system.php:119
 msgid "DB Schema Version"
 msgstr "Versión del esquema de BD"
 
-#: templates/admin-status.php:283
+#: templates/admin-status-system.php:123
 msgid "Plugin Directory"
 msgstr "Directorio del plugin"
 
-#: templates/admin-sync.php:40
-msgid "Current Status"
-msgstr "Estado actual"
-
-#: templates/admin-sync.php:51
-msgid "Sync Not Completed"
-msgstr "Sincronización no completada"
-
-#: templates/admin-sync.php:55
-msgid ""
-"A previous synchronization was interrupted. You can continue from where it "
-"left off or start fresh."
-msgstr ""
-"Una sincronización anterior fue interrumpida. Puedes continuar desde donde "
-"se quedó o comenzar de nuevo."
-
-#: templates/admin-sync.php:65
-msgid "Cloud Provider Configured"
-msgstr "Proveedor en la nube configurado"
-
-#: templates/admin-sync.php:69
-msgid ""
-"Your cloud provider is configured and ready. Click \"Start Sync\" below to "
-"upload your media files to the cloud."
-msgstr ""
-"Tu proveedor en la nube está configurado y listo. Haz clic en \"Iniciar "
-"sincronización\" abajo para cargar tus archivos multimedia a la nube."
-
-#: templates/admin-sync.php:82
-msgid "Synced with Errors"
-msgstr "Sincronizado con errores"
-
-#. translators: %d: number of files that failed to upload
-#: templates/admin-sync.php:89
-#, php-format
-msgid ""
-"Synchronization completed but %d files could not be uploaded. You can retry "
-"the failed files or proceed with offloading."
-msgstr ""
-"La sincronización se completó pero %d archivos no pudieron ser cargados. "
-"Puedes reintentar los archivos fallidos o proceder con la descarga."
-
-#: templates/admin-sync.php:102
-msgid "Synced Successfully"
-msgstr "Sincronizado exitosamente"
-
-#: templates/admin-sync.php:106
-msgid ""
-"All your media files have been uploaded to the cloud. You can now enable "
-"offloading to serve files directly from cloud storage."
-msgstr ""
-"Todos tus archivos multimedia han sido cargados a la nube. Ahora puedes "
-"habilitar la descarga para servir archivos directamente desde el "
-"almacenamiento en la nube."
-
-#: templates/admin-sync.php:122
-msgid ""
-"Your media files are being served directly from cloud storage. Local uploads "
-"are automatically synced to the cloud."
-msgstr ""
-"Tus archivos multimedia se están sirviendo directamente desde el "
-"almacenamiento en la nube. Las cargas locales se sincronizan automáticamente "
-"a la nube."
-
-#: templates/admin-sync.php:133
-msgid "Sync in Progress"
-msgstr "Sincronización en progreso"
-
-#: templates/admin-sync.php:137
-msgid ""
-"File upload is in progress. Do not close this page until synchronization is "
-"complete."
-msgstr ""
-"La carga de archivos está en progreso. No cierres esta página hasta que la "
-"sincronización se complete."
-
-#: templates/admin-sync.php:150
-msgid "Actions"
-msgstr "Acciones"
-
-#: templates/admin-sync.php:171
-msgid "Continue Sync"
-msgstr "Continuar sincronización"
-
-#. translators: 1: number of files already synced, 2: number of files pending
-#: templates/admin-sync.php:177
-#, php-format
-msgid ""
-"Resume synchronization. You have %1$d files already synced and %2$d files "
-"pending. The system will scan and detect any new or modified files."
-msgstr ""
-"Retomar la sincronización. Tenés %1$d archivos ya sincronizados y %2$d "
-"pendientes. El sistema va a escanear y detectar los archivos nuevos o "
-"modificados."
-
-#: templates/admin-sync.php:189 templates/admin-sync.php:220
-#: templates/admin-sync.php:352
-msgid "Reset Sync"
-msgstr "Restablecer sincronización"
-
-#: templates/admin-sync.php:192 templates/admin-sync.php:314
-msgid ""
-"Cancel the entire sync process and return to configured state. This will "
-"discard ALL progress including successfully uploaded files."
-msgstr ""
-"Cancelar todo el proceso de sincronización y volver al estado configurado. "
-"Esto descartará TODO el progreso incluyendo archivos cargados exitosamente."
-
-#: templates/admin-sync.php:203
-msgid "Complete Sync"
-msgstr "Completar sincronización"
-
-#. translators: %d: number of files already synced
-#: templates/admin-sync.php:209
-#, php-format
-msgid ""
-"All %d files are synced! Click to scan for any new/modified files and "
-"complete the sync process to enable offloading."
-msgstr ""
-"¡Todos los %d archivos están sincronizados! Haz clic para escanear cualquier "
-"archivo nuevo/modificado y completar el proceso de sincronización para "
-"habilitar la descarga."
-
-#: templates/admin-sync.php:223
-msgid "Discard all sync progress and start from scratch."
-msgstr "Descartar todo el progreso de sincronización y comenzar desde cero."
-
-#: templates/admin-sync.php:240
-msgid ""
-"This will scan your local media library and upload all files to cloud "
-"storage. Files already present in the cloud will be automatically skipped to "
-"save time and bandwidth."
-msgstr ""
-"Esto escaneará tu biblioteca de medios local y cargará todos los archivos al "
-"almacenamiento en la nube. Los archivos ya presentes en la nube se omitirán "
-"automáticamente para ahorrar tiempo y ancho de banda."
-
-#: templates/admin-sync.php:251 templates/admin-sync.php:418
-msgid "DEV MODE"
-msgstr "MODO DEV"
-
-#: templates/admin-sync.php:255
-msgid "Enable Without Sync"
-msgstr "Habilitar sin sincronizar"
-
-#: templates/admin-sync.php:258
-msgid ""
-"Skip file upload and jump directly to offloading mode. Assumes cloud already "
-"has all files. For development/testing only."
-msgstr ""
-"Omite la subida de archivos y va directo al modo offloading. Asume que la "
-"nube ya tiene todos los archivos. Solo para desarrollo/pruebas."
-
-#. translators: %d: number of files that failed to upload
-#: templates/admin-sync.php:280
-#, php-format
-msgid ""
-"Attempt to upload the %d failed files again. Successfully uploaded files "
-"remain in cloud storage."
-msgstr ""
-"Intentar cargar los %d archivos fallidos nuevamente. Los archivos cargados "
-"exitosamente permanecen en el almacenamiento en la nube."
-
-#: templates/admin-sync.php:291
-msgid "Clear Failed & Enable"
-msgstr "Limpiar fallidos y habilitar"
-
-#: templates/admin-sync.php:294
-msgid ""
-"Discard failed files list and enable offloading. Failed files will remain in "
-"local storage only."
-msgstr ""
-"Descartar lista de archivos fallidos y habilitar descarga. Los archivos "
-"fallidos permanecerán solo en almacenamiento local."
-
-#: templates/admin-sync.php:303 templates/admin-sync.php:449
-msgid "View Failed Files"
-msgstr "Ver archivos fallidos"
-
-#: templates/admin-sync.php:311 templates/admin-sync.php:587
-msgid "Cancel Sync & Reset"
-msgstr "Cancelar sincronización y restablecer"
-
-#: templates/admin-sync.php:327
-msgid "Enable Cloud Storage (Offloading)"
-msgstr "Habilitar almacenamiento en la nube (descarga)"
-
-#: templates/admin-sync.php:330
-msgid ""
-"Activate offloading to serve all media files directly from cloud storage. "
-"New uploads will go straight to the cloud, saving local disk space."
-msgstr ""
-"Activar descarga para servir todos los archivos multimedia directamente "
-"desde el almacenamiento en la nube. Las nuevas cargas irán directamente a la "
-"nube, ahorrando espacio en disco local."
-
-#: templates/admin-sync.php:341
-msgid "Resync All Files"
-msgstr "Resincronizar todos los archivos"
-
-#: templates/admin-sync.php:344
-msgid ""
-"Compare local files with cloud storage and resynchronize everything from "
-"scratch."
-msgstr ""
-"Comparar archivos locales con el almacenamiento en la nube y resincronizar "
-"todo desde cero."
-
-#: templates/admin-sync.php:355
-msgid ""
-"Cancel sync and return to configured state. This will discard all progress."
-msgstr ""
-"Cancelar sincronización y volver al estado configurado. Esto descartará todo "
-"el progreso."
-
-#: templates/admin-sync.php:367
-msgid "Sync controls are available in the modal dialog above."
-msgstr ""
-"Los controles de sincronización están disponibles en el diálogo modal de "
-"arriba."
-
-#: templates/admin-sync.php:381
+#: templates/admin-sync-disconnect.php:35
+#: templates/admin-sync-disconnect.php:44
 msgid "Disconnect from Cloud"
 msgstr "Desconectar de la nube"
 
-#: templates/admin-sync.php:384
+#: templates/admin-sync-disconnect.php:47
 msgid ""
 "Download all files from cloud storage back to local storage and disable "
 "offloading. This is a full reverse sync operation."
@@ -1900,25 +2231,15 @@ msgstr ""
 "almacenamiento local y deshabilitar la descarga. Esta es una operación de "
 "sincronización inversa completa."
 
-#: templates/admin-sync.php:393 templates/admin-sync.php:866
-msgid "Delete Local Files"
-msgstr "Eliminar archivos locales"
+#: templates/admin-sync-disconnect.php:58 templates/admin-sync-sync.php:249
+msgid "DEV MODE"
+msgstr "MODO DEV"
 
-#. translators: 1: human-readable disk size (e.g. "200 MB"), 2: number of files
-#: templates/admin-sync.php:400
-#, php-format
-msgid ""
-"Free up %1$s of disk space by deleting %2$s local files. Files will continue "
-"to be served from cloud storage."
-msgstr ""
-"Liberá %1$s de disco borrando %2$s archivos locales. Los archivos se van a "
-"seguir sirviendo desde la nube."
-
-#: templates/admin-sync.php:422
+#: templates/admin-sync-disconnect.php:62
 msgid "Disconnect Without Sync"
 msgstr "Desconectar sin sincronizar"
 
-#: templates/admin-sync.php:425
+#: templates/admin-sync-disconnect.php:65
 msgid ""
 "Skip file download and jump directly to configured state. Assumes local "
 "already has all files. For development/testing only."
@@ -1926,132 +2247,25 @@ msgstr ""
 "Omite la descarga de archivos y va directo al estado configurado. Asume que "
 "el servidor local ya tiene todos los archivos. Solo para desarrollo/pruebas."
 
-#. translators: %d: number of files that failed to sync
-#: templates/admin-sync.php:439
-#, php-format
-msgid "%d files failed to sync"
-msgstr "%d archivos fallaron al sincronizar"
-
-#: templates/admin-sync.php:471
-msgid "Failed Files"
-msgstr "Archivos fallidos"
-
-#: templates/admin-sync.php:476
-msgid "File"
-msgstr "Archivo"
-
-#: templates/admin-sync.php:477
-msgid "Attempts"
-msgstr "Intentos"
-
-#: templates/admin-sync.php:478 templates/admin-sync.php:571
-#: templates/admin-sync.php:768
-msgid "Error"
-msgstr "Error"
-
-#: templates/admin-sync.php:504
-msgid "Clear Failed Files & Enable Offloading"
-msgstr "Limpiar archivos fallidos y habilitar descarga"
-
-#: templates/admin-sync.php:509
-msgid "Important:"
-msgstr "Importante:"
-
-#: templates/admin-sync.php:510
+#: templates/admin-sync-disconnect.php:74
 msgid ""
-"This action will discard the list of failed files and enable cloud storage "
-"offloading."
+"Offloading is not active, so there is nothing to bring back: the files are "
+"already on this server. To forget the provider and its credentials, delete "
+"it in Cloud Provider › Credentials."
 msgstr ""
-"Esta acción descartará la lista de archivos fallidos y habilitará la "
-"descarga de almacenamiento en la nube."
+"El offloading no está activo, así que no hay nada que traer de vuelta: los "
+"archivos ya están en este servidor. Para olvidar el proveedor y sus "
+"credenciales, borralo en Proveedor de nube › Credenciales."
 
-#: templates/admin-sync.php:516 templates/admin-sync.php:599
-#: templates/admin-sync.php:640
-msgid "What will happen:"
-msgstr "Qué sucederá:"
-
-#. translators: %d: number of failed files to remove
-#: templates/admin-sync.php:522
-#, php-format
-msgid "The %d failed files will be removed from the sync queue"
-msgstr "Los %d archivos fallidos serán removidos de la cola de sincronización"
-
-#: templates/admin-sync.php:525
-msgid "Failed files will remain in local storage only (not in cloud)"
-msgstr ""
-"Los archivos fallidos permanecerán solo en almacenamiento local (no en la "
-"nube)"
-
-#: templates/admin-sync.php:526
-msgid "Successfully uploaded files will continue to be served from cloud"
-msgstr ""
-"Los archivos cargados exitosamente continuarán siendo servidos desde la nube"
-
-#: templates/admin-sync.php:527
-msgid "Offloading will be enabled for future uploads"
-msgstr "La descarga se habilitará para futuras cargas"
-
-#: templates/admin-sync.php:536
-msgid "Yes, Clear & Enable"
-msgstr "Sí, Limpiar & Habilitar"
-
-#: templates/admin-sync.php:548
-msgid "Clearing failed files and enabling offloading"
-msgstr "Limpiando archivos fallidos y habilitando descarga"
-
-#: templates/admin-sync.php:558
-msgid "Successfully Enabled!"
-msgstr "¡Habilitado exitosamente!"
-
-#: templates/admin-sync.php:561
-msgid "Failed files cleared and offloading activated"
-msgstr "Archivos fallidos limpiados y descarga activada"
-
-#: templates/admin-sync.php:592 templates/admin-sync.php:633
-msgid "Warning:"
-msgstr "Advertencia:"
-
-#: templates/admin-sync.php:593
-msgid ""
-"This action will completely reset the synchronization and cannot be undone."
-msgstr ""
-"Esta acción restablecerá completamente la sincronización y no se puede "
-"deshacer."
-
-#: templates/admin-sync.php:602
-msgid ""
-"ALL sync progress will be discarded (including successfully uploaded files)"
-msgstr ""
-"TODO el progreso de sincronización será descartado (incluyendo archivos "
-"cargados exitosamente)"
-
-#: templates/admin-sync.php:603
-msgid "The plugin will return to CONFIGURED state"
-msgstr "El plugin volverá al estado CONFIGURADO"
-
-#: templates/admin-sync.php:604
-msgid "Files uploaded to cloud will remain there but won't be tracked"
-msgstr ""
-"Los archivos subidos a la nube permanecerán allí pero no serán rastreados"
-
-#: templates/admin-sync.php:605
-msgid "You will need to sync again from scratch if you want to use offloading"
-msgstr ""
-"Necesitarás sincronizar de nuevo desde cero si quieres usar la descarga"
-
-#: templates/admin-sync.php:611
-msgid "No, Keep Progress"
-msgstr "No, Mantener Progreso"
-
-#: templates/admin-sync.php:614
-msgid "Yes, Reset Everything"
-msgstr "Sí, Restablecer todo"
-
-#: templates/admin-sync.php:628
+#: templates/admin-sync-disconnect.php:93
 msgid "Disconnect from Cloud Provider"
 msgstr "Desconectar del proveedor en la nube"
 
-#: templates/admin-sync.php:634
+#: templates/admin-sync-disconnect.php:98 templates/admin-sync-sync.php:538
+msgid "Warning:"
+msgstr "Advertencia:"
+
+#: templates/admin-sync-disconnect.php:99
 msgid ""
 "This action will download all files from cloud storage back to local storage "
 "and disable offloading."
@@ -2059,91 +2273,101 @@ msgstr ""
 "Esta acción descargará todos los archivos del almacenamiento en la nube de "
 "vuelta al almacenamiento local y deshabilitará la descarga."
 
-#: templates/admin-sync.php:643
+#: templates/admin-sync-disconnect.php:105 templates/admin-sync-sync.php:462
+#: templates/admin-sync-sync.php:545
+msgid "What will happen:"
+msgstr "Qué sucederá:"
+
+#: templates/admin-sync-disconnect.php:108
 msgid "All files will be downloaded from cloud to local storage (reverse sync)"
 msgstr ""
 "Todos los archivos se descargarán de la nube al almacenamiento local "
 "(sincronización inversa)"
 
-#: templates/admin-sync.php:644
+#: templates/admin-sync-disconnect.php:109
 msgid "Offloading will be disabled automatically"
 msgstr "La descarga se deshabilitará automáticamente"
 
-#: templates/admin-sync.php:645
+#: templates/admin-sync-disconnect.php:110
 msgid "Files in cloud will remain untouched (no deletion)"
 msgstr "Los archivos en la nube permanecerán intactos (sin eliminación)"
 
-#: templates/admin-sync.php:646
+#: templates/admin-sync-disconnect.php:111
 msgid "This process may take time depending on the number of files"
 msgstr "Este proceso puede tardar dependiendo del número de archivos"
 
-#: templates/admin-sync.php:655
+#: templates/admin-sync-disconnect.php:120
 msgid "Yes, Disconnect & Download"
 msgstr "Sí, Desconectar & Descargar"
 
-#: templates/admin-sync.php:664
+#: templates/admin-sync-disconnect.php:129
 msgid "Scanning Cloud Storage..."
 msgstr "Escaneando almacenamiento en la nube..."
 
-#: templates/admin-sync.php:667
+#: templates/admin-sync-disconnect.php:132
 msgid "Finding all files in Azure. This may take a moment."
 msgstr "Buscando todos los archivos en Azure. Esto puede tardar un momento."
 
-#: templates/admin-sync.php:675
+#: templates/admin-sync-disconnect.php:140
 msgid "Download Files from Cloud"
 msgstr "Descargar archivos de la nube"
 
-#: templates/admin-sync.php:687
+#: templates/admin-sync-disconnect.php:152
 msgid "Start Download"
 msgstr "Iniciar Descargar"
 
-#: templates/admin-sync.php:696
+#: templates/admin-sync-disconnect.php:161
 msgid "Downloading Files..."
 msgstr "Descargando archivos..."
 
-#: templates/admin-sync.php:702 templates/admin-sync.php:816
-#: templates/admin-sync.php:898
+#: templates/admin-sync-disconnect.php:167
+#: templates/admin-sync-offloading.php:175 templates/partials/sync-modal.php:40
 msgid "DO NOT CLOSE THIS WINDOW"
 msgstr "NO CIERRES ESTA VENTANA"
 
-#: templates/admin-sync.php:705
+#: templates/admin-sync-disconnect.php:170
 msgid "Closing this window will cancel the download"
 msgstr "Cerrar esta ventana cancelará la descarga"
 
-#: templates/admin-sync.php:709
+#: templates/admin-sync-disconnect.php:174
 msgid "Downloading files from cloud..."
 msgstr "Descargando archivos desde la nube..."
 
-#: templates/admin-sync.php:727
+#: templates/admin-sync-disconnect.php:192
 msgid "Downloaded"
 msgstr "Descargado"
 
-#: templates/admin-sync.php:731 templates/admin-sync.php:839
-#: templates/admin-sync.php:921
+#: templates/admin-sync-disconnect.php:196
+#: templates/admin-sync-offloading.php:198 templates/partials/sync-modal.php:63
 msgid "Successful"
 msgstr "Exitoso"
 
-#: templates/admin-sync.php:735
+#: templates/admin-sync-disconnect.php:200
 msgid "Remaining"
 msgstr "Restante"
 
-#: templates/admin-sync.php:744
+#: templates/admin-sync-disconnect.php:209
 msgid "Cancel Download"
 msgstr "Cancelar Descargar"
 
-#: templates/admin-sync.php:755
+#: templates/admin-sync-disconnect.php:220
 msgid "Disconnected Successfully!"
 msgstr "¡Desconectado exitosamente!"
 
-#: templates/admin-sync.php:758
+#: templates/admin-sync-disconnect.php:223
 msgid "All files downloaded and offloading disabled"
 msgstr "Todos los archivos descargados y descarga deshabilitada"
 
-#: templates/admin-sync.php:775
+#: templates/admin-sync-disconnect.php:233 templates/admin-sync-sync.php:424
+#: templates/admin-sync-sync.php:517
+msgid "Error"
+msgstr "Error"
+
+#: templates/admin-sync-disconnect.php:240
 msgid "You can force disconnect without downloading files:"
 msgstr "Puedes forzar la desconexión sin descargar los archivos:"
 
-#: templates/admin-sync.php:778
+#: templates/admin-sync-disconnect.php:243
 msgid ""
 "Files stored in the cloud will NOT be downloaded back to your server. Only "
 "files already available locally will remain accessible. This action cannot "
@@ -2153,31 +2377,97 @@ msgstr ""
 "archivos ya disponibles localmente seguirán accesibles. Esta acción no se "
 "puede deshacer."
 
-#: templates/admin-sync.php:819
-msgid "Closing this window will cancel the synchronization"
-msgstr "Cerrar esta ventana cancelará la sincronización"
+#: templates/admin-sync-offloading.php:48 templates/admin-sync-sync.php:120
+msgid ""
+"Your media files are being served directly from cloud storage. Local uploads "
+"are automatically synced to the cloud."
+msgstr ""
+"Tus archivos multimedia se están sirviendo directamente desde el "
+"almacenamiento en la nube. Las cargas locales se sincronizan automáticamente "
+"a la nube."
 
-#: templates/admin-sync.php:823
-msgid "Syncing files..."
-msgstr "Sincronizando archivos..."
+#: templates/admin-sync-offloading.php:59
+#: templates/admin-sync-offloading.php:143
+msgid "Delete Local Files"
+msgstr "Eliminar archivos locales"
 
-#: templates/admin-sync.php:835 templates/admin-sync.php:917
-msgid "Processed"
-msgstr "Procesado"
+#. translators: 1: human-readable disk size (e.g. "200 MB"), 2: number of files
+#: templates/admin-sync-offloading.php:66
+#, php-format
+msgid ""
+"Free up %1$s of disk space by deleting %2$s local files. Files will continue "
+"to be served from cloud storage."
+msgstr ""
+"Liberá %1$s de disco borrando %2$s archivos locales. Los archivos se van a "
+"seguir sirviendo desde la nube."
 
-#: templates/admin-sync.php:843 templates/admin-sync.php:925
-msgid "Failed"
-msgstr "Fallido"
+#: templates/admin-sync-offloading.php:77
+msgid ""
+"No local copies left to delete: every synced file lives in the cloud only. "
+"New uploads go straight there."
+msgstr ""
+"No quedan copias locales para borrar: cada archivo sincronizado vive solo en "
+"la nube. Las subidas nuevas van directo ahí."
 
-#: templates/admin-sync.php:872
+#: templates/admin-sync-offloading.php:87 templates/admin-sync-sync.php:100
+msgid "Synced Successfully"
+msgstr "Sincronizado exitosamente"
+
+#: templates/admin-sync-offloading.php:91 templates/admin-sync-sync.php:104
+msgid ""
+"All your media files have been uploaded to the cloud. You can now enable "
+"offloading to serve files directly from cloud storage."
+msgstr ""
+"Todos tus archivos multimedia han sido cargados a la nube. Ahora puedes "
+"habilitar la descarga para servir archivos directamente desde el "
+"almacenamiento en la nube."
+
+#: templates/admin-sync-offloading.php:101
+msgid "Enable Cloud Storage (Offloading)"
+msgstr "Habilitar almacenamiento en la nube (descarga)"
+
+#: templates/admin-sync-offloading.php:104
+msgid ""
+"Activate offloading to serve all media files directly from cloud storage. "
+"New uploads will go straight to the cloud, saving local disk space."
+msgstr ""
+"Activar descarga para servir todos los archivos multimedia directamente "
+"desde el almacenamiento en la nube. Las nuevas cargas irán directamente a la "
+"nube, ahorrando espacio en disco local."
+
+#. translators: %d: number of files that failed to upload
+#: templates/admin-sync-offloading.php:116
+#, php-format
+msgid ""
+"Synchronization completed but %d files could not be uploaded. Retry them, or "
+"clear the list and enable offloading anyway, in the Sync tab."
+msgstr ""
+"La sincronización terminó pero %d archivos no se pudieron subir. "
+"Reintentalos, o limpiá la lista y activá el offloading igual, en la solapa "
+"Sincronización."
+
+#: templates/admin-sync-offloading.php:121
+#: templates/admin-sync-offloading.php:129
+msgid "Go to Sync"
+msgstr "Ir a Sincronización"
+
+#: templates/admin-sync-offloading.php:127
+msgid ""
+"Offloading can be enabled once every file is in the cloud. Run the sync "
+"first."
+msgstr ""
+"El offloading se puede activar cuando todos los archivos estén en la nube. "
+"Primero corré la sincronización."
+
+#: templates/admin-sync-offloading.php:149
 msgid "Calculating files to delete..."
 msgstr "Calculando archivos a eliminar..."
 
-#: templates/admin-sync.php:873
+#: templates/admin-sync-offloading.php:150
 msgid "Scanning local storage. This may take a moment."
 msgstr "Escaneando almacenamiento local. Esto puede tardar un momento."
 
-#: templates/admin-sync.php:879
+#: templates/admin-sync-offloading.php:156
 msgid ""
 "This will permanently delete ALL files from local storage. Files will remain "
 "in your cloud provider and continue to be served from there."
@@ -2186,36 +2476,408 @@ msgstr ""
 "Los archivos permanecerán en tu proveedor de nube y continuarán siendo "
 "servidos desde allí."
 
-#: templates/admin-sync.php:884
+#: templates/admin-sync-offloading.php:161
 msgid "Files to delete:"
 msgstr "Archivos a eliminar:"
 
-#: templates/admin-sync.php:888
+#: templates/admin-sync-offloading.php:165
 msgid "Space to free:"
 msgstr "Espacio a liberar:"
 
-#: templates/admin-sync.php:901
+#: templates/admin-sync-offloading.php:178
 msgid "Closing will interrupt the deletion process"
 msgstr "Cerrar interrumpirá el proceso de eliminación"
 
-#: templates/admin-sync.php:905
+#: templates/admin-sync-offloading.php:182
 msgid "Deleting local files..."
 msgstr "Eliminando archivos locales..."
 
-#: templates/admin-sync.php:941
+#: templates/admin-sync-offloading.php:194 templates/partials/sync-modal.php:59
+msgid "Processed"
+msgstr "Procesado"
+
+#: templates/admin-sync-offloading.php:202 templates/partials/sync-modal.php:67
+msgid "Failed"
+msgstr "Fallido"
+
+#: templates/admin-sync-offloading.php:218
 msgid "Start Delete"
 msgstr "Iniciar Eliminar"
 
-msgid "transfer timed out"
-msgstr "transferencia agotó el tiempo de espera"
+#: templates/admin-sync-sync.php:38
+msgid "Current Status"
+msgstr "Estado actual"
 
-msgid "Cloud Transfer Timed Out"
-msgstr "Transferencia a la nube agotó el tiempo de espera"
+#: templates/admin-sync-sync.php:49
+msgid "Sync Not Completed"
+msgstr "Sincronización no completada"
 
-#. translators: %d: the Transfer Timeout setting, in seconds
-msgid "A transfer to the cloud took longer than allowed: the Transfer Timeout (%d seconds) for an upload, at least 300 seconds for a download. Raise the setting if this host or its connection is slow; if transfers used to work at this value, check the connection to the provider."
-msgstr "Una transferencia a la nube tardó más de lo permitido: el tiempo de espera de transferencia (%d segundos) para una subida, al menos 300 segundos para una descarga. Sube el ajuste si este servidor o su conexión son lentos; si las transferencias funcionaban con este valor, revisa la conexión con el proveedor."
+#: templates/admin-sync-sync.php:53
+msgid ""
+"A previous synchronization was interrupted. You can continue from where it "
+"left off or start fresh."
+msgstr ""
+"Una sincronización anterior fue interrumpida. Puedes continuar desde donde "
+"se quedó o comenzar de nuevo."
 
-msgid "Open Settings"
-msgstr "Abrir Configuración"
+#: templates/admin-sync-sync.php:63
+msgid "Cloud Provider Configured"
+msgstr "Proveedor en la nube configurado"
 
+#: templates/admin-sync-sync.php:67
+msgid ""
+"Your cloud provider is configured and ready. Click \"Start Sync\" below to "
+"upload your media files to the cloud."
+msgstr ""
+"Tu proveedor en la nube está configurado y listo. Haz clic en \"Iniciar "
+"sincronización\" abajo para cargar tus archivos multimedia a la nube."
+
+#: templates/admin-sync-sync.php:80
+msgid "Synced with Errors"
+msgstr "Sincronizado con errores"
+
+#. translators: %d: number of files that failed to upload
+#: templates/admin-sync-sync.php:87
+#, php-format
+msgid ""
+"Synchronization completed but %d files could not be uploaded. You can retry "
+"the failed files or proceed with offloading."
+msgstr ""
+"La sincronización se completó pero %d archivos no pudieron ser cargados. "
+"Puedes reintentar los archivos fallidos o proceder con la descarga."
+
+#: templates/admin-sync-sync.php:131
+msgid "Sync in Progress"
+msgstr "Sincronización en progreso"
+
+#: templates/admin-sync-sync.php:135
+msgid ""
+"File upload is in progress. Do not close this page until synchronization is "
+"complete."
+msgstr ""
+"La carga de archivos está en progreso. No cierres esta página hasta que la "
+"sincronización se complete."
+
+#: templates/admin-sync-sync.php:148
+msgid "Actions"
+msgstr "Acciones"
+
+#: templates/admin-sync-sync.php:169
+msgid "Continue Sync"
+msgstr "Continuar sincronización"
+
+#. translators: 1: number of files already synced, 2: number of files pending
+#: templates/admin-sync-sync.php:175
+#, php-format
+msgid ""
+"Resume synchronization. You have %1$d files already synced and %2$d files "
+"pending. The system will scan and detect any new or modified files."
+msgstr ""
+"Retomar la sincronización. Tenés %1$d archivos ya sincronizados y %2$d "
+"pendientes. El sistema va a escanear y detectar los archivos nuevos o "
+"modificados."
+
+#: templates/admin-sync-sync.php:187 templates/admin-sync-sync.php:218
+#: templates/admin-sync-sync.php:346
+msgid "Reset Sync"
+msgstr "Restablecer sincronización"
+
+#: templates/admin-sync-sync.php:190 templates/admin-sync-sync.php:312
+msgid ""
+"Cancel the entire sync process and return to configured state. This will "
+"discard ALL progress including successfully uploaded files."
+msgstr ""
+"Cancelar todo el proceso de sincronización y volver al estado configurado. "
+"Esto descartará TODO el progreso incluyendo archivos cargados exitosamente."
+
+#: templates/admin-sync-sync.php:201
+msgid "Complete Sync"
+msgstr "Completar sincronización"
+
+#. translators: %d: number of files already synced
+#: templates/admin-sync-sync.php:207
+#, php-format
+msgid ""
+"All %d files are synced! Click to scan for any new/modified files and "
+"complete the sync process to enable offloading."
+msgstr ""
+"¡Todos los %d archivos están sincronizados! Haz clic para escanear cualquier "
+"archivo nuevo/modificado y completar el proceso de sincronización para "
+"habilitar la descarga."
+
+#: templates/admin-sync-sync.php:221
+msgid "Discard all sync progress and start from scratch."
+msgstr "Descartar todo el progreso de sincronización y comenzar desde cero."
+
+#: templates/admin-sync-sync.php:238
+msgid ""
+"This will scan your local media library and upload all files to cloud "
+"storage. Files already present in the cloud will be automatically skipped to "
+"save time and bandwidth."
+msgstr ""
+"Esto escaneará tu biblioteca de medios local y cargará todos los archivos al "
+"almacenamiento en la nube. Los archivos ya presentes en la nube se omitirán "
+"automáticamente para ahorrar tiempo y ancho de banda."
+
+#: templates/admin-sync-sync.php:253
+msgid "Enable Without Sync"
+msgstr "Habilitar sin sincronizar"
+
+#: templates/admin-sync-sync.php:256
+msgid ""
+"Skip file upload and jump directly to offloading mode. Assumes cloud already "
+"has all files. For development/testing only."
+msgstr ""
+"Omite la subida de archivos y va directo al modo offloading. Asume que la "
+"nube ya tiene todos los archivos. Solo para desarrollo/pruebas."
+
+#. translators: %d: number of files that failed to upload
+#: templates/admin-sync-sync.php:278
+#, php-format
+msgid ""
+"Attempt to upload the %d failed files again. Successfully uploaded files "
+"remain in cloud storage."
+msgstr ""
+"Intentar cargar los %d archivos fallidos nuevamente. Los archivos cargados "
+"exitosamente permanecen en el almacenamiento en la nube."
+
+#: templates/admin-sync-sync.php:289
+msgid "Clear Failed & Enable"
+msgstr "Limpiar fallidos y habilitar"
+
+#: templates/admin-sync-sync.php:292
+msgid ""
+"Discard failed files list and enable offloading. Failed files will remain in "
+"local storage only."
+msgstr ""
+"Descartar lista de archivos fallidos y habilitar descarga. Los archivos "
+"fallidos permanecerán solo en almacenamiento local."
+
+#: templates/admin-sync-sync.php:301 templates/admin-sync-sync.php:395
+msgid "View Failed Files"
+msgstr "Ver archivos fallidos"
+
+#: templates/admin-sync-sync.php:309 templates/admin-sync-sync.php:533
+msgid "Cancel Sync & Reset"
+msgstr "Cancelar sincronización y restablecer"
+
+#: templates/admin-sync-sync.php:322
+msgid ""
+"Every file is in the cloud. Enable offloading to serve the library from "
+"there."
+msgstr ""
+"Todos los archivos están en la nube. Activá el offloading para servir la "
+"biblioteca desde ahí."
+
+#: templates/admin-sync-sync.php:325
+msgid "Go to Offloading"
+msgstr "Ir a Offloading"
+
+#: templates/admin-sync-sync.php:335
+msgid "Resync All Files"
+msgstr "Resincronizar todos los archivos"
+
+#: templates/admin-sync-sync.php:338
+msgid ""
+"Compare local files with cloud storage and resynchronize everything from "
+"scratch."
+msgstr ""
+"Comparar archivos locales con el almacenamiento en la nube y resincronizar "
+"todo desde cero."
+
+#: templates/admin-sync-sync.php:349
+msgid ""
+"Cancel sync and return to configured state. This will discard all progress."
+msgstr ""
+"Cancelar sincronización y volver al estado configurado. Esto descartará todo "
+"el progreso."
+
+#: templates/admin-sync-sync.php:361
+msgid "Sync controls are available in the modal dialog above."
+msgstr ""
+"Los controles de sincronización están disponibles en el diálogo modal de "
+"arriba."
+
+#: templates/admin-sync-sync.php:371
+msgid ""
+"The library is in the cloud and new uploads go straight there. Local copies "
+"are managed in Offloading; bringing the files back is Disconnect."
+msgstr ""
+"La biblioteca está en la nube y las subidas nuevas van directo ahí. Las "
+"copias locales se manejan en Offloading; traer los archivos de vuelta es "
+"Desconectar."
+
+#. translators: %d: number of files that failed to sync
+#: templates/admin-sync-sync.php:385
+#, php-format
+msgid "%d files failed to sync"
+msgstr "%d archivos fallaron al sincronizar"
+
+#: templates/admin-sync-sync.php:417
+msgid "Failed Files"
+msgstr "Archivos fallidos"
+
+#: templates/admin-sync-sync.php:422
+msgid "File"
+msgstr "Archivo"
+
+#: templates/admin-sync-sync.php:423
+msgid "Attempts"
+msgstr "Intentos"
+
+#: templates/admin-sync-sync.php:450
+msgid "Clear Failed Files & Enable Offloading"
+msgstr "Limpiar archivos fallidos y habilitar descarga"
+
+#: templates/admin-sync-sync.php:455
+msgid "Important:"
+msgstr "Importante:"
+
+#: templates/admin-sync-sync.php:456
+msgid ""
+"This action will discard the list of failed files and enable cloud storage "
+"offloading."
+msgstr ""
+"Esta acción descartará la lista de archivos fallidos y habilitará la "
+"descarga de almacenamiento en la nube."
+
+#. translators: %d: number of failed files to remove
+#: templates/admin-sync-sync.php:468
+#, php-format
+msgid "The %d failed files will be removed from the sync queue"
+msgstr "Los %d archivos fallidos serán removidos de la cola de sincronización"
+
+#: templates/admin-sync-sync.php:471
+msgid "Failed files will remain in local storage only (not in cloud)"
+msgstr ""
+"Los archivos fallidos permanecerán solo en almacenamiento local (no en la "
+"nube)"
+
+#: templates/admin-sync-sync.php:472
+msgid "Successfully uploaded files will continue to be served from cloud"
+msgstr ""
+"Los archivos cargados exitosamente continuarán siendo servidos desde la nube"
+
+#: templates/admin-sync-sync.php:473
+msgid "Offloading will be enabled for future uploads"
+msgstr "La descarga se habilitará para futuras cargas"
+
+#: templates/admin-sync-sync.php:482
+msgid "Yes, Clear & Enable"
+msgstr "Sí, Limpiar & Habilitar"
+
+#: templates/admin-sync-sync.php:494
+msgid "Clearing failed files and enabling offloading"
+msgstr "Limpiando archivos fallidos y habilitando descarga"
+
+#: templates/admin-sync-sync.php:504
+msgid "Successfully Enabled!"
+msgstr "¡Habilitado exitosamente!"
+
+#: templates/admin-sync-sync.php:507
+msgid "Failed files cleared and offloading activated"
+msgstr "Archivos fallidos limpiados y descarga activada"
+
+#: templates/admin-sync-sync.php:539
+msgid ""
+"This action will completely reset the synchronization and cannot be undone."
+msgstr ""
+"Esta acción restablecerá completamente la sincronización y no se puede "
+"deshacer."
+
+#: templates/admin-sync-sync.php:548
+msgid ""
+"ALL sync progress will be discarded (including successfully uploaded files)"
+msgstr ""
+"TODO el progreso de sincronización será descartado (incluyendo archivos "
+"cargados exitosamente)"
+
+#: templates/admin-sync-sync.php:549
+msgid "The plugin will return to CONFIGURED state"
+msgstr "El plugin volverá al estado CONFIGURADO"
+
+#: templates/admin-sync-sync.php:550
+msgid "Files uploaded to cloud will remain there but won't be tracked"
+msgstr ""
+"Los archivos subidos a la nube permanecerán allí pero no serán rastreados"
+
+#: templates/admin-sync-sync.php:551
+msgid "You will need to sync again from scratch if you want to use offloading"
+msgstr ""
+"Necesitarás sincronizar de nuevo desde cero si quieres usar la descarga"
+
+#: templates/admin-sync-sync.php:557
+msgid "No, Keep Progress"
+msgstr "No, Mantener Progreso"
+
+#: templates/admin-sync-sync.php:560
+msgid "Yes, Reset Everything"
+msgstr "Sí, Restablecer todo"
+
+#: templates/partials/rail.php:20
+msgid "Right now"
+msgstr "Ahora mismo"
+
+#: templates/partials/rail.php:39
+msgid "Related"
+msgstr "Relacionado"
+
+#: templates/partials/sync-modal.php:43
+msgid "Closing this window will cancel the synchronization"
+msgstr "Cerrar esta ventana cancelará la sincronización"
+
+#: templates/partials/sync-modal.php:47
+msgid "Syncing files..."
+msgstr "Sincronizando archivos..."
+
+#~ msgid ""
+#~ "Re-enter the credentials in the Cloud Provider tab. Everything else "
+#~ "(provider selection, container name, sync state) is preserved."
+#~ msgstr ""
+#~ "Volvé a ingresar las credenciales en la pestaña Proveedor en la nube. "
+#~ "Todo lo demás —el proveedor elegido, el nombre del contenedor, el estado "
+#~ "de la sincronización— se conserva."
+
+#~ msgid "Please configure a cloud provider in the Cloud Provider tab first."
+#~ msgstr ""
+#~ "Primero configura un proveedor en la nube en la pestaña Proveedor en la "
+#~ "nube."
+
+#~ msgid "Go to the Cloud Provider tab"
+#~ msgstr "Ve a la pestaña Proveedor en la nube"
+
+#~ msgid "Return to this tab to sync files"
+#~ msgstr "Vuelve a esta pestaña para sincronizar archivos"
+
+#~ msgid "Update your credentials or remove the cloud provider configuration."
+#~ msgstr ""
+#~ "Actualizá tus credenciales o eliminá la configuración del proveedor de la "
+#~ "nube."
+
+#~ msgid "Update Key"
+#~ msgstr "Actualizar clave"
+
+#~ msgid "Storage Account:"
+#~ msgstr "Cuenta de almacenamiento:"
+
+#~ msgid "Container:"
+#~ msgstr "Contenedor:"
+
+#~ msgid "Upload Settings"
+#~ msgstr "Configuración de carga"
+
+#~ msgid "Offloading Settings"
+#~ msgstr "Configuración de offloading"
+
+#~ msgid "System Status"
+#~ msgstr "Estado del sistema"
+
+#~ msgid "View plugin status and system information."
+#~ msgstr "Ver estado del plugin e información del sistema."
+
+#~ msgid "Database"
+#~ msgstr "Base de datos"
+
+#, php-format
+#~ msgid "%d options stored"
+#~ msgstr "%d opciones almacenadas"
