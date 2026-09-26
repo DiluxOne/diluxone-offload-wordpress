@@ -84,7 +84,7 @@ Once the work for the next version is merged into `main` and CI is green:
 
 ## Required secrets
 
-The release workflow needs two secrets. They live in the repository environment `wordpress-org`, which the deploy job runs in. Its deployment policy admits `X.Y.Z` tags and `main` (the by-hand credentials check runs from `main`), so a job of a pull request or of any other branch can never read them (Settings › Environments › wordpress-org):
+The release workflow needs two secrets. They live in the repository environment `wordpress-org`, which the deploy job runs in. Its deployment policy admits `X.Y.Z` tags and `main` (the by-hand credentials check runs from `main`), so a job of a pull request or of any other branch can never read them (Settings › Environments › wordpress-org). The caller passes `secrets: inherit`: it is the only way an environment's secrets reach a called workflow's job, and it also hands over every repository and organisation secret. Two things keep that acceptable: the workflow runs only on `X.Y.Z` tags (created by administrators only) or by hand from `main`, and it calls the shared workflow at a fixed commit, so what runs with those secrets is exactly the reviewed code. A Dependabot bump of that pin is therefore a secret-bearing change: read its diff in `DiluxOne/.github` before merging. The shared workflow declares no secrets of its own:
 
 | Secret | What it's for |
 | --- | --- |
