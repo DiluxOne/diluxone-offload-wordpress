@@ -16,7 +16,7 @@ The pull request checks run from [`.github/workflows/pull-request.yml`](../.gith
 | Security taint analysis | Psalm + humanmade/psalm-plugin-wordpress (taint-only mode) | XSS, SQL injection, command injection, file-system traversal. | fast | `make psalm` |
 | i18n | `wp i18n make-pot` on the shipped tree | Missing translator comments, dynamic text domains, concatenated strings. | fast | `make i18n` |
 | Plugin Check (wp.org) | wordpress/plugin-check on the shipped tree | The checks the wp.org plugin team runs at submission and review. | fast | `make plugin-check` |
-| Readme and versions | shell | Required readme headers; `Stable tag`, `Version:` and the version constant in line (a `-dev` / `-alpha` / `-beta` / `-rc` suffix on `main` is allowed, see [`release.md`](release.md)); changelog entry. | fast | `make release` |
+| Readme and versions | shell | Required readme headers; `Stable tag`, `Version:` and the version constant in line (`main` holds the last released version; a `-dev.N` / `-alpha` / `-beta` / `-rc` suffix is accepted for stamped builds, see [`release.md`](release.md)); changelog entry. | fast | `make release` |
 | Claude review | shared `claude-review` workflow | Everything in [`architecture.md`](architecture.md) and the WordPress review profile; rates risk and complexity. Whole change first, then only new pushes; light model for low-risk paths. | after fast | (runs on PR) |
 | Claude replies | shared `review-reply` workflow | Answers a member or collaborator who mentions `@dilux-bot` in a review thread or the conversation, on a pull request from a branch of this repository; resolves its own thread when the problem is fixed or shown not to be one. | on comment | (runs on a mention) |
 | Integration tests | PHPUnit + wp-env (multisite network) | Behaviour against a real WordPress runtime + DB. | slow | `make test-integration` |
@@ -126,7 +126,7 @@ Plugin Check (the wp.org-side validator) catches a partly overlapping but distin
 
 ## Plugin Check
 
-CI: the fast suite's **WordPress Plugin Check** job, on the shipped tree; `make plugin-check` locally on the built dist. Runs the [official WordPress Plugin Check](https://github.com/WordPress/plugin-check-action) action with all categories enabled (`plugin_repo`, `security`, `performance`, `accessibility`, `general`) plus experimental checks. Because it checks the shipped tree, repository files (tests, docs, `.github/`) never reach it. Only `stable_tag_mismatch` is ignored: `main` carries a `-dev` Version between releases; the readme job enforces the relaxed rule and the release workflow the strict one.
+CI: the fast suite's **WordPress Plugin Check** job, on the shipped tree; `make plugin-check` locally on the built dist. Runs the [official WordPress Plugin Check](https://github.com/WordPress/plugin-check-action) action with all categories enabled (`plugin_repo`, `security`, `performance`, `accessibility`, `general`) plus experimental checks. Because it checks the shipped tree, repository files (tests, docs, `.github/`) never reach it. Only `stable_tag_mismatch` is ignored: a development build is stamped `<next>-dev.<N>` in all three markers, and Plugin Check on such a build would compare it against the readme's own `Stable tag` (the same value) but flag the pre-release shape; the readme job enforces the marker rule and the release workflow the strict one, on the stamped tree.
 
 If you ever submit a new version of the plugin to wp.org, the same checks run there. CI catches them earlier so a wp.org reviewer never has to.
 
