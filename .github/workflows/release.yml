@@ -8,13 +8,21 @@ on:
   push:
     tags: ['*']
 
+# The SVN credentials live in the environment `wordpress-org` (Settings ›
+# Environments), which the shared workflow's deploy job runs in; nothing is
+# passed from here.
+#
+# The shared workflow is pinned to a commit, not to the moving `v1` tag:
+# this is the one workflow that runs with the publishing credentials, and
+# what it does must not change under it without a pull request here.
+# Dependabot keeps the pin current.
+
 permissions:
   contents: write
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@v1
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@38e656ac5e79eb237bf989a5653a04768a2a8d85 # v1.2.0
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
-    secrets: inherit

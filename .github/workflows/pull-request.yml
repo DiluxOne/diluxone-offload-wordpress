@@ -39,7 +39,9 @@ jobs:
     uses: DiluxOne/.github/.github/workflows/claude-review.yml@v1
     with:
       profile: plugin-wp
-    secrets: inherit
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
 
   auto-merge:
     needs: review
@@ -52,4 +54,5 @@ jobs:
       trusted: ${{ needs.review.outputs.trusted }}
       blocking: ${{ needs.review.outputs.blocking }}
       enabled: ${{ needs.review.outputs.auto-merge }}
-    secrets: inherit
+    secrets:
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}

@@ -23,7 +23,9 @@ jobs:
     uses: DiluxOne/.github/.github/workflows/issue-triage.yml@v1
     with:
       support-url: https://wordpress.org/support/plugin/diluxone-offload/
-    secrets: inherit
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
 
   repro:
     permissions:
@@ -32,4 +34,6 @@ jobs:
       issues: write
       pull-requests: write
     uses: DiluxOne/.github/.github/workflows/issue-repro.yml@v1
-    secrets: inherit
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}

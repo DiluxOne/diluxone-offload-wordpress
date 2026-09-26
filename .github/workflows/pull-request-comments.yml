@@ -22,4 +22,6 @@ jobs:
     uses: DiluxOne/.github/.github/workflows/review-reply.yml@v1
     with:
       profile: plugin-wp
-    secrets: inherit
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
