@@ -37,7 +37,7 @@ body:
     id: plugin-version
     attributes:
       label: Plugin version
-      description: From "Plugins" screen in WordPress admin, or from the plugin header.
+      description: As shown under DiluxOne Offload → Status → System (for a development build, the version and the build, e.g. "2.0.0-dev.8, build a1b2c3d"), or on the Plugins screen. Please check first that it happens on the current released version or on the current development build (Releases → Development build).
       placeholder: "1.0.0"
     validations:
       required: true

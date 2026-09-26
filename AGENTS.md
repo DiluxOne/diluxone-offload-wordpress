@@ -69,9 +69,11 @@ What you must do, and never do, in a change:
   push to `main` ends green as **Not ready** and nothing waits for approval.
   The pull request that removes it is the maintainer's decision to release
   and contains nothing else. Never remove it as part of another change.
-- **Every push to `main` uploads a development build**, the shipped tree
-  stamped `<next>-dev.<N>`, as the artifact of the `Release` run. That is
-  how a change is tried before a release; `make dist` builds the same locally.
+- **Every push to `main` publishes a development build**, the shipped tree
+  stamped `<next>-dev.<N>`, as the one **Development build** pre-release in
+  Releases (tag `dev`, replaced each time, never "Latest"). That is how a
+  change is tried before a release; `make dist` builds the same locally.
+  Never create, move or delete the tag `dev` by hand: the pipeline owns it.
 - **Publishing is a deployment a maintainer approves** in the `wordpress-org`
   environment; the job then stamps, deploys, tags and creates the release.
   No agent does any of that by hand. An administrator may still push a tag

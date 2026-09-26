@@ -2,8 +2,10 @@ name: Release
 
 # Publishes DiluxOne Offload to wordpress.org as a deployment the maintainer
 # approves, through the shared workflow in DiluxOne/.github: every push to
-# main uploads a development build (the shipped tree stamped <next>-dev.<N>)
-# and computes the next version from the type:* labels of what merged. While
+# main publishes the development build (the shipped tree stamped
+# <next>-dev.<N>) as the one "Development build" pre-release on the moving
+# tag `dev`, and computes the next version from the type:* labels of what
+# merged. While
 # the newest changelog entry of readme.txt starts with the line `Unreleased.`
 # the version is not ready and nothing waits; once a pull request removed
 # that line, the job waits for approval in the environment `wordpress-org`,
