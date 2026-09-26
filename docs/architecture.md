@@ -55,6 +55,7 @@ handles both.
 | `templates/admin-*.php` | Admin views (rendered by `Admin`). One file per tab: Overview, Cloud Provider, Sync & Offloading, Settings, Status. |
 | `assets/css/admin.css`, `assets/js/admin.js` | Plugin runtime assets bundled with the plugin. |
 | `languages/*.{po,mo,pot}` | Text domain `diluxone-offload`. Only the `.pot` ships; the `.po`/`.mo` for `es_AR`, `es_ES`, `es_MX`, `pt_BR`, `pt_PT`, `fr_FR`, `de_DE`, `it_IT` stay in the repo as the source for translate.wordpress.org (see `.distignore`). |
+| `languages/readme/` | The wordpress.org readme in the same eight locales (`readme.pot`, `readme-<locale>.po`), imported by hand into the Stable Readme project on translate.wordpress.org. Never ships (`.distignore`). |
 | `.wordpress-org/` | Banner / icon / screenshots for the wp.org listing. NOT runtime assets. |
 
 ---
