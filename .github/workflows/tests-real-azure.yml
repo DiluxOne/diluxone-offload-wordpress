@@ -37,14 +37,44 @@ permissions:
   pull-requests: write
 
 jobs:
+  changes:
+    name: What changed
+    # The organisation's rule, applied to this repository's own workflow:
+    # the suite runs on a pull request only when it changes code (the
+    # `code` list of the policy, defaults plus .github/review-policy.yml).
+    # The gate below runs on !cancelled() and treats a missing answer as
+    # "run", so this job failing never skips the suite.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DiluxOne/.github
+          ref: v1
+          path: .dx-central
+          persist-credentials: false
+      - id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          DEFAULT_POLICY: .dx-central/policy/review-policy.default.yml
+        run: bash .dx-central/scripts/changes.sh
+
   real:
     name: Real Azure end-to-end (single site + network)
+    needs: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    # Never with a fork's code (the secrets are the maintainer's), and never
-    # on a draft: the bot's reproduction pull requests are drafts, and a fix
-    # a person pushes on top runs the suite the moment it is marked ready.
-    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)
+    # Never with a fork's code (the secrets are the maintainer's), never on
+    # a draft (the bot's reproduction pull requests are drafts, and a fix a
+    # person pushes on top runs the suite the moment it is marked ready),
+    # and on a pull request only when code changed.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && needs.changes.outputs.code != 'false')) }}
     env:
       AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}
       AZURE_E2E_KEY: ${{ secrets.AZURE_E2E_KEY }}

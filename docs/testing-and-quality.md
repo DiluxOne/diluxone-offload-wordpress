@@ -28,6 +28,8 @@ The pull request checks run from [`.github/workflows/pull-request.yml`](../.gith
 
 The Claude review and the real-storage suite need the organisation's keys, so on pull requests from forks they are skipped (a skipped required check counts as passed). The real-storage suite then runs on `main` after the merge; see `CONTRIBUTING.md`, "What CI runs, and what it cannot run on a fork".
 
+**What runs when.** A pull request that changes no code runs only the fast checks and the review: the integration tests, the end-to-end tests, the real-storage suite and Plugin Check show as skipped, and the ruleset accepts that. "Code" is the `code` list of the organisation's policy (`policy/review-policy.default.yml` in `DiluxOne/.github`: PHP, JS/TS, CSS, `assets/`, `templates/`, `tests/`, the composer and npm manifests, the wp-env and test configs, `Makefile`, `.distignore`, `.github/workflows/`) plus whatever this repository adds under `code:` in `.github/review-policy.yml`; `readme.txt` and hidden files trigger Plugin Check on their own. Docs, translations and the roadmap therefore cost seconds, not the twenty minutes of the full run. A push to `main` always runs everything. The answer comes from `scripts/changes.sh` in the central, run at the front of each workflow against the pull request's merge commit and the policy of the base branch; when it cannot answer, everything runs.
+
 ## Unit tests
 
 Located in [`tests/Unit/`](../tests/Unit/). They run in pure PHP without WordPress — `brain/monkey` stubs out `__()`, `apply_filters`, etc., so a unit test can exercise a class method without booting WordPress.
