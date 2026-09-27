@@ -207,7 +207,6 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 == Changelog ==
 
 = 2.0.0 =
-Unreleased.
 
 * S3-compatible storage: besides Azure Blob Storage, the media can live on Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys) or any server that speaks the S3 API, such as MinIO. Pick the service and the plugin fills in the endpoint and the public URL; the Public URL field is also where a CDN or a custom domain goes. Test Connection proves the keys can write to the bucket and that browsers can read what is stored, and refuses a private bucket. Large files go up in 5 MiB parts; the secret access key is encrypted like the Azure key. "Force HTTPS for cloud storage URLs" leaves alone a Public URL that is plain http on purpose, such as a server on a private network.
 * Only a configuration that passed Test Connection can be saved, now checked on the server too: a key other than the tested one is refused.
