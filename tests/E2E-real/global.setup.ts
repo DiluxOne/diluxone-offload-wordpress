@@ -1,17 +1,17 @@
 import { test as setup, expect } from '@playwright/test';
-import { credentialsFromEnv, createContainers, writeRun, RealRun } from './helpers/azure';
+import { newRun, createContainers, writeRun } from './helpers/storage';
 import { BASE_URL, wp, Site } from './helpers/wp';
 import { generateFixtures } from './helpers/fixtures';
 
 /**
- * One container per journey, one login per site, the fixture set on disk.
+ * One container (Azure) or bucket (S3) per journey, one login per site, the
+ * fixture set on disk.
  *
- * The container names carry the run id so two runs never share objects,
+ * The names carry the run id so two runs never share objects,
  * and the teardown deletes them whatever happened in between.
  */
 const runId = ( process.env.GITHUB_RUN_ID ?? String( Date.now() ) ).toLowerCase();
-const containers = { single: `e2e-${ runId }-single`, network: `e2e-${ runId }-network` };
-const run: RealRun = { ...credentialsFromEnv(), container: containers.single, containers, runId };
+const run = newRun( runId );
 
 setup( 'create the run containers and the fixture set', async () => {
 	// The run file goes first: if a creation fails half-way, the teardown

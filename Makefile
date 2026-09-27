@@ -233,10 +233,25 @@ screenshots: ## Retake the wordpress.org listing screenshots (.wordpress-org/) o
 	npx playwright test -c playwright.screenshots.config.ts
 
 .PHONY: test-real
-test-real: ## Run the real-storage suite: every screen, single site and network, against a real Azure account (AZURE_E2E_ACCOUNT/KEY or .env.e2e; needs `make env` + `make env-multisite`).
+test-real: ## Run the real-storage suite: every screen, single site and network, against the provider REAL_PROVIDER names (azure by default, AZURE_E2E_ACCOUNT/KEY or .env.e2e; s3 with `make s3-up` or S3_E2E_*; needs `make env` + `make env-multisite`).
 	@mkdir -p build
 	npx playwright test -c playwright.real.config.ts
 	$(MAKE) test-integration-real
+
+.PHONY: s3-up
+s3-up: ## Start a local S3-compatible server (RustFS; MinIO no longer publishes images) for the S3 real suite, on wp-env's network, reachable as http://s3local:9000 from WordPress and from this machine (adds "127.0.0.1 s3local" to /etc/hosts once; needs `make env`).
+	@net=$$(docker ps --filter publish=8888 --format '{{.Networks}}' | head -1); \
+	 [ -n "$$net" ] || { echo "wp-env is not running: make env first"; exit 1; }; \
+	 docker rm -f diluxone-offload-s3 >/dev/null 2>&1; \
+	 docker run -d --name diluxone-offload-s3 --network "$$net" --network-alias s3local -p 9000:9000 \
+	   -e RUSTFS_ACCESS_KEY=e2eadmin -e RUSTFS_SECRET_KEY=e2eadmin-secret rustfs/rustfs:latest >/dev/null
+	@grep -qE '^[0-9.]+[[:space:]]+s3local([[:space:]]|$$)' /etc/hosts || { echo "Adding '127.0.0.1 s3local' to /etc/hosts"; echo '127.0.0.1 s3local' | sudo tee -a /etc/hosts >/dev/null; }
+	@for i in $$(seq 1 30); do curl -s -o /dev/null http://s3local:9000/ && break; sleep 1; done; \
+	 curl -s -o /dev/null http://s3local:9000/ && echo "✔ S3-compatible server ready at http://s3local:9000 (e2eadmin / e2eadmin-secret)" || { echo "The S3 server did not start"; exit 1; }
+
+.PHONY: s3-down
+s3-down: ## Stop and remove the local S3-compatible server.
+	@docker rm -f diluxone-offload-s3 >/dev/null 2>&1 && echo "✔ S3 server removed" || true
 
 .PHONY: sweep-real
 sweep-real: ## Delete the real suite's e2e-* containers older than an hour (or MAX_AGE_MINUTES=0 for all).
@@ -244,15 +259,22 @@ sweep-real: ## Delete the real suite's e2e-* containers older than an hour (or M
 	 node tests/E2E-real/sweep-containers.js
 
 .PHONY: test-integration-real
-test-integration-real: ## PHPUnit against the real Azure provider (same credentials as test-real).
+test-integration-real: ## PHPUnit against the real provider REAL_PROVIDER names (azure, the default: AZURE_E2E_*; s3: S3_E2E_* or the local server of `make s3-up`).
 	@mkdir -p build
 	@set -a; [ -f .env.e2e ] && . ./.env.e2e; set +a; \
-	 [ -n "$$AZURE_E2E_ACCOUNT" ] && [ -n "$$AZURE_E2E_KEY" ] || { echo "AZURE_E2E_ACCOUNT / AZURE_E2E_KEY missing (env or .env.e2e)"; exit 1; }; \
-	 printf '{"account":"%s","key":"%s","run_id":"%s"}\n' "$$AZURE_E2E_ACCOUNT" "$$AZURE_E2E_KEY" "$${GITHUB_RUN_ID:-local}" > build/real-azure-credentials.json; chmod 600 build/real-azure-credentials.json
-	npx @wordpress/env run tests-cli \
+	 if [ "$${REAL_PROVIDER:-azure}" = "s3" ]; then \
+	   printf '{"preset":"%s","endpoint":"%s","region":"%s","bucket":"%s","access_key_id":"%s","secret_access_key":"%s","public_url":"%s","run_id":"%s"}\n' \
+	     "$${S3_E2E_PRESET:-custom}" "$${S3_E2E_ENDPOINT:-http://s3local:9000}" "$${S3_E2E_REGION:-us-east-1}" "$${S3_E2E_BUCKET:-}" \
+	     "$${S3_E2E_ACCESS_KEY_ID:-e2eadmin}" "$${S3_E2E_SECRET_ACCESS_KEY:-e2eadmin-secret}" "$${S3_E2E_PUBLIC_URL:-http://s3local:9000/{bucket}}" "$${GITHUB_RUN_ID:-local}" > build/real-s3-credentials.json; \
+	   chmod 600 build/real-s3-credentials.json; filter=RealS3; \
+	 else \
+	   [ -n "$$AZURE_E2E_ACCOUNT" ] && [ -n "$$AZURE_E2E_KEY" ] || { echo "AZURE_E2E_ACCOUNT / AZURE_E2E_KEY missing (env or .env.e2e)"; exit 1; }; \
+	   printf '{"account":"%s","key":"%s","run_id":"%s"}\n' "$$AZURE_E2E_ACCOUNT" "$$AZURE_E2E_KEY" "$${GITHUB_RUN_ID:-local}" > build/real-azure-credentials.json; chmod 600 build/real-azure-credentials.json; filter=RealAzure; \
+	 fi; \
+	 npx @wordpress/env run tests-cli \
 	    ./wp-content/plugins/diluxone-offload-wordpress/vendor/bin/phpunit \
-	    -c ./wp-content/plugins/diluxone-offload-wordpress/phpunit-integration.xml --filter RealAzure; \
-	 status=$$?; rm -f build/real-azure-credentials.json; exit $$status
+	    -c ./wp-content/plugins/diluxone-offload-wordpress/phpunit-integration.xml --filter $$filter; \
+	 status=$$?; rm -f build/real-azure-credentials.json build/real-s3-credentials.json; exit $$status
 
 .PHONY: test-all
 test-all: test-unit test-integration test-e2e ## Unit + integration + end-to-end.

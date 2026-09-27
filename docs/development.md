@@ -46,7 +46,8 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make test-integration` | Run the integration-test suite against `wp-env` (must be `make env` first). |
 | `make check` | The fast gates: lint + stan + psalm + unit tests. CI also runs integration, E2E, i18n, Plugin Check and the real-storage suite, once per change: a pull request runs them when it changes code, the push to `main` skips them when its tree is the one the pull request tested, and a weekly run (or *Run workflow*) runs everything. |
 | `make test-e2e` | Playwright end-to-end suite against `wp-env` (fake cloud client). |
-| `make test-real` | The real-storage suite against a real Azure account (see `CONTRIBUTING.md`). |
+| `make test-real` | The real-storage suite against a real Azure account (see `CONTRIBUTING.md`); `REAL_PROVIDER=s3` runs it against S3-compatible storage instead. |
+| `make s3-up` / `make s3-down` | Start or remove the local S3-compatible server the S3 suite runs against: RustFS (MinIO no longer publishes images) on wp-env's network, reachable as `http://s3local:9000` from WordPress and from this machine. The first run adds `127.0.0.1 s3local` to `/etc/hosts` (with `sudo`). The `S3_E2E_*` variables point the suite at another service. |
 | `make dist` | Build `build/diluxone-offload/`, what wordpress.org receives, stamped with the development version (`<next>-dev.<N>`, see [`release.md`](release.md#development-builds)) and the commit it was built from; the same build every push to `main` publishes as the **Development build** pre-release. `STAMP=0` leaves the tree's own version. |
 | `make plugin-check` | wordpress.org's Plugin Check on the built dist. |
 | `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, stamped like `make dist`, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
@@ -87,7 +88,7 @@ Where the **repository name** is correct and must be left alone, because
 | Where | What |
 |---|---|
 | The shared `plugin-tests-wp` workflow | `wp plugin activate` with the repository name. |
-| `.github/workflows/tests-real-azure.yml` | The same: it activates the plugin in wp-env under the repository name. |
+| `.github/workflows/tests-real-azure.yml`, `tests-real-s3.yml` | The same: they activate the plugin in wp-env under the repository name. |
 | `Makefile` (`test-integration`, coverage) | The same name in the activate and in the phpunit paths. |
 
 ### Why the bundled `.mo` files need copying

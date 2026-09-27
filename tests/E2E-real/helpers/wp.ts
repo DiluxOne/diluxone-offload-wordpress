@@ -75,3 +75,19 @@ export function attachmentUrl( site: Site, id: number, url?: string ): string {
 export function attachedFile( site: Site, id: number, url?: string ): string {
 	return wp( site, [ 'eval', `echo get_post_meta( ${ id }, '_wp_attached_file', true );` ], url );
 }
+
+/**
+ * One-round sync and disconnect batches on a site (at most 12 MB each) (a must-use plugin that
+ * sets the diluxone_offload_sync_batch_seconds filter), or back to the
+ * default. Against a fast server a single 8-second batch moves the whole
+ * library, and there is nothing left to cancel mid-way.
+ */
+export function shortBatches( site: Site, on: boolean ): void {
+	const file = '/var/www/html/wp-content/mu-plugins/diluxone-offload-e2e-short-batches.php';
+	shell(
+		site,
+		on
+			? `mkdir -p /var/www/html/wp-content/mu-plugins && printf '%s' "<?php add_filter( 'diluxone_offload_sync_batch_seconds', function () { return 0.0; } );" > ${ file }`
+			: `rm -f ${ file }`
+	);
+}

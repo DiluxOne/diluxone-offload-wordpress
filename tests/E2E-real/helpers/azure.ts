@@ -2,28 +2,16 @@ import { BlobServiceClient, ContainerClient, StorageSharedKeyCredential } from '
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { RealRun } from './storage';
 
 /**
- * The storage account the real suite runs against, and the container each
- * journey owns. Every run creates one container per journey and deletes
- * them at the end, so neither runs nor journeys see each other's objects
- * (the plugin never deletes blobs on uninstall, so one journey's leftovers
- * would be another's "unexpected keys") and the account stays empty.
+ * The Azure side of the real suite: the storage account it runs against and
+ * the container each journey owns. Every run creates one container per
+ * journey and deletes them at the end, so neither runs nor journeys see each
+ * other's objects (the plugin never deletes blobs on uninstall, so one
+ * journey's leftovers would be another's "unexpected keys") and the account
+ * stays empty. The run itself is described in storage.ts.
  */
-export type Journey = 'single' | 'network';
-
-export interface RealRun {
-	account: string;
-	key: string;
-	/** The container of the journey that read this run. */
-	container: string;
-	containers: Record< Journey, string >;
-	runId: string;
-}
-
-/** Written by the global setup; read by every spec and by the PHPUnit real-provider tests. */
-export const RUN_FILE = path.resolve( __dirname, '../../../build/real-azure.json' );
-
 export function credentialsFromEnv(): { account: string; key: string } {
 	let account = process.env.AZURE_E2E_ACCOUNT ?? '';
 	let key = process.env.AZURE_E2E_KEY ?? '';
@@ -45,17 +33,6 @@ export function credentialsFromEnv(): { account: string; key: string } {
 		throw new Error( 'AZURE_E2E_ACCOUNT and AZURE_E2E_KEY are required (env or .env.e2e).' );
 	}
 	return { account, key };
-}
-
-/** The run as the given journey sees it: `container` is that journey's own. */
-export function readRun( journey: Journey ): RealRun {
-	const run = JSON.parse( fs.readFileSync( RUN_FILE, 'utf8' ) ) as RealRun;
-	return { ...run, container: run.containers[ journey ] };
-}
-
-export function writeRun( run: RealRun ): void {
-	fs.mkdirSync( path.dirname( RUN_FILE ), { recursive: true } );
-	fs.writeFileSync( RUN_FILE, JSON.stringify( run, null, 2 ) + '\n', { mode: 0o600 } );
 }
 
 export function containerClient( run: RealRun ): ContainerClient {
