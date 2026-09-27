@@ -70,11 +70,10 @@ test.describe('Settings › Transfers', () => {
 test.describe('Cloud Provider › Connection', () => {
 	test('lists the implemented providers only', async ({ page }) => {
 		await page.goto(CONNECTION);
-		// 1.0.0 ships one provider: the select offers Azure and nothing else.
 		const values = await page.locator('#cloud_provider option').evaluateAll((options) =>
 			options.map((o) => (o as HTMLOptionElement).value).filter((v) => v !== '')
 		);
-		expect(values).toEqual(['azure']);
+		expect(values).toEqual(['azure', 's3']);
 	});
 
 	test('submitting Azure with empty fields does not silently succeed', async ({ page }) => {
@@ -99,5 +98,89 @@ test.describe('Cloud Provider › Connection', () => {
 		const blockedByBrowser = await page.locator('input:invalid').count();
 		const serverError = await page.locator('.notice-error, .error, .diluxone-offload-notice-error').count();
 		expect(blockedByBrowser + serverError, 'an empty form must be rejected somewhere').toBeGreaterThan(0);
+	});
+});
+
+test.describe('Cloud Provider › Connection, S3-compatible', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.goto(CONNECTION);
+		await page.locator('#cloud_provider').selectOption('s3');
+	});
+
+	test('choosing S3 shows its section and hides Azure\'s', async ({ page }) => {
+		await expect(page.locator('#s3-config')).toBeVisible();
+		await expect(page.locator('#azure-config')).toBeHidden();
+		await expect(page.locator('#s3_preset')).toHaveValue('aws');
+		await expect(page.locator('.diluxone-offload-s3-hints [data-preset="aws"]')).toBeVisible();
+	});
+
+	test('the service fills in the endpoint and the public URL from region and bucket', async ({ page }) => {
+		await page.locator('#s3_region').fill('eu-west-1');
+		await page.locator('#s3_bucket').fill('demo');
+		await expect(page.locator('#s3_endpoint')).toHaveValue('https://s3.eu-west-1.amazonaws.com');
+		await expect(page.locator('#s3_public_url')).toHaveValue('https://demo.s3.eu-west-1.amazonaws.com');
+	});
+
+	test('a public URL the user typed survives a region change and is reset by another service', async ({ page }) => {
+		await page.locator('#s3_bucket').fill('demo');
+		await page.locator('#s3_public_url').fill('https://cdn.example.com');
+		await page.locator('#s3_region').fill('eu-west-3');
+		await expect(page.locator('#s3_public_url')).toHaveValue('https://cdn.example.com');
+		await expect(page.locator('#s3_endpoint')).toHaveValue('https://s3.eu-west-3.amazonaws.com', { timeout: 5000 });
+		await page.locator('#s3_preset').selectOption('wasabi');
+		await expect(page.locator('#s3_public_url')).toHaveValue('https://s3.us-east-1.wasabisys.com/demo');
+	});
+
+	test('R2 fixes the region, leaves both URLs to the user and shows its hint', async ({ page }) => {
+		await page.locator('#s3_preset').selectOption('r2');
+		await expect(page.locator('#s3_region')).toHaveValue('auto');
+		await expect(page.locator('#s3_region')).toHaveAttribute('readonly', '');
+		await expect(page.locator('#s3_endpoint')).toHaveValue('');
+		await expect(page.locator('#s3_public_url')).toHaveValue('');
+		await expect(page.locator('.diluxone-offload-s3-hints [data-preset="r2"]')).toBeVisible();
+		await expect(page.locator('.diluxone-offload-s3-hints [data-preset="aws"]')).toBeHidden();
+	});
+
+	test('Custom accepts a plain http endpoint and warns about it', async ({ page }) => {
+		await page.locator('#s3_preset').selectOption('custom');
+		await expect(page.locator('.diluxone-offload-s3-http-warning')).toBeHidden();
+		await page.locator('#s3_endpoint').fill('http://minio:9000');
+		await expect(page.locator('.diluxone-offload-s3-http-warning')).toBeVisible();
+		await page.locator('#s3_endpoint').fill('https://minio.example.com');
+		await expect(page.locator('.diluxone-offload-s3-http-warning')).toBeHidden();
+	});
+
+	test('Advanced offers the object ACL only where the service honours one, and the addressing only under Custom', async ({ page }) => {
+		await page.locator('.diluxone-offload-s3-advanced summary').click();
+		await expect(page.locator('.diluxone-offload-s3-acl-row')).toBeVisible();
+		await expect(page.locator('#s3_path_style')).toBeDisabled();
+		await expect(page.locator('#s3_path_style')).toHaveValue('virtual');
+		await page.locator('#s3_preset').selectOption('r2');
+		await expect(page.locator('.diluxone-offload-s3-acl-row')).toBeHidden();
+		await expect(page.locator('#s3_path_style')).toHaveValue('path');
+		await page.locator('#s3_preset').selectOption('custom');
+		await expect(page.locator('#s3_path_style')).toBeEnabled();
+	});
+
+	test('an empty required field is blocked, and Save stays disabled without a test', async ({ page }) => {
+		await expect(page.locator('#submit')).toBeDisabled();
+		await page.locator('#s3-config .test-connection-btn').click();
+		await expect(page.locator('#s3-config .connection-result')).toContainText(/fill in all required fields/i);
+		await expect(page.locator('#submit')).toBeDisabled();
+	});
+
+	test('a test against a server that is not there fails and says so, without the secret', async ({ page }) => {
+		await page.locator('#s3_preset').selectOption('custom');
+		await page.locator('#s3_region').fill('us-east-1');
+		await page.locator('#s3_endpoint').fill('https://s3.invalid');
+		await page.locator('#s3_bucket').fill('nowhere');
+		await page.locator('#s3_access_key_id').fill('AKIDMOCK');
+		await page.locator('#s3_secret_access_key').fill('mock-secret-never-echoed');
+		await page.locator('#s3_public_url').fill('https://s3.invalid/nowhere');
+		await page.locator('#s3-config .test-connection-btn').click();
+		const result = page.locator('#s3-config .connection-result');
+		await expect(result).toContainText(/Connection Failed/i, { timeout: 60_000 });
+		await expect(result).not.toContainText('mock-secret-never-echoed');
+		await expect(page.locator('#submit')).toBeDisabled();
 	});
 });

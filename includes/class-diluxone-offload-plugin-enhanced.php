@@ -358,6 +358,23 @@ class Plugin {
 	}
 
 	/**
+	 * Seconds one sync or disconnect request keeps transferring before it
+	 * answers the browser, which then asks for the next batch: 8 by default,
+	 * short enough for a responsive progress bar and far from any
+	 * max_execution_time. A round already started always finishes.
+	 *
+	 * @return float
+	 */
+	private static function batch_seconds(): float {
+		/**
+		 * Filters the seconds one sync or disconnect batch request may run.
+		 *
+		 * @param float $seconds Default 8.0.
+		 */
+		return max( 0.0, (float) apply_filters( 'diluxone_offload_sync_batch_seconds', 8.0 ) );
+	}
+
+	/**
 	 * ⭐ NEW AJAX: Process batch (time-based batching)
 	 * For recursion-based approach
 	 */
@@ -377,8 +394,7 @@ class Plugin {
 		$concurrency = $sync_meta['concurrency'] ?? 5;
 		$this->sync_manager->set_parallel_uploads( $concurrency );
 
-		// Process batch (8 second time limit for responsive UI)
-		$result = $this->sync_manager->process_batch( 8.0 );
+		$result = $this->sync_manager->process_batch( self::batch_seconds() );
 
 		wp_send_json_success( $result );
 	}
@@ -438,14 +454,14 @@ class Plugin {
 		$this->sync_manager->set_parallel_uploads( $concurrency );
 
 		// Process reverse batch (8 second time limit for responsive UI)
-		$result = $this->sync_manager->process_reverse_batch( 8.0 );
+		$result = $this->sync_manager->process_reverse_batch( self::batch_seconds() );
 
 		wp_send_json_success( $result );
 	}
 
 	/**
 	 * AJAX: Scan remote files and register them in DB — runs before disconnect.
-	 * Finds files in Azure that are not in DB and marks them as deleted=1
+	 * Finds files in the cloud that are not in DB and marks them as deleted=1
 	 */
 	public function ajax_cs_scan_remote(): void {
 		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
@@ -468,11 +484,11 @@ class Plugin {
 				wp_send_json_error( esc_html__( 'Cloud client not configured', 'diluxone-offload' ) );
 			}
 
-			// List this site's files from Azure
+			// List this site's files in the cloud
 			Logger::info( '[DiluxOne Offload Plugin] Starting remote scan for disconnect...' );
-			$azure_files = CloudStreamWrapper::site_files( $cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
+			$cloud_files = CloudStreamWrapper::site_files( $cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
 
-			if ( empty( $azure_files ) ) {
+			if ( empty( $cloud_files ) ) {
 				Logger::info( '[DiluxOne Offload Plugin] No files found in cloud storage' );
 				wp_send_json_success(
 					array(
@@ -483,7 +499,7 @@ class Plugin {
 				);
 			}
 
-			Logger::info( '[DiluxOne Offload Plugin] Found ' . count( $azure_files ) . ' files in Azure, checking against DB...' );
+			Logger::info( '[DiluxOne Offload Plugin] Found ' . count( $cloud_files ) . ' files in the cloud, checking against DB...' );
 
 			global $wpdb;
 			$table_name = DiluxOneOffloadDB::get_table_name();
@@ -491,7 +507,7 @@ class Plugin {
 			$cloud_only_files = array();
 			$already_in_db    = 0;
 
-			foreach ( $azure_files as $file ) {
+			foreach ( $cloud_files as $file ) {
 				$relative_path = DiluxOneOffloadDB::path_from_key( (string) $file['path'] );
 
 				// Check if file exists in DB
@@ -545,7 +561,7 @@ class Plugin {
 
 			wp_send_json_success(
 				array(
-					'scanned'       => count( $azure_files ),
+					'scanned'       => count( $cloud_files ),
 					'already_in_db' => $already_in_db,
 					'new_files'     => count( $cloud_only_files ),
 					'message'       => 'Remote scan complete',

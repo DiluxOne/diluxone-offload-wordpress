@@ -184,13 +184,15 @@ class AdminPostTest extends IntegrationTestCase {
 
     public function test_provider_tab_reports_a_refused_write(): void {
         $this->useFakeClient();
+        $key = base64_encode(random_bytes(32));
+        $this->passConnectionTest('azure', ['storage_account' => 'refusedacct', 'access_key' => $key, 'container_name' => 'media']);
         add_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10, 2);
         try {
             $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
                 'screen'         => 'cloud-provider',
                 'cloud_provider' => 'azure',
                 'account_name'   => 'refusedacct',
-                'account_key'    => base64_encode(random_bytes(32)),
+                'account_key'    => $key,
                 'container_name' => 'media',
             ]);
         } finally {
@@ -204,6 +206,7 @@ class AdminPostTest extends IntegrationTestCase {
     public function test_provider_tab_saves_azure_credentials_and_moves_to_configured(): void {
         $this->useFakeClient();
         $key = base64_encode(random_bytes(32));
+        $this->passConnectionTest('azure', ['storage_account' => 'posttestacct', 'access_key' => $key, 'container_name' => 'media']);
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
             'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
@@ -220,6 +223,80 @@ class AdminPostTest extends IntegrationTestCase {
         $this->assertSame($key, ConfigManager::get_current_provider_config()['access_key'], 'key round-trips through encryption');
         $this->assertNotSame($key, get_option('diluxone_offload_config')['provider_config']['access_key'], 'key is not stored in clear');
         $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
+        $this->assertFalse(get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id), 'a test is spent by the save it allowed');
+    }
+
+    public function test_provider_tab_refuses_a_configuration_that_was_not_tested(): void {
+        $this->useFakeClient();
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
+            'screen'         => 'cloud-provider',
+            'cloud_provider' => 'azure',
+            'account_name'   => 'untested',
+            'account_key'    => base64_encode(random_bytes(32)),
+            'container_name' => 'media',
+        ]);
+        $this->assertStringContainsString('Test the connection before saving', $q['error']);
+        $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state());
+    }
+
+    public function test_provider_tab_refuses_a_key_other_than_the_tested_one(): void {
+        // The gap the fingerprint closes: before, the tested account and
+        // container were compared, but any key could be saved with them.
+        $this->useFakeClient();
+        $this->passConnectionTest('azure', ['storage_account' => 'tested', 'access_key' => base64_encode(random_bytes(32)), 'container_name' => 'media']);
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
+            'screen'         => 'cloud-provider',
+            'cloud_provider' => 'azure',
+            'account_name'   => 'tested',
+            'account_key'    => base64_encode(random_bytes(32)),
+            'container_name' => 'media',
+        ]);
+        $this->assertStringContainsString('Test the connection before saving', $q['error']);
+        $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state());
+    }
+
+    public function test_provider_tab_saves_an_s3_provider_with_the_secret_encrypted(): void {
+        $this->useFakeClient();
+        $post = [
+            's3_preset'            => 'aws',
+            's3_region'            => 'eu-west-1',
+            's3_endpoint'          => 'https://s3.eu-west-1.amazonaws.com/',
+            's3_bucket'            => 'post-media',
+            's3_access_key_id'     => 'AKIAPOSTTEST',
+            's3_secret_access_key' => 'post/secret+key',
+            's3_public_url'        => 'https://post-media.s3.eu-west-1.amazonaws.com/',
+        ];
+        $this->passConnectionTest('s3', \DiluxOneOffload\DTOs\ProviderConfig::fromPost(['cloud_provider' => 's3'] + $post)->getProviderConfig());
+
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'cloud-provider', 'cloud_provider' => 's3'] + $post);
+
+        $this->assertArrayHasKey('success', $q, print_r($q, true));
+        $saved = ConfigManager::get_current_provider_config();
+        $this->assertSame('https://s3.eu-west-1.amazonaws.com', $saved['endpoint'], 'stored normalised');
+        $this->assertSame('https://post-media.s3.eu-west-1.amazonaws.com', $saved['public_url']);
+        $this->assertFalse($saved['path_style'], 'Amazon S3 addresses the bucket in the host');
+        $this->assertSame('post/secret+key', $saved['secret_access_key'], 'the secret round-trips through encryption');
+        $raw = get_option('diluxone_offload_config')['provider_config'];
+        $this->assertStringStartsWith('DILUXONEOFFLOADENC1:', $raw['secret_access_key'], 'the secret is not stored in clear');
+        $this->assertSame('AKIAPOSTTEST', $raw['access_key_id'], 'the key id is not a secret');
+        $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
+        $this->assertInstanceOf(\DiluxOneOffload\Providers\S3CompatibleProvider::class, \DiluxOneOffload\Factories\CloudStorageFactory::create('s3', $saved));
+    }
+
+    public function test_provider_tab_refuses_an_s3_form_with_a_plain_http_endpoint_outside_custom(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
+            'screen'               => 'cloud-provider',
+            'cloud_provider'       => 's3',
+            's3_preset'            => 'aws',
+            's3_region'            => 'us-east-1',
+            's3_endpoint'          => 'http://s3.us-east-1.amazonaws.com',
+            's3_bucket'            => 'b-media',
+            's3_access_key_id'     => 'AKIA',
+            's3_secret_access_key' => 's',
+            's3_public_url'        => 'https://b-media.s3.us-east-1.amazonaws.com',
+        ]);
+        $this->assertStringContainsString('Endpoint must be an https:// URL', $q['error']);
+        $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state());
     }
 
     public function test_provider_tab_rejects_an_invalid_storage_account_name(): void {
@@ -246,12 +323,16 @@ class AdminPostTest extends IntegrationTestCase {
     }
 
     public function test_provider_tab_saves_even_when_the_account_is_unreachable_and_health_records_it(): void {
+        // It passed its test a minute ago; by the time it is saved the
+        // account no longer answers.
         $this->useFakeClient()->connection_ok = false;
+        $key = base64_encode(random_bytes(32));
+        $this->passConnectionTest('azure', ['storage_account' => 'unreachable', 'access_key' => $key, 'container_name' => 'media']);
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
             'screen'         => 'cloud-provider',
             'cloud_provider' => 'azure',
             'account_name'   => 'unreachable',
-            'account_key'    => base64_encode(random_bytes(32)),
+            'account_key'    => $key,
             'container_name' => 'media',
         ]);
         $this->assertArrayHasKey('success', $q, 'credentials are stored; reachability is the health check\'s job');

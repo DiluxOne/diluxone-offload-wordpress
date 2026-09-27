@@ -135,6 +135,20 @@ class IntegrationTestCase extends TestCase {
     /**
      * Helper: get the raw row count from the custom table.
      */
+    /**
+     * What a passing Test Connection leaves for the current user: the
+     * fingerprint of exactly this configuration, which both save paths demand.
+     *
+     * @param array<string, mixed> $provider_config
+     */
+    protected function passConnectionTest(string $provider, array $provider_config): void {
+        set_transient('diluxone_offload_connection_test_passed_' . get_current_user_id(), [
+            'provider'    => $provider,
+            'fingerprint' => (new \DiluxOneOffload\DTOs\ProviderConfig($provider, $provider_config))->fingerprint(),
+            'timestamp'   => time(),
+        ], 300);
+    }
+
     protected function getTableRowCount(): int {
         global $wpdb;
         $table = self::$table_name;

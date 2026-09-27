@@ -56,6 +56,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class AzureProvider implements CloudStorageClientInterface {
 
+	use StorageStats;
+
 	/**
 	 * Bytes per block, and the largest file sent in a single Put Blob request.
 	 *
@@ -834,7 +836,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * List all files in Azure Blob Storage
 	 *
 	 * @param string $prefix Filter by prefix (e.g., 'uploads/')
-	 * @return array<string, mixed> Array of file info: [['path' => string, 'size' => int, 'md5' => string], ...]
+	 * @return array<int, array<string, mixed>> Array of file info: [['path' => string, 'size' => int, 'md5' => string], ...]
 	 */
 	public function list_files( string $prefix = 'uploads/' ): array {
 		$file_infos = $this->list_files_dto( $prefix );
@@ -846,86 +848,6 @@ class AzureProvider implements CloudStorageClientInterface {
 			},
 			$file_infos
 		);
-	}
-
-	/**
-	 * Get container storage statistics
-	 *
-	 * Lists this site's blobs and calculates total size and file count.
-	 * Caches result in transient for 5 minutes.
-	 * This method is specific to Azure (not in CloudStorageClientInterface).
-	 *
-	 * @param bool $force_refresh Skip transient cache and fetch fresh data
-	 * @return array{success: bool, data?: array<string, mixed>, message?: string}
-	 */
-	public function get_container_stats( bool $force_refresh = false ): array {
-		if ( ! $force_refresh ) {
-			$cached = get_transient( 'diluxone_offload_azure_stats' );
-			if ( $cached !== false ) {
-				return array(
-					'success' => true,
-					'data'    => $cached,
-				);
-			}
-		}
-
-		try {
-			$files         = \DiluxOneOffload\CloudStreamWrapper::site_files( $this->list_files( \DiluxOneOffload\CloudStreamWrapper::key_prefix() . '/' ) );
-			$total_size    = 0;
-			$files_by_type = array(
-				'images' => 0,
-				'videos' => 0,
-				'audio'  => 0,
-				'other'  => 0,
-			);
-
-			$image_exts = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'tiff', 'tif', 'avif' );
-			$video_exts = array( 'mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'ogv', 'm4v' );
-			$audio_exts = array( 'mp3', 'wav', 'ogg', 'flac', 'aac', 'wma', 'm4a', 'opus' );
-
-			foreach ( $files as $file ) {
-				$total_size += (int) ( $file['size'] ?? 0 );
-				$ext         = strtolower( pathinfo( $file['path'] ?? '', PATHINFO_EXTENSION ) );
-				if ( in_array( $ext, $image_exts, true ) ) {
-					++$files_by_type['images'];
-				} elseif ( in_array( $ext, $video_exts, true ) ) {
-					++$files_by_type['videos'];
-				} elseif ( in_array( $ext, $audio_exts, true ) ) {
-					++$files_by_type['audio'];
-				} else {
-					++$files_by_type['other'];
-				}
-			}
-
-			$data = array(
-				'fileCount'          => count( $files ),
-				'storageUsedBytes'   => $total_size,
-				'storageLimitBytes'  => null,
-				'plan'               => null,
-				'bandwidthUsedBytes' => null,
-				'storageCheckedAt'   => gmdate( 'c' ),
-				'quotaExceeded'      => false,
-				'filesByType'        => $files_by_type,
-			);
-
-			set_transient( 'diluxone_offload_azure_stats', $data, 300 );
-			return array(
-				'success' => true,
-				'data'    => $data,
-			);
-
-		} catch ( \Exception $e ) {
-			delete_transient( 'diluxone_offload_azure_stats' );
-			\DiluxOneOffload\ConfigManager::record_connection_failure(
-				$this->extract_error_code( $e->getMessage() ),
-				$e->getMessage(),
-				'stats_refresh'
-			);
-			return array(
-				'success' => false,
-				'message' => $e->getMessage(),
-			);
-		}
 	}
 
 	/**
@@ -1571,6 +1493,21 @@ class AzureProvider implements CloudStorageClientInterface {
 		}
 
 		return $summary;
+	}
+
+	/**
+	 * A batch upload (Put Blob) or a chunked upload's commit (Put Block
+	 * List) answers 201 Created.
+	 *
+	 * @param int    $status HTTP status of the response.
+	 * @param string $body   Raw response body.
+	 * @return string|null Null on success; otherwise 'HTTP <status>' plus the Azure error.
+	 */
+	public function verify_upload_response( int $status, string $body ): ?string {
+		if ( 201 === $status || 200 === $status ) {
+			return null;
+		}
+		return 'HTTP ' . $status . ( $status >= 400 ? $this->describe_error_body( $body ) : '' );
 	}
 
 	/**

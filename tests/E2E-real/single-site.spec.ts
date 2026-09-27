@@ -1,14 +1,14 @@
 import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer } from './helpers/azure';
-import { BASE_URL, wp, shell, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
+import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
+import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
 
 /**
  * One user, one single site, every screen of the plugin, against a real
- * container: configure, sync, cancel, reset, fail on a bad key and retry,
+ * container or bucket (REAL_PROVIDER): configure, sync, cancel, reset, fail on a bad key and retry,
  * offload, upload through the Media Library, delete the local copies,
  * cancel and resume a Disconnect, disconnect, rotate the key, resync,
  * remove the provider, uninstall. Every transfer is checked byte for byte
@@ -27,7 +27,7 @@ test.describe.serial( 'single site journey', () => {
 	test.beforeAll( () => {
 		run = readRun( 'single' );
 		uploadsDir = nativeUploadsDir( site );
-		wrongKey = Buffer.from( 'not the key, but the right shape for one....................' ).toString( 'base64' );
+		wrongKey = wrongSecret( run );
 	} );
 
 	test( 'every screen and tab renders before anything is configured', async ( { page } ) => {
@@ -40,14 +40,14 @@ test.describe.serial( 'single site journey', () => {
 
 	test( 'a wrong key is refused and Save stays disabled', async ( { page } ) => {
 		await ui.goTab( page, base, 'connection' );
-		const result = await ui.testConnection( page, { account: run.account, key: wrongKey, container: run.container } );
+		const result = await ui.testConnection( page, form( run, run.container, wrongKey ) );
 		expect( result ).not.toMatch( /success/i );
 		await expect( page.locator( '#submit' ) ).toBeDisabled();
 	} );
 
 	test( 'a container that does not exist is refused', async ( { page } ) => {
 		await ui.goTab( page, base, 'connection' );
-		const result = await ui.testConnection( page, { account: run.account, key: run.key, container: `${ run.container }-missing` } );
+		const result = await ui.testConnection( page, form( run, `${ run.container }-missing` ) );
 		expect( result ).not.toMatch( /success/i );
 		await expect( page.locator( '#submit' ) ).toBeDisabled();
 	} );
@@ -57,9 +57,8 @@ test.describe.serial( 'single site journey', () => {
 		await createPrivateContainer( run, name );
 		try {
 			await ui.goTab( page, base, 'connection' );
-			const result = await ui.testConnection( page, { account: run.account, key: run.key, container: name } );
-			expect( result ).toMatch( /private/i );
-			expect( result ).toMatch( /public access level/i );
+			const result = await ui.testConnection( page, form( run, name ) );
+			expect( result ).toMatch( privateRefusal( run ) );
 			await expect( page.locator( '#submit' ) ).toBeDisabled();
 		} finally {
 			await deleteNamedContainer( run, name );
@@ -68,18 +67,17 @@ test.describe.serial( 'single site journey', () => {
 
 	test( 'the right credentials pass Test Connection and save', async ( { page } ) => {
 		await ui.goTab( page, base, 'connection' );
-		const warning = page.locator( '#azure-config .test-status-message' );
+		const warning = page.locator( `#${ run.provider }-config .test-status-message` );
 		// A failed test keeps the "test before saving" warning and Save disabled...
-		expect( await ui.testConnection( page, { account: run.account, key: wrongKey, container: run.container } ) ).not.toMatch( /success/i );
+		expect( await ui.testConnection( page, form( run, run.container, wrongKey ) ) ).not.toMatch( /success/i );
 		await expect( warning ).toBeVisible();
 		await expect( page.locator( '#submit' ) ).toBeDisabled();
 		// ...a passing one clears the warning and enables Save.
-		const result = await ui.testConnection( page, { account: run.account, key: run.key, container: run.container } );
+		const result = await ui.testConnection( page, form( run ) );
 		expect( result ).toMatch( /success/i );
 		await expect( warning ).toBeHidden();
 		await ui.saveProvider( page );
-		await expect( page.locator( '#provider-info' ) ).toContainText( run.account );
-		await expect( page.locator( '#provider-info' ) ).toContainText( run.container );
+		for ( const name of identity( run ) ) await expect( page.locator( '#provider-info' ) ).toContainText( name );
 		expect( pluginState( site ) ).toBe( 'configured' );
 		await ui.goTab( page, base, 'overview' );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Configured/ );
@@ -131,7 +129,13 @@ test.describe.serial( 'single site journey', () => {
 
 	test( 'a sync can be cancelled and then reset to a clean start', async ( { page } ) => {
 		await ui.goTab( page, base, 'sync' );
-		await ui.startSyncAndCancel( page );
+		shortBatches( site, true );
+		try {
+			await ui.startSyncAndCancel( page );
+		} finally {
+			shortBatches( site, false );
+			await page.unrouteAll( { behavior: 'ignoreErrors' } );
+		}
 		expect( pluginState( site ) ).toBe( 'configured' );
 		expect( ( await listKeys( run, 'uploads/' ) ).length ).toBeGreaterThan( 0 );
 		await ui.resetSync( page );
@@ -140,7 +144,7 @@ test.describe.serial( 'single site journey', () => {
 
 	test( 'a key that stops working fails the sync visibly, and Retry finishes it once fixed', async ( { page } ) => {
 		// Swap the stored key for a wrong one the way a rotated key would look.
-		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['access_key'] = '${ wrongKey }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => $c ) );` ] );
+		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['${ secretField( run ) }'] = '${ wrongKey }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => '${ run.provider }', 'provider_config' => $c ) );` ] );
 		await ui.goTab( page, base, 'sync' );
 		const outcome = await ui.runSyncToCompletion( page, 'scratch' );
 		expect( outcome ).not.toBe( 'success' );
@@ -154,7 +158,7 @@ test.describe.serial( 'single site journey', () => {
 		await page.locator( '#close-failed-modal' ).click();
 
 		// The real key comes back and the failed files are retried, nothing else.
-		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['access_key'] = '${ run.key }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => $c ) );` ] );
+		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['${ secretField( run ) }'] = '${ secret( run ) }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => '${ run.provider }', 'provider_config' => $c ) );` ] );
 		await ui.goTab( page, base, 'sync' );
 		expect( await ui.retryFailedFiles( page ) ).toBe( 'success' );
 		await page.locator( '#later-btn' ).click();
@@ -204,8 +208,7 @@ test.describe.serial( 'single site journey', () => {
 		await expect( page.locator( '#provider-info' ) ).toContainText( /Connected/ );
 		await ui.goTab( page, base, 'system' );
 		const body = await page.locator( '.wrap.diluxone-offload-admin' ).innerText();
-		expect( body ).toContain( run.account );
-		expect( body ).toContain( run.container );
+		for ( const name of identity( run ) ) expect( body ).toContain( name );
 		await ui.goTab( page, base, 'health' );
 		await expect( page.locator( '#connection-health' ) ).toContainText( /Healthy/ );
 	} );
@@ -227,7 +230,7 @@ test.describe.serial( 'single site journey', () => {
 		await expect( skipped.locator( 'li code' ) ).toHaveText( [ /\/empty-0b\.txt$/ ] );
 		// Offloading: served from the account, every byte still has a copy here, since when.
 		await ui.goTab( page, base, 'offloading' );
-		expect( ( await ui.bignum( page, 'Served from' ) ).value ).toBe( `${ run.account }.blob.core.windows.net` );
+		expect( ( await ui.bignum( page, 'Served from' ) ).value ).toBe( servedFromHost( run ) );
 		expect( await ui.bignumLines( page, 'Served from' ), 'the hostname fits its card' ).toBeLessThanOrEqual( 3 );
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( inCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
@@ -265,7 +268,7 @@ test.describe.serial( 'single site journey', () => {
 		}
 
 		const url = attachmentUrl( site, uiUploadId );
-		expect( url ).toMatch( new RegExp( `^https://${ run.account }\\.blob\\.core\\.windows\\.net/${ run.container }/uploads/` ) );
+		expect( url.startsWith( `${ publicUrlPrefix( run ) }uploads/` ), `${ url } is under the public URL` ).toBe( true );
 		const http = await request.newContext();
 		const head = await http.head( url );
 		expect( head.status(), 'the public URL answers' ).toBe( 200 );
@@ -310,8 +313,16 @@ test.describe.serial( 'single site journey', () => {
 
 	test( 'a download can be cancelled and resumed', async ( { page } ) => {
 		await ui.goTab( page, base, 'disconnect' );
-		await ui.startDisconnectAndCancel( page );
-		expect( pluginState( site ) ).toBe( 'offloading_active' );
+		shortBatches( site, true );
+		try {
+			await ui.startDisconnectAndCancel( page );
+			// Read while batches are still slow: against a fast server, a
+			// download the reloaded screen picks up could otherwise finish first.
+			expect( pluginState( site ) ).toBe( 'offloading_active' );
+		} finally {
+			shortBatches( site, false );
+			await page.unrouteAll( { behavior: 'ignoreErrors' } );
+		}
 		// The batch in flight when the page reloaded finishes on the server; once
 		// it has, every part file has become its attachment and none is left.
 		await expect
@@ -341,11 +352,11 @@ test.describe.serial( 'single site journey', () => {
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 	} );
 
-	test( 'the access key can be rotated on the Credentials tab', async ( { page } ) => {
+	test( 'the key can be rotated on the Credentials tab', async ( { page } ) => {
 		await ui.goTab( page, base, 'credentials' );
 		await ui.updateKey( page, wrongKey, false );
-		await ui.updateKey( page, run.key, true );
-		await expect( page.locator( '#credentials_account_name' ) ).toContainText( run.account );
+		await ui.updateKey( page, secret( run ), true );
+		await expect( page.locator( '#provider-credentials' ) ).toContainText( identity( run )[ 0 ] );
 		expect( pluginState( site ) ).toBe( 'configured' );
 	} );
 

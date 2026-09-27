@@ -4,10 +4,10 @@ What DiluxOne Offload does, what is paid, what comes next and what it will not d
 
 ## What it does today (free, in the plugin)
 
-- Moves the media library to **Azure Blob Storage** and serves it from there, through a PHP stream wrapper on `/wp-content/uploads/`: no URL rewriting, no database migration.
+- Moves the media library to **Azure Blob Storage** or to **S3-compatible storage** (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC keys, MinIO and any other server that speaks the S3 API) and serves it from there, through a PHP stream wrapper on `/wp-content/uploads/`: no URL rewriting, no database migration.
 - Sync with cancel, resume and retry; optional deletion of the local copies once synced; **Disconnect from Cloud** brings everything back.
 - Connection health: when the cloud is unreachable an upload fails with a clear error and nothing is written elsewhere.
-- Streaming transfers (downloads to disk, uploads in 4 MiB blocks), so large files do not need large memory.
+- Streaming transfers (downloads to disk, uploads in blocks of at most 5 MiB), so large files do not need large memory.
 - Multisite with per-site configuration, "Force HTTPS for cloud storage URLs", credentials encrypted at rest, quiet logging, clean uninstall.
 
 ## Paid, outside the plugin
@@ -22,7 +22,7 @@ Each version does one big thing, ships on its own and is usable without the next
 
 1. **Tests for the settings' effects.** Today the suites check that Maximum File Size, Upload Timeout, Force HTTPS and debug logging are saved; they will also check what each one does. The timeout becomes "Transfer Timeout" and governs every upload request; downloads keep waiting at least the 300 seconds they always had, or the setting when it is higher.
 2. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen has a second level; every screen titled `DiluxOne Offload | Screen`; a column on the right with the state of this site, a note and the related links; WordPress' own buttons, tabs and form rows; the cards, the sync flow and the health banner as they are. The numbers on the Sync screens become honest on an offloaded site: the tracking table is no longer emptied after Delete Local Files, live uploads are recorded, skipped files are listed, a Connection Health table with "Check now", free disk before Disconnect.
-3. **An "S3-compatible" provider.** One provider in the code, signing requests with AWS Signature Version 4, and a preset per service that fills in the endpoint, the region rule and the public URL pattern: **Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys)** and **Custom** (MinIO or any other, every field editable). The **public URL** is a field of its own, prefilled by the preset and always editable, which is also how a CDN or a custom domain is used; Cloudflare R2 needs it typed, since R2's public URL cannot be derived from the credentials. **Test Connection** checks both that the keys can write to the bucket and that the written object is readable anonymously at the public URL, the way it refuses a private container on Azure today. An Advanced tab holds the object ACL (only for services that have one) and the addressing style. Real-storage suites run against Amazon S3 and Cloudflare R2, and against MinIO locally and on every pull request.
+3. **An "S3-compatible" provider.** One provider in the code, signing requests with AWS Signature Version 4, and a preset per service that fills in the endpoint, the region rule and the public URL pattern: **Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys)** and **Custom** (MinIO or any other, every field editable). The **public URL** is a field of its own, prefilled by the preset and always editable, which is also how a CDN or a custom domain is used; Cloudflare R2 needs it typed, since R2's public URL cannot be derived from the credentials. **Test Connection** checks both that the keys can write to the bucket and that the written object is readable anonymously at the public URL, the way it refuses a private container on Azure today. An **Advanced** section of the form holds the object ACL (only for services that have one) and the addressing style (editable only under Custom). Real-storage suites run against Amazon S3 and Cloudflare R2, and against MinIO locally and on every pull request.
 
 ### 2.1.0: the options around the provider
 
@@ -59,8 +59,8 @@ Requirements stay as they are: WordPress 5.1 and PHP 7.4 minimum, tested up to t
 
 ## Known limitations
 
-- One provider today: Azure Blob Storage. The container must allow anonymous read of blobs (public access level *Blob*); a private container is refused.
+- The media must be publicly readable where it is stored: an Azure container with public access level *Blob*, or a bucket that lets anyone read its objects. **Test Connection** refuses a private one.
 - The initial sync runs in your browser tab and stops if you close it (it resumes where it left off). Nothing runs in the background or via cron.
 - Files above the **Maximum File Size** setting (20 MB by default, up to 500 MB) are skipped by the initial sync.
-- No CDN or custom-domain option: media is served from your storage account's URL.
+- On Azure, media is served from the storage account's URL; on S3-compatible services the Public URL field is where a CDN or custom domain goes.
 - **Disconnect from Cloud** needs a writable uploads directory and enough disk for your media.

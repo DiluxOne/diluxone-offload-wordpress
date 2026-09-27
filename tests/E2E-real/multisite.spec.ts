@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5 } from './helpers/azure';
+import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, form, publicUrlPrefix } from './helpers/storage';
 import { BASE_URL, wp, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -40,7 +40,7 @@ test.describe.serial( 'multisite journey', () => {
 	test( 'both sites are configured against the same container', async ( { page } ) => {
 		for ( const home of [ base, other ] ) {
 			await ui.goTab( page, home, 'connection' );
-			expect( await ui.testConnection( page, { account: run.account, key: run.key, container: run.container } ) ).toMatch( /success/i );
+			expect( await ui.testConnection( page, form( run ) ) ).toMatch( /success/i );
 			await ui.saveProvider( page );
 		}
 		expect( pluginState( site ) ).toBe( 'configured' );
@@ -103,7 +103,7 @@ test.describe.serial( 'multisite journey', () => {
 		const file = attachedFile( site, otherUploadId, other );
 		expect( await blobExists( run, `uploads/sites/${ blogId }/${ file }` ) ).toBe( true );
 		expect( await blobExists( run, `uploads/${ file }` ), 'never under the main site' ).toBe( false );
-		expect( attachmentUrl( site, otherUploadId, other ) ).toContain( `/${ run.container }/uploads/sites/${ blogId }/` );
+		expect( attachmentUrl( site, otherUploadId, other ) ).toContain( `${ publicUrlPrefix( run ) }uploads/sites/${ blogId }/` );
 	} );
 
 	test( 'deleting local copies on one site does not touch the other', async ( { page } ) => {

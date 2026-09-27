@@ -22,10 +22,16 @@ jQuery(document).ready(function($) {
 			provider: provider
 		};
 
-		data.account_name = $('#account_name').val();
-		data.account_key = $('#account_key').val();
-		data.container_name = $('#container_name').val();
-		if (!data.account_name || !data.account_key || !data.container_name) {
+		// Every named field of the chosen provider's section; the server
+		// reads only the ones that provider posts.
+		var missing = false;
+		$section.find(':input[name]').each(function() {
+			data[this.name] = $(this).is(':checkbox') ? ($(this).is(':checked') ? $(this).val() : '') : $(this).val();
+			if ($(this).is('[data-required]') && !data[this.name]) {
+				missing = true;
+			}
+		});
+		if (missing) {
 			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</div>').show();
 			return;
 		}
@@ -83,6 +89,66 @@ jQuery(document).ready(function($) {
 	});
 
 	// ========================================================================
+	// S3-compatible: the service fills in Endpoint and Public URL
+	// ========================================================================
+	// A field the user typed in keeps its value when region or bucket change
+	// (data-edited); a new service re-derives both, because another
+	// service's address is never right.
+	var s3Presets = (DiluxOneOffloadProvider.data && DiluxOneOffloadProvider.data.s3_presets) || {};
+
+	function s3Fill(pattern) {
+		return (pattern || '').replace('{region}', $('#s3_region').val() || '').replace('{bucket}', $('#s3_bucket').val() || '');
+	}
+
+	function s3Derive() {
+		var preset = s3Presets[$('#s3_preset').val()];
+		if (!preset) {
+			return;
+		}
+		$('#s3_endpoint, #s3_public_url').each(function() {
+			if ($(this).attr('data-edited') !== '1') {
+				$(this).val(s3Fill(this.id === 's3_endpoint' ? preset.endpoint : preset.public_url));
+			}
+		});
+		s3HttpWarning();
+	}
+
+	function s3HttpWarning() {
+		var preset = s3Presets[$('#s3_preset').val()];
+		var http = /^http:\/\//i.test($('#s3_endpoint').val() || '');
+		$('.diluxone-offload-s3-http-warning').prop('hidden', !(http && preset && preset.http));
+	}
+
+	$('#s3_preset').on('change', function() {
+		var preset = s3Presets[$(this).val()];
+		if (!preset) {
+			return;
+		}
+		$('.diluxone-offload-s3-hints [data-preset]').each(function() {
+			$(this).prop('hidden', $(this).data('preset') !== $('#s3_preset').val());
+		});
+		$('#s3_region').val(preset.region).prop('readonly', !!preset.region_fixed);
+		// Advanced: the ACL only where the service honours one, the
+		// addressing style editable only under Custom.
+		$('.diluxone-offload-s3-acl-row').prop('hidden', !preset.acl);
+		$('#s3_object_acl').prop('checked', false).prop('disabled', !preset.acl);
+		$('#s3_path_style').val(preset.path_style ? 'path' : 'virtual').prop('disabled', $(this).val() !== 'custom');
+		$('#s3_endpoint, #s3_public_url').removeAttr('data-edited');
+		s3Derive();
+	});
+
+	$('#s3_region, #s3_bucket').on('input change', s3Derive);
+
+	$('#s3_endpoint, #s3_public_url').on('input', function() {
+		$(this).attr('data-edited', '1');
+		s3HttpWarning();
+	});
+
+	if ($('#s3_preset').length) {
+		$('#s3_preset').trigger('change');
+	}
+
+	// ========================================================================
 	// Remove Provider Modal
 	// ========================================================================
 	$('#remove-provider').on('click', function() {
@@ -133,22 +199,26 @@ jQuery(document).ready(function($) {
 	// Credentials tab: test the new key, then save it
 	// ========================================================================
 	$('#show_new_account_key').on('change', function() {
-		$('#new_account_key').attr('type', $(this).is(':checked') ? 'text' : 'password');
+		$('#provider-credentials input[data-secret]').attr('type', $(this).is(':checked') ? 'text' : 'password');
 	});
 
-	$('#new_account_key').on('input change', function() {
+	$('#provider-credentials :input[data-field]').on('input change', function() {
 		// A key that changed after a test has not been tested.
 		$('#save-new-credentials').prop('disabled', true);
 	});
 
+	// The saved fields shown on the tab plus the new secret, each under the
+	// name the provider posts (data-field).
 	function newCredentials() {
-		return {
+		var data = {
 			nonce: diluxOneOffloadAdmin.nonce,
-			provider: getCurrentProvider(),
-			account_name: $('#credentials_account_name').text().trim(),
-			account_key: $('#new_account_key').val(),
-			container_name: $('#credentials_container_name').text().trim()
+			provider: getCurrentProvider()
 		};
+		$('#provider-credentials [data-field]').each(function() {
+			var value = $(this).attr('data-value');
+			data[$(this).data('field')] = $(this).is(':input') ? $(this).val() : (value !== undefined ? value : $(this).text().trim());
+		});
+		return data;
 	}
 
 	$('#test-new-credentials').on('click', function() {
@@ -156,7 +226,10 @@ jQuery(document).ready(function($) {
 		var $result = $('#new-credentials-result');
 		var data = $.extend({ action: 'diluxone_offload_test_connection' }, newCredentials());
 
-		if (!data.account_key) {
+		var missing = $('#provider-credentials :input[data-field][data-required]').filter(function() {
+			return !$(this).val();
+		}).length > 0;
+		if (missing) {
 			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
 			return;
 		}
@@ -234,8 +307,8 @@ function showProviderConfig(provider) {
 		var selected = document.getElementById(provider + '-config');
 		if (selected) {
 			selected.style.display = 'block';
-			// Restore required on visible fields
-			selected.querySelectorAll('input[name]').forEach(function(input) {
+			// Restore required on the visible fields that need it
+			selected.querySelectorAll('[data-required]').forEach(function(input) {
 				input.setAttribute('required', '');
 			});
 		}

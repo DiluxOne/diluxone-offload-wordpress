@@ -1,7 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { credentialsFromEnv, containerClient, RealRun } from '../E2E-real/helpers/azure';
+import { credentialsFromEnv, containerClient } from '../E2E-real/helpers/azure';
+import type { RealRun } from '../E2E-real/helpers/storage';
 import { BASE_URL, wp, REPO_IN_CONTAINER } from '../E2E-real/helpers/wp';
 import { png, mp4, pdf } from '../E2E-real/helpers/fixtures';
 import * as ui from '../E2E-real/helpers/plugin';
@@ -81,7 +82,7 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 
 	test.beforeAll( async () => {
 		const creds = credentialsFromEnv();
-		run = { ...creds, container: CONTAINER, containers: { single: CONTAINER, network: CONTAINER }, runId: 'screenshots' };
+		run = { provider: 'azure', ...creds, container: CONTAINER, containers: { single: CONTAINER, network: CONTAINER }, runId: 'screenshots' };
 		await containerClient( run ).deleteIfExists();
 		await expect.poll( async () => {
 			try {
@@ -110,6 +111,19 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await page.locator( '#wp-submit' ).click();
 		await expect( page ).toHaveURL( /wp-admin/ );
 
+		// 10. S3-compatible storage: the service fills in the endpoint and the
+		// public URL (nothing is tested: the form is what the picture shows).
+		await ui.goTab( page, base, 'connection' );
+		await page.locator( '#cloud_provider' ).selectOption( 's3' );
+		await expect( page.locator( '#s3-config' ) ).toBeVisible();
+		await page.locator( '#s3_preset' ).selectOption( 'aws' );
+		await page.locator( '#s3_region' ).fill( 'eu-west-1' );
+		await page.locator( '#s3_bucket' ).fill( 'example-media' );
+		await page.locator( '#s3_access_key_id' ).fill( 'AKIAIOSFODNN7EXAMPLE' );
+		await page.locator( '#s3_secret_access_key' ).fill( 'not-a-real-secret' );
+		await page.locator( '#s3_bucket' ).blur();
+		await shot( page, 10 );
+
 		// 2. Cloud Provider selection.
 		await ui.goTab( page, base, 'connection' );
 		await page.locator( '#cloud_provider' ).selectOption( 'azure' );
@@ -118,10 +132,10 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await shot( page, 2 );
 
 		// 3. Cloud Provider configuration in Azure Storage.
-		const result = await ui.testConnection( page, { account: run.account, key: run.key, container: CONTAINER } );
+		const result = await ui.testConnection( page, { provider: 'azure', account: run.account, key: run.key, container: CONTAINER } );
 		expect( result ).toMatch( /success/i );
-		await page.locator( '.test-connection-btn' ).blur();
-		await shot( page, 3, '.test-connection-section .connection-result' );
+		await page.locator( '#azure-config .test-connection-btn' ).blur();
+		await shot( page, 3, '#azure-config .connection-result' );
 
 		// 4. Cloud Provider configured with sync option in Azure Storage.
 		await ui.saveProvider( page );

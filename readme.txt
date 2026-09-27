@@ -1,6 +1,6 @@
 === DiluxOne Offload – Media Storage ===
 Contributors: pablodiloreto
-Tags: media, offload, azure, cloud storage, uploads
+Tags: s3, offload, azure, cloud storage, uploads
 Requires at least: 5.1
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -12,20 +12,20 @@ Move your media to cloud object storage and serve it from there. Replaces /uploa
 
 == Description ==
 
-DiluxOne Offload moves your WordPress media library to Azure Blob Storage and serves files directly from the cloud — without breaking the Media Library UI, plugins, or existing content.
+DiluxOne Offload moves your WordPress media library to Azure Blob Storage or to any S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO) and serves files directly from the cloud — without breaking the Media Library UI, plugins, or existing content.
 
 The plugin uses a custom PHP stream wrapper to intercept every read and write to `/wp-content/uploads/`, so WordPress, WooCommerce, page builders, image editors, and any plugin that calls standard filesystem functions (`fopen`, `file_get_contents`, `unlink`, etc.) keep working unchanged.
 
 = Key features =
 
-* **Azure Blob Storage** — bring your own storage account; nothing is shared with anyone else.
+* **Azure Blob Storage or S3-compatible storage** — bring your own storage account or bucket; nothing is shared with anyone else. For S3-compatible services, pick the service and the plugin fills in the endpoint and the public URL; a CDN or a custom domain goes in the Public URL field.
 * **Transparent stream wrapper** — no URL rewriting, no regex on post content, no database migration required for URLs.
 * **Sync with resumable state machine** — start, cancel, resume after an interruption, retry failed files, resync from scratch.
 * **Offloading mode** — after a successful sync you can delete the local copies to free disk space; the stream wrapper keeps everything working.
 * **Connection health monitoring** — when the cloud is unreachable, new uploads are refused with a clear error instead of landing somewhere else, and a banner on the plugin's admin pages says why until it recovers.
 * **No plugin data on disk** — no cache, log or data files anywhere on the server. The one time the plugin writes to the uploads directory is when you disconnect, to copy your own media back to where WordPress expects it.
-* **Large files don't need large memory** — a download goes straight to disk, and an upload is sent in 4 MiB blocks, so PHP never holds more than one block of a file at a time and a video does not trip `memory_limit`.
-* **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking, and its objects live under their own prefix in the container (`uploads/` for the main site, `uploads/sites/<id>/` for the others, the same layout WordPress uses on disk), so several sites can share one container without ever sharing a key.
+* **Large files don't need large memory** — a download goes straight to disk, and an upload is sent in blocks of at most 5 MiB (4 MiB on Azure, 5 MiB parts on S3-compatible services), so PHP never holds more than one block of a file at a time and a video does not trip `memory_limit`.
+* **Multisite aware** — network activation supported; each site keeps its own configuration and file tracking, and its objects live under their own prefix in the container or bucket (`uploads/` for the main site, `uploads/sites/<id>/` for the others, the same layout WordPress uses on disk), so several sites can share one container or bucket without ever sharing a key.
 * **Quiet by default** — with `WP_DEBUG` off and the Settings toggle off the plugin writes nothing to the PHP error log, at any level. `WP_DEBUG` turns on errors and warnings; the toggle adds the informational lines.
 
 = Why a stream wrapper instead of URL rewriting =
@@ -34,16 +34,16 @@ Most offload plugins rewrite media URLs in post content, which breaks when you s
 
 = Known limitations =
 
-* One provider: Azure Blob Storage. The container must allow anonymous read of blobs (public access level *Blob*); a private container is refused.
+* The media must be publicly readable where it is stored: on Azure, a container whose public access level is *Blob*; on S3-compatible services, a bucket that lets anyone read its objects. **Test Connection** checks it and refuses a private one.
 * The initial sync runs in your browser tab and stops if you close it; it resumes where it left off. Nothing runs in the background or via cron.
 * Files above the **Maximum File Size** setting (20 MB by default, up to 500 MB) are skipped by the initial sync.
 * While the cloud is unreachable, new uploads fail. There is deliberately no local fallback.
-* No CDN or custom-domain option: media is served from your storage account's URL.
+* On Azure, media is served from the storage account's URL; on S3-compatible services the Public URL field is where a CDN or custom domain goes.
 * **Disconnect from Cloud** needs a writable uploads directory and enough disk for your media.
 
 == External services ==
 
-This plugin connects to Azure Blob Storage, a third-party cloud storage service, to store and serve your media files. **Nothing is sent anywhere until you configure it yourself** in the *Cloud Provider* tab, with an account and credentials you supply. The plugin contacts no other service: it sends no telemetry, no usage data and no licence check to the author or to anyone else.
+This plugin connects to one cloud storage service, the one you choose: Azure Blob Storage, or an S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, or a server whose address you type). It uses it to store and serve your media files. **Nothing is sent anywhere until you configure it yourself** in the *Cloud Provider* tab, with an account and credentials you supply. The plugin contacts no other service: it sends no telemetry, no usage data and no licence check to the author or to anyone else.
 
 = Azure Blob Storage =
 
@@ -68,12 +68,33 @@ This is **your own Azure account**, under your own agreement with Microsoft. Nei
 * Terms of Service: [Microsoft Online Services Terms](https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure) (https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)
 * Privacy Policy: [Microsoft Privacy Statement](https://www.microsoft.com/privacy/privacystatement) (https://www.microsoft.com/privacy/privacystatement)
 
+= S3-compatible storage =
+
+What it is used for: the same as above, on the S3-compatible service you choose.
+
+Where requests go: the endpoint of the service you chose, which the form fills in for each service and you can change: Amazon S3 at `https://s3.REGION.amazonaws.com` (requests address `https://BUCKET.s3.REGION.amazonaws.com`), Cloudflare R2 at `https://ACCOUNT_ID.r2.cloudflarestorage.com`, Backblaze B2 at `https://s3.REGION.backblazeb2.com`, DigitalOcean Spaces at `https://REGION.digitaloceanspaces.com`, Wasabi at `https://s3.REGION.wasabisys.com`, Google Cloud Storage at `https://storage.googleapis.com`, or the address you type under Custom. Browsers load your media from the Public URL you set, which can be the service's own address, a CDN or a custom domain.
+
+What data is sent: your media files themselves, together with their relative path (the object key), size and MIME type, and a signature of each request computed from your secret access key. The secret itself never leaves your server. No personal data about your visitors or your site's users is sent, and nothing at all about your site reaches the plugin's author.
+
+When requests happen: the same moments as for Azure above. The connection check is different: when you press **Test Connection**, and at most every five minutes while you browse the plugin's admin pages, the plugin writes a 32-byte probe object under your site's prefix, reads it back from the Public URL without credentials (to prove browsers can load your media) and deletes it.
+
+This is **your own account** with that service, under your own agreement with its provider. Neither DiluxOne nor the plugin's author is a party to it and neither has any access to your data. Your use of the service is subject to its provider's terms:
+
+* Amazon S3: [service](https://aws.amazon.com/s3/), [AWS Service Terms](https://aws.amazon.com/service-terms/), [AWS Privacy Notice](https://aws.amazon.com/privacy/)
+* Cloudflare R2: [service](https://www.cloudflare.com/products/r2/), [Cloudflare Terms](https://www.cloudflare.com/terms/), [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/)
+* Backblaze B2: [service](https://www.backblaze.com/cloud-storage), [Backblaze Terms of Service](https://www.backblaze.com/company/policy/terms-of-service), [Backblaze Privacy Notice](https://www.backblaze.com/company/policy/privacy)
+* DigitalOcean Spaces: [service](https://www.digitalocean.com/products/spaces), [DigitalOcean Terms of Service](https://www.digitalocean.com/legal/terms-of-service-agreement), [DigitalOcean Privacy Policy](https://www.digitalocean.com/legal/privacy-policy)
+* Wasabi: [service](https://wasabi.com/cloud-object-storage), [Wasabi Terms of Use](https://wasabi.com/legal/terms-of-use), [Wasabi Privacy Policy](https://wasabi.com/legal/privacy-policy)
+* Google Cloud Storage: [service](https://cloud.google.com/storage), [Google Cloud Terms of Service](https://cloud.google.com/terms), [Google Privacy Policy](https://policies.google.com/privacy)
+
+Custom endpoint: the plugin talks only to the server whose address you typed (MinIO, Ceph or any other that speaks the S3 API). No third party is involved unless that server belongs to one you chose.
+
 == Installation ==
 
 1. Upload the `diluxone-offload` folder to `/wp-content/plugins/`, or install via the WordPress Plugins screen.
 2. Activate the plugin through the **Plugins** screen in WordPress.
 3. Open the new **DiluxOne Offload** menu in the admin sidebar.
-4. Go to **Cloud Provider**, select Microsoft Azure Blob Storage, enter the storage account, container and access key, and click **Test Connection**.
+4. Go to **Cloud Provider**, select Microsoft Azure Blob Storage (enter the storage account, container and access key) or S3-compatible storage (pick the service, then enter the region, bucket, keys and, if it is not filled in, the public URL), and click **Test Connection**.
 5. Save the configuration.
 6. Go to **Sync & Offloading**, run the initial sync, and enable offloading when sync is complete.
 
@@ -83,7 +104,7 @@ This is **your own Azure account**, under your own agreement with Microsoft. Nei
 * PHP 7.4 or higher.
 * `ext-curl` and `ext-openssl` enabled.
 * A writable uploads directory only for **Disconnect from Cloud**, when your media is copied back. Transfers use the PHP temporary directory for their scratch files, never `uploads/`.
-* An Azure Blob Storage account, a container whose public access level is **Blob** (anonymous read access for blobs, so browsers can load your media straight from it), and the account's access key. **Test Connection** refuses a private container and says so.
+* An Azure Blob Storage account, a container whose public access level is **Blob** (anonymous read access for blobs, so browsers can load your media straight from it), and the account's access key; or a bucket on an S3-compatible service that lets anyone read its objects, and an access key pair allowed to put, get, delete and list objects in it. **Test Connection** refuses a private container or bucket and says so.
 
 == Frequently Asked Questions ==
 
@@ -101,9 +122,9 @@ Not for itself: it has no cache, log or data files on disk; everything it needs 
 
 The one operation that writes to the server is **Sync & Offloading → Disconnect from Cloud**. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with `wp_upload_dir()`), so the Media Library works again without the plugin. It restores only what sits under the `uploads/` prefix of your own container, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it there, and it runs only when you click it.
 
-= Can I move to another storage account or container later? =
+= Can I move to another storage account or bucket later? =
 
-Yes. Remove the current provider configuration from the admin, enter the new account and container, run a full resync, and the plugin starts serving from the new location. No URL rewriting required.
+Yes, including from Azure to an S3-compatible service or back. Remove the current provider configuration from the admin, enter the new account, container or bucket, run a full resync, and the plugin starts serving from the new location. No URL rewriting required.
 
 = Will this work with WooCommerce / Elementor / image editors? =
 
@@ -131,11 +152,11 @@ With that setting off and `WP_DEBUG` off, the plugin writes nothing to the PHP e
 
 = Is the plugin multisite compatible? =
 
-Yes. It can be network-activated; each site then has its own Cloud Provider configuration and its own file-tracking table, so different sites can use different containers or accounts — or share one: a site's objects are stored under `uploads/sites/<id>/` (the main site under `uploads/`), and each site only ever lists, syncs and restores its own prefix.
+Yes. It can be network-activated; each site then has its own Cloud Provider configuration and its own file-tracking table, so different sites can use different providers, containers or buckets — or share one: a site's objects are stored under `uploads/sites/<id>/` (the main site under `uploads/`), and each site only ever lists, syncs and restores its own prefix.
 
-= How are my Azure credentials stored? =
+= How are my credentials stored? =
 
-The Azure access key is encrypted with AES-256-GCM before it is written to the WordPress options table. The encryption key is derived from your site's WordPress salts (`AUTH_KEY` / `SECURE_AUTH_KEY` and the corresponding salts in `wp-config.php`), so as long as those salts are defined in `wp-config.php` (as WordPress recommends) a database dump on its own is not enough to recover the credentials — the attacker also needs filesystem access to `wp-config.php`.
+The Azure access key and the S3 secret access key are encrypted with AES-256-GCM before they are written to the WordPress options table (the S3 access key ID, like a user name, is not a secret and is stored as it is). The encryption key is derived from your site's WordPress salts (`AUTH_KEY` / `SECURE_AUTH_KEY` and the corresponding salts in `wp-config.php`), so as long as those salts are defined in `wp-config.php` (as WordPress recommends) a database dump on its own is not enough to recover the credentials — the attacker also needs filesystem access to `wp-config.php`.
 
 If you ever rotate the WordPress salts, the existing encrypted credentials become unreadable; the plugin will surface the provider as "not configured" and you simply re-enter the credentials in the *Cloud Provider* tab. There is intentionally no plaintext fallback.
 
@@ -152,12 +173,15 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 7. Sync & Offloading › Offloading: offloading active, with the local copies to delete.
 8. Settings › Transfers: file-size limit and transfer timeout.
 9. Status › Health: plugin state and connection health at a glance.
+10. Cloud Provider › Connection: S3-compatible storage, with the service filling in the endpoint and the public URL.
 
 == Changelog ==
 
 = 2.0.0 =
 Unreleased.
 
+* S3-compatible storage: besides Azure Blob Storage, the media can live on Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys) or any server that speaks the S3 API, such as MinIO. Pick the service and the plugin fills in the endpoint and the public URL; the Public URL field is also where a CDN or a custom domain goes. Test Connection proves the keys can write to the bucket and that browsers can read what is stored, and refuses a private bucket. Large files go up in 5 MiB parts; the secret access key is encrypted like the Azure key. "Force HTTPS for cloud storage URLs" leaves alone a Public URL that is plain http on purpose, such as a server on a private network.
+* Only a configuration that passed Test Connection can be saved, now checked on the server too: a key other than the tested one is refused.
 * The admin is one menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen needs a second level: Connection and Credentials; Sync, Offloading and Disconnect; Transfers, Serving and Logging; Health and System. Every screen is headed "DiluxOne Offload | Screen", shows the site's state at a glance in a column beside the content, and the open tab follows your admin colour scheme. Old links to the tabs keep working.
 * Status › Health shows the connection health the plugin already recorded (status, last check, last success, consecutive failures) and how many files the tracking table knows, with a "Check now" button that asks the provider right away; Status › System shows the free disk.
 * The screens say what is where: Sync shows how many files are synced, how many still have a local copy, how many live in the cloud only, the last upload made through the site and what the last scan left out (and why); Offloading shows where the media is served from, where the bytes are and since when; Disconnect shows what it would bring back and whether the disk has room; Cloud Provider shows since when it is connected.

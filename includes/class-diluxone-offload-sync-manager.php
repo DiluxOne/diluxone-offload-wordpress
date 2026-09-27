@@ -993,10 +993,12 @@ class SyncManager {
 			$error         = $transport[ $this->handle_id( $ch ) ] ?? curl_error( $ch );
 			$file_info     = $files[ $i ];
 
-			if ( $response_code === 201 || $response_code === 200 ) {
+			$verdict = $this->cloud_client->verify_upload_response( (int) $response_code, (string) $response_body );
+
+			if ( null === $verdict ) {
 				$results[ $i ] = array( 'success' => true );
 
-				// ⭐ DEBUG: Log upload result (cloud providers typically return 201 on PUT success)
+				// ⭐ DEBUG: Log upload result
 				$this->debug_log(
 					sprintf(
 						'✓ UPLOADED: %s (%.2f KB) [HTTP %d]',
@@ -1006,13 +1008,11 @@ class SyncManager {
 					)
 				);
 			} else {
-				// Only the error code and message from the response: on a 403
-				// the full body also carries the request's signature, which
-				// has no place in a log line or the tracking table.
-				$error_details = $error ? $error : 'HTTP ' . $response_code;
-				if ( ! empty( $response_body ) && $response_code >= 400 && $this->cloud_client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
-					$error_details .= $this->cloud_client->describe_error_body( (string) $response_body );
-				}
+				// The provider says what went wrong, from the status and the
+				// error code of the body only: on a 403 the full body also
+				// carries the request's signature, which has no place in a log
+				// line or the tracking table.
+				$error_details = '' !== $error ? $error : $verdict;
 
 				$results[ $i ] = array(
 					'success' => false,

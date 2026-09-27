@@ -6,7 +6,7 @@ jQuery(document).ready(function($) {
     // Re-disable Save if the credentials change after a successful test
     // (only when the button started out disabled, i.e. the provider form).
     if ($('#submit').prop('disabled')) {
-        $('#account_name, #account_key, #container_name').on('input change', function() {
+        $('.provider-config').on('input change', ':input', function() {
             $('#submit').prop('disabled', true);
         });
     }

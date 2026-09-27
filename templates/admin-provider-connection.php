@@ -23,9 +23,10 @@ $screen_urls   = $screen_urls ?? array();
 $connected_at  = (int) ( $timestamps['connected_at'] ?? 0 );
 
 $provider_name         = $config['cloud_provider'] ?? '';
-$provider_display_name = $provider_name === 'azure' ? __( 'Microsoft Azure Blob Storage', 'diluxone-offload' ) : '';
-$account_name          = (string) ( $config['provider_config']['storage_account'] ?? $config['account_name'] ?? '' );
-$container_name_val    = (string) ( $config['provider_config']['container_name'] ?? $config['container_name'] ?? '' );
+$provider_display_name = \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( $provider_name );
+$provider_rows         = ( new \DiluxOneOffload\DTOs\ProviderConfig( $provider_name, (array) ( $config['provider_config'] ?? array() ) ) )->describe();
+$account_name          = (string) ( $config['provider_config']['storage_account'] ?? '' );
+$container_name_val    = (string) ( $config['provider_config']['container_name'] ?? '' );
 $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 ?>
 
@@ -58,6 +59,9 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 								<option value="azure" <?php selected( $config['cloud_provider'] ?? '', 'azure' ); ?>>
 									<?php esc_html_e( 'Microsoft Azure Blob Storage', 'diluxone-offload' ); ?>
 								</option>
+								<option value="s3" <?php selected( $config['cloud_provider'] ?? '', 's3' ); ?>>
+									<?php esc_html_e( 'S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO, …)', 'diluxone-offload' ); ?>
+								</option>
 							</select>
 							<p class="description">
 								<?php esc_html_e( 'Choose your preferred cloud storage provider. Configuration options will appear below.', 'diluxone-offload' ); ?>
@@ -77,7 +81,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="text" id="account_name" name="account_name"
 									value="<?php echo esc_attr( $account_name ); ?>"
-									class="regular-text" required>
+									class="regular-text" required data-required>
 							<p class="description"><?php esc_html_e( 'Your storage account name (3-24 lowercase characters and numbers only).', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -86,7 +90,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="password" id="account_key" name="account_key"
 									value=""
-									class="large-text" required autocomplete="off">
+									class="large-text" required data-required autocomplete="off">
 							<p class="description"><?php esc_html_e( 'Primary or secondary access key from your storage account.', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -95,11 +99,108 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="text" id="container_name" name="container_name"
 									value="<?php echo esc_attr( $container_name_val ); ?>"
-									class="regular-text" required>
+									class="regular-text" required data-required>
 							<p class="description"><?php esc_html_e( 'Container name for storing your media files.', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
 				</table>
+				<div class="test-connection-section">
+					<button type="button" class="button button-secondary test-connection-btn">
+						<span class="dashicons dashicons-admin-links"></span>
+						<?php esc_html_e( 'Test Connection', 'diluxone-offload' ); ?>
+					</button>
+					<div class="connection-result"></div>
+					<p class="test-status-message description" style="margin-top: 8px; color: #d63638; font-weight: 600;">
+						<?php esc_html_e( 'You must test the connection successfully before saving credentials.', 'diluxone-offload' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<!-- S3-compatible Config -->
+			<div class="settings-section provider-config" id="s3-config" style="<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 's3' ? '' : 'display: none;' ); ?>">
+				<h3><?php esc_html_e( 'S3-compatible storage', 'diluxone-offload' ); ?></h3>
+				<p class="description"><?php esc_html_e( 'Pick the service; it fills in the endpoint and the public URL, and you can change both.', 'diluxone-offload' ); ?></p>
+				<table class="form-table">
+					<tr>
+						<th scope="row"><label for="s3_preset"><?php esc_html_e( 'Service', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<select id="s3_preset" name="s3_preset" class="regular-text" data-required>
+								<?php foreach ( \DiluxOneOffload\Providers\S3Presets::all() as $s3_key => $s3_preset ) : ?>
+									<option value="<?php echo esc_attr( $s3_key ); ?>"><?php echo esc_html( $s3_preset['label'] ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<div class="diluxone-offload-s3-hints">
+								<p class="description" data-preset="aws" hidden><?php esc_html_e( 'AWS console › IAM › Users › Security credentials › Create access key, for a user allowed to put, get, delete and list objects in the bucket. The bucket must allow anonymous read of objects (Block Public Access off and a bucket policy granting s3:GetObject); Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="r2" hidden><?php esc_html_e( 'Cloudflare dashboard › R2 › Manage API tokens: a token with Object Read & Write on the bucket. The endpoint is https://<account id>.r2.cloudflarestorage.com; the public URL is the bucket\'s r2.dev address or your custom domain, with public access enabled on the bucket.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="b2" hidden><?php esc_html_e( 'Backblaze › Application Keys: a key with read and write access to the bucket. The region is in the bucket\'s S3 endpoint (for example us-west-004). The bucket must be public; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="spaces" hidden><?php esc_html_e( 'DigitalOcean › API › Spaces Keys. The region is the Space\'s datacenter (for example nyc3). Anyone must be able to read the Space\'s files; Test Connection checks it. The Space\'s CDN endpoint can be the public URL.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="wasabi" hidden><?php esc_html_e( 'Wasabi console › Access Keys. The region is the bucket\'s (for example us-east-1). Anyone must be able to read the bucket\'s objects; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="gcs" hidden><?php esc_html_e( 'Google Cloud console › Cloud Storage › Settings › Interoperability: an HMAC key for a service account with access to the bucket. The bucket must grant allUsers the Storage Object Viewer role.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="custom" hidden><?php esc_html_e( 'Any other server that speaks the S3 API (MinIO, Ceph, …): type the endpoint, the region it expects and the public URL browsers load objects from.', 'diluxone-offload' ); ?></p>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_region"><?php esc_html_e( 'Region', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="text" id="s3_region" name="s3_region" value="" class="regular-text" required data-required>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_endpoint"><?php esc_html_e( 'Endpoint', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="url" id="s3_endpoint" name="s3_endpoint" value="" class="large-text" required data-required>
+							<p class="description diluxone-offload-s3-http-warning" hidden><?php esc_html_e( 'This endpoint is plain http: requests, and the signature of your key, travel unencrypted. Use it only on a private network.', 'diluxone-offload' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_bucket"><?php esc_html_e( 'Bucket', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="text" id="s3_bucket" name="s3_bucket" value="" class="regular-text" required data-required>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_access_key_id"><?php esc_html_e( 'Access Key ID', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="text" id="s3_access_key_id" name="s3_access_key_id" value="" class="regular-text" required data-required autocomplete="off">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_secret_access_key"><?php esc_html_e( 'Secret Access Key', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="password" id="s3_secret_access_key" name="s3_secret_access_key" value="" class="large-text" required data-required autocomplete="off">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="s3_public_url"><?php esc_html_e( 'Public URL', 'diluxone-offload' ); ?></label></th>
+						<td>
+							<input type="url" id="s3_public_url" name="s3_public_url" value="" class="large-text" required data-required>
+							<p class="description"><?php esc_html_e( 'Where browsers load your media from. Use your CDN or custom domain here if you have one.', 'diluxone-offload' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<details class="diluxone-offload-s3-advanced">
+					<summary><?php esc_html_e( 'Advanced', 'diluxone-offload' ); ?></summary>
+					<table class="form-table">
+						<tr class="diluxone-offload-s3-acl-row">
+							<th scope="row"><?php esc_html_e( 'Object ACL', 'diluxone-offload' ); ?></th>
+							<td>
+								<label><input type="checkbox" id="s3_object_acl" name="s3_object_acl" value="1"> <?php esc_html_e( 'Make each upload public (public-read ACL)', 'diluxone-offload' ); ?></label>
+								<p class="description"><?php esc_html_e( 'Only for buckets where public read is set per object. Amazon S3 buckets created since April 2023 have ACLs disabled and refuse it; there, make the bucket readable with a bucket policy instead.', 'diluxone-offload' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="s3_path_style"><?php esc_html_e( 'Addressing', 'diluxone-offload' ); ?></label></th>
+							<td>
+								<select id="s3_path_style" name="s3_path_style">
+									<option value="path"><?php esc_html_e( 'Path-style (endpoint/bucket/key)', 'diluxone-offload' ); ?></option>
+									<option value="virtual"><?php esc_html_e( 'Virtual-hosted (bucket.endpoint/key)', 'diluxone-offload' ); ?></option>
+								</select>
+								<p class="description"><?php esc_html_e( 'Set by the service; editable only under Custom.', 'diluxone-offload' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</details>
 				<div class="test-connection-section">
 					<button type="button" class="button button-secondary test-connection-btn">
 						<span class="dashicons dashicons-admin-links"></span>
@@ -138,20 +239,12 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 					<th scope="row"><?php esc_html_e( 'Provider', 'diluxone-offload' ); ?></th>
 					<td><strong><?php echo esc_html( $provider_display_name ); ?></strong></td>
 				</tr>
-				<?php if ( $provider_name === 'azure' ) : ?>
+				<?php foreach ( $provider_rows as $row_label => $row_value ) : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( $account_name ); ?></code></td>
+					<th scope="row"><?php echo esc_html( $row_label ); ?></th>
+					<td><code><?php echo esc_html( $row_value ); ?></code></td>
 				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Container', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( $container_name_val ); ?></code></td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Media served from', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( sprintf( 'https://%s.blob.core.windows.net/%s/', $account_name, $container_name_val ) ); ?></code></td>
-				</tr>
-				<?php endif; ?>
+				<?php endforeach; ?>
 				<?php if ( $connected_at > 0 ) : ?>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Connected since', 'diluxone-offload' ); ?></th>

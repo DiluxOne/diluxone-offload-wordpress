@@ -9,11 +9,12 @@ use DiluxOneOffload\ConfigManager;
 /**
  * What "Force HTTPS for cloud storage URLs" does.
  *
- * The client hands out http:// URLs, the way WordPress downgrades them on
- * a site served over plain http; the setting must re-issue exactly those,
- * on the cloud host and nowhere else, through the four filters the plugin
- * registers. The host is whatever the client's URL says, which is what
- * makes the setting work for any provider.
+ * The client's own URL is https, and the filters receive http:// URLs, the
+ * way WordPress downgrades them on a site served over plain http; the
+ * setting must re-issue exactly those, on the cloud host and nowhere else,
+ * through the four filters the plugin registers. The host is whatever the
+ * client's URL says, which is what makes the setting work for any provider;
+ * a provider whose own URL is http is left alone.
  */
 class ForceHttpsTest extends IntegrationTestCase {
 
@@ -21,7 +22,7 @@ class ForceHttpsTest extends IntegrationTestCase {
 
     protected function setUp(): void {
         parent::setUp();
-        $this->client = new FakeCloudClient('http://127.0.0.1:1', 'http://fake.cloud');
+        $this->client = new FakeCloudClient('http://127.0.0.1:1', 'https://fake.cloud');
         add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectClient']);
         $this->configure(true);
     }
@@ -71,6 +72,14 @@ class ForceHttpsTest extends IntegrationTestCase {
 
     public function test_an_https_url_is_untouched(): void {
         $this->assertSame('https://fake.cloud/uploads/a.jpg', apply_filters('wp_get_attachment_url', 'https://fake.cloud/uploads/a.jpg', 0));
+    }
+
+    public function test_a_provider_served_over_plain_http_on_purpose_keeps_its_http_urls(): void {
+        // An S3-compatible server on a private network: its Public URL is
+        // http, and https there would break every image.
+        $this->client = new FakeCloudClient('http://127.0.0.1:1', 'http://s3.lan:9000/media');
+        $this->configure(true);
+        $this->assertSame('http://s3.lan:9000/media/uploads/a.jpg', apply_filters('wp_get_attachment_url', 'http://s3.lan:9000/media/uploads/a.jpg', 0));
     }
 
     public function test_off_it_leaves_the_http_url_as_the_client_gave_it(): void {

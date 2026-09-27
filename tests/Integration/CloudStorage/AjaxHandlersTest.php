@@ -120,11 +120,7 @@ class AjaxHandlersTest extends IntegrationTestCase {
         // credentials unless the matching connection-test transient
         // is present (proves the user just clicked Test Connection
         // with these credentials and they validated).
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_user_id, [
-            'account_name'   => 'teststorage',
-            'container_name' => 'testcontainer',
-            'provider'       => 'azure',
-        ], 300);
+        $this->passConnectionTest('azure', ['storage_account' => 'teststorage', 'access_key' => 'testkey123', 'container_name' => 'testcontainer']);
 
         $nonce = wp_create_nonce('diluxone_offload_admin');
         $_POST['nonce'] = $nonce;

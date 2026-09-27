@@ -21,6 +21,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class ProviderConfig {
 
+	/**
+	 * The form fields each provider posts, besides `cloud_provider`: the
+	 * Connection form, Test Connection and the Credentials tab all send these
+	 * names, and only these reach fromPost().
+	 */
+	const FORM_FIELDS = array(
+		'azure' => array( 'account_name', 'account_key', 'container_name' ),
+		's3'    => array( 's3_preset', 's3_region', 's3_endpoint', 's3_bucket', 's3_access_key_id', 's3_secret_access_key', 's3_public_url', 's3_object_acl', 's3_path_style' ),
+	);
+
 	/** @var string */
 	private string $cloudProvider;
 	/**
@@ -90,6 +100,25 @@ class ProviderConfig {
 				self::validate_azure_config( $provider_config );
 				break;
 
+			case 's3':
+				$preset          = (string) ( $post['s3_preset'] ?? '' );
+				$provider_config = array(
+					'preset'            => $preset,
+					'endpoint'          => self::normalise_url( esc_url_raw( (string) ( $post['s3_endpoint'] ?? '' ), array( 'http', 'https' ) ) ),
+					'region'            => \DiluxOneOffload\Providers\S3Presets::region_is_fixed( $preset ) ? \DiluxOneOffload\Providers\S3Presets::default_region( $preset ) : strtolower( trim( (string) ( $post['s3_region'] ?? '' ) ) ),
+					'bucket'            => trim( (string) ( $post['s3_bucket'] ?? '' ) ),
+					'access_key_id'     => trim( (string) ( $post['s3_access_key_id'] ?? '' ) ),
+					'secret_access_key' => (string) ( $post['s3_secret_access_key'] ?? '' ),
+					'public_url'        => self::normalise_url( esc_url_raw( (string) ( $post['s3_public_url'] ?? '' ), array( 'http', 'https' ) ) ),
+					// Advanced: the addressing style is the preset's, editable only
+					// under Custom; the object ACL only where the service honours one.
+					'path_style'        => 'custom' === $preset ? 'virtual' !== ( $post['s3_path_style'] ?? '' ) : \DiluxOneOffload\Providers\S3Presets::path_style( $preset ),
+					'object_acl'        => \DiluxOneOffload\Providers\S3Presets::offers_acl( $preset ) && '1' === (string) ( $post['s3_object_acl'] ?? '' ),
+				);
+
+				self::validate_s3_config( $provider_config );
+				break;
+
 			default:
 				throw new \InvalidArgumentException( 'Unsupported cloud provider: ' . esc_html( $cloud_provider ) );
 		}
@@ -128,6 +157,121 @@ class ProviderConfig {
 		}
 		if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9]|[-](?![.])){1,61}[a-z0-9]$/', (string) $provider_config['container_name'] ) ) {
 			throw new \InvalidArgumentException( 'Container Name must be lowercase letters, numbers, and hyphens only (3-63 characters)' );
+		}
+	}
+
+	/**
+	 * Validate an S3-compatible provider_config array fresh off a request.
+	 *
+	 * The same contract as validate_azure_config(): called by fromPost(), not
+	 * by fromArray(). The endpoint is where the signed requests go, so it
+	 * must be https, except under the Custom preset (MinIO on a LAN or in CI).
+	 * Messages name the field, never its value.
+	 *
+	 * @param array<string, mixed> $provider_config
+	 * @throws \InvalidArgumentException When a field is missing or malformed.
+	 */
+	public static function validate_s3_config( array $provider_config ): void {
+		$preset = (string) ( $provider_config['preset'] ?? '' );
+		if ( ! \DiluxOneOffload\Providers\S3Presets::exists( $preset ) ) {
+			throw new \InvalidArgumentException( 'Service is required' );
+		}
+
+		$required = array(
+			'endpoint'          => 'Endpoint',
+			'region'            => 'Region',
+			'bucket'            => 'Bucket',
+			'access_key_id'     => 'Access Key ID',
+			'secret_access_key' => 'Secret Access Key',
+			'public_url'        => 'Public URL',
+		);
+		foreach ( $required as $field => $label ) {
+			if ( '' === (string) ( $provider_config[ $field ] ?? '' ) ) {
+				throw new \InvalidArgumentException( esc_html( $label ) . ' is required' );
+			}
+		}
+
+		if ( ! preg_match( '/^[a-z0-9-]{1,32}$/', (string) $provider_config['region'] ) ) {
+			throw new \InvalidArgumentException( 'Region must be lowercase letters, numbers and hyphens only' );
+		}
+		$bucket = (string) $provider_config['bucket'];
+		if ( ! preg_match( '/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/', $bucket ) || false !== filter_var( $bucket, FILTER_VALIDATE_IP ) ) {
+			throw new \InvalidArgumentException( 'Bucket must be 3-63 lowercase letters, numbers, dots and hyphens, and not an IP address' );
+		}
+		$scheme = (string) wp_parse_url( (string) $provider_config['endpoint'], PHP_URL_SCHEME );
+		if ( 'https' !== $scheme && ! ( 'http' === $scheme && \DiluxOneOffload\Providers\S3Presets::allows_http( $preset ) ) ) {
+			throw new \InvalidArgumentException( 'Endpoint must be an https:// URL (http:// only with the Custom service)' );
+		}
+		if ( ! in_array( (string) wp_parse_url( (string) $provider_config['public_url'], PHP_URL_SCHEME ), array( 'http', 'https' ), true ) ) {
+			throw new \InvalidArgumentException( 'Public URL must be an http:// or https:// URL' );
+		}
+		if ( ! preg_match( '/^[\x21-\x7e]{1,128}$/', (string) $provider_config['access_key_id'] ) ) {
+			throw new \InvalidArgumentException( 'Access Key ID must be 1-128 printable characters' );
+		}
+	}
+
+	/**
+	 * A URL as it is stored: scheme and host lower-case, no trailing slash,
+	 * no query, no fragment; a path (a CDN folder) is kept.
+	 *
+	 * @param string $url URL, already through esc_url_raw().
+	 * @return string '' when it is not a URL with a host.
+	 */
+	private static function normalise_url( string $url ): string {
+		$parts = wp_parse_url( trim( $url ) );
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) || empty( $parts['scheme'] ) ) {
+			return '';
+		}
+		return strtolower( $parts['scheme'] ) . '://' . strtolower( $parts['host'] )
+			. ( isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '' )
+			. rtrim( (string) ( $parts['path'] ?? '' ), '/' );
+	}
+
+	/**
+	 * A fingerprint of the complete configuration, secret included.
+	 *
+	 * Test Connection stores it; both save paths recompute it from what they
+	 * are about to save and refuse when it differs, so only the exact
+	 * configuration that passed a test is ever saved. A hash, so the secret
+	 * never sits in a transient.
+	 *
+	 * @return string
+	 */
+	public function fingerprint(): string {
+		$config = $this->providerConfig;
+		ksort( $config );
+		return hash( 'sha256', (string) wp_json_encode( array( $this->cloudProvider, $config ) ) );
+	}
+
+	/**
+	 * The rows the read-only screens show for this configuration, label to
+	 * value, in order: where the media lives first (the Overview shows the
+	 * first two rows), where it is served from last. Never the secret.
+	 *
+	 * @return array<string, string>
+	 */
+	public function describe(): array {
+		switch ( $this->cloudProvider ) {
+			case 'azure':
+				$account   = (string) ( $this->providerConfig['storage_account'] ?? '' );
+				$container = (string) ( $this->providerConfig['container_name'] ?? '' );
+				return array(
+					__( 'Storage Account', 'diluxone-offload' ) => $account,
+					__( 'Container', 'diluxone-offload' ) => $container,
+					__( 'Media served from', 'diluxone-offload' ) => sprintf( 'https://%s.blob.core.windows.net/%s/', $account, $container ),
+				);
+			case 's3':
+				return array(
+					__( 'Service', 'diluxone-offload' )  => \DiluxOneOffload\Providers\S3Presets::label( (string) ( $this->providerConfig['preset'] ?? '' ) ),
+					__( 'Bucket', 'diluxone-offload' )   => (string) ( $this->providerConfig['bucket'] ?? '' ),
+					__( 'Endpoint', 'diluxone-offload' ) => (string) ( $this->providerConfig['endpoint'] ?? '' ),
+					__( 'Region', 'diluxone-offload' )   => (string) ( $this->providerConfig['region'] ?? '' ),
+					__( 'Access Key ID', 'diluxone-offload' ) => (string) ( $this->providerConfig['access_key_id'] ?? '' ),
+					__( 'Uploads are made public', 'diluxone-offload' ) => ! empty( $this->providerConfig['object_acl'] ) ? __( 'Yes, with a public-read ACL on each object', 'diluxone-offload' ) : __( 'No, the bucket decides', 'diluxone-offload' ),
+					__( 'Media served from', 'diluxone-offload' ) => (string) ( $this->providerConfig['public_url'] ?? '' ) . '/',
+				);
+			default:
+				return array();
 		}
 	}
 

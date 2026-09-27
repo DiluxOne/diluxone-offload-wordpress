@@ -139,8 +139,8 @@ $ago           = static function ( int $ts ): string {
 						<p class="state-details">
 							<?php
 							echo wp_kses(
-								/* translators: %s: storage provider name (Azure) wrapped in <strong> */
-								sprintf( __( 'Provider: %s', 'diluxone-offload' ), '<strong>Azure</strong>' ),
+								/* translators: %s: storage provider name wrapped in <strong> */
+								sprintf( __( 'Provider: %s', 'diluxone-offload' ), '<strong>' . esc_html( \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( (string) $plugin_config['cloud_provider'] ) ) . '</strong>' ),
 								array( 'strong' => array() )
 							);
 							?>

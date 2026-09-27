@@ -106,8 +106,9 @@ class ConfigManager {
 	 * encrypted at rest.
 	 */
 	const ENCRYPTED_FIELDS = array(
-		'access_key',  // Azure Blob Storage account key
-		'account_key', // legacy Azure (pre-1.0)
+		'access_key',        // Azure Blob Storage account key
+		'account_key',       // legacy Azure (pre-1.0)
+		'secret_access_key', // S3-compatible secret access key
 	);
 
 	/** @var array<string, mixed> Default configuration values */
@@ -623,6 +624,7 @@ class ConfigManager {
 	 */
 	const STATS_TRANSIENTS = array(
 		'azure' => 'diluxone_offload_azure_stats',
+		's3'    => 'diluxone_offload_s3_stats',
 	);
 
 	/**
@@ -1022,8 +1024,11 @@ class ConfigManager {
 
 		update_option( self::HEALTH_OPTION, $health, true );
 
-		// Clear stats transients to prevent stale data
-		delete_transient( 'diluxone_offload_azure_stats' );
+		// The configured provider's cached stats are stale now.
+		$stats_transient = self::STATS_TRANSIENTS[ self::get_config()['cloud_provider'] ?? '' ] ?? '';
+		if ( '' !== $stats_transient ) {
+			delete_transient( $stats_transient );
+		}
 
 		Logger::warning( '[DiluxOne Offload ConfigManager] Connection failure recorded: ' . $error_code . ' - ' . $error_message . ' (source: ' . $source . ', consecutive: ' . $health['consecutive_failures'] . ')' );
 	}

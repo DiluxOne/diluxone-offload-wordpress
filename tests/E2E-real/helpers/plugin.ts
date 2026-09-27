@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import type { ConnectionForm } from './storage';
 
 /**
  * The plugin's admin screens, driven the way a user drives them. Every
@@ -59,14 +60,28 @@ export async function expectNoPhpErrors( page: Page ): Promise< void > {
 }
 
 /** Fill the provider form and click Test Connection; returns the result box text. */
-export async function testConnection( page: Page, creds: { account: string; key: string; container: string } ): Promise< string > {
-	await page.locator( '#cloud_provider' ).selectOption( 'azure' );
-	await expect( page.locator( '#azure-config' ) ).toBeVisible();
-	await page.locator( '#account_name' ).fill( creds.account );
-	await page.locator( '#account_key' ).fill( creds.key );
-	await page.locator( '#container_name' ).fill( creds.container );
-	await page.locator( '.test-connection-btn' ).click();
-	const result = page.locator( '.test-connection-section .connection-result' ).first();
+export async function testConnection( page: Page, form: ConnectionForm ): Promise< string > {
+	await page.locator( '#cloud_provider' ).selectOption( form.provider );
+	const section = page.locator( `#${ form.provider }-config` );
+	await expect( section ).toBeVisible();
+	if ( form.provider === 'azure' ) {
+		await page.locator( '#account_name' ).fill( form.account );
+		await page.locator( '#account_key' ).fill( form.key );
+		await page.locator( '#container_name' ).fill( form.container );
+	} else {
+		// The service first: it fills in what it can, and the rest is typed over it.
+		await page.locator( '#s3_preset' ).selectOption( form.preset );
+		if ( ( await page.locator( '#s3_region' ).getAttribute( 'readonly' ) ) === null ) {
+			await page.locator( '#s3_region' ).fill( form.region );
+		}
+		await page.locator( '#s3_bucket' ).fill( form.bucket );
+		await page.locator( '#s3_endpoint' ).fill( form.endpoint );
+		await page.locator( '#s3_access_key_id' ).fill( form.keyId );
+		await page.locator( '#s3_secret_access_key' ).fill( form.secret );
+		await page.locator( '#s3_public_url' ).fill( form.publicUrl );
+	}
+	await section.locator( '.test-connection-btn' ).click();
+	const result = section.locator( '.connection-result' );
 	await expect( result ).toContainText( /success|failed|error|invalid|denied/i, { timeout: 60_000 } );
 	return ( await result.innerText() ).trim();
 }
@@ -149,8 +164,26 @@ export async function completeSyncAndEnable( page: Page ): Promise< void > {
 	await enableOffloadingFromModal( page );
 }
 
+/**
+ * Against a fast server (the local S3 one) a whole library can move before
+ * a click lands, so every batch of `action` after the first waits a few
+ * seconds on its way back: long enough to cancel mid-way, anywhere. It
+ * stays on after the page reloads (a batch the reloaded screen resumes is
+ * slow too) until the caller runs page.unrouteAll().
+ */
+async function slowBatchesAfterTheFirst( page: Page, action: string ): Promise< void > {
+	let batches = 0;
+	await page.route( '**/wp-admin/admin-ajax.php', async ( route ) => {
+		if ( ( route.request().postData() ?? '' ).includes( `action=${ action }` ) && batches++ > 0 ) {
+			await new Promise( ( resolve ) => setTimeout( resolve, 5000 ) );
+		}
+		await route.continue();
+	} );
+}
+
 /** Start a sync and cancel it from the progress modal as soon as one file has been processed. */
 export async function startSyncAndCancel( page: Page ): Promise< void > {
+	await slowBatchesAfterTheFirst( page, 'diluxone_offload_process_batch' );
 	await page.locator( '#start-sync-btn' ).click();
 	await expect( page.locator( '#scratch-upload-btn' ) ).toBeVisible( { timeout: 60_000 } );
 	await page.locator( '#scratch-upload-btn' ).click();
@@ -222,6 +255,7 @@ export async function startDisconnectAndCancel( page: Page ): Promise< void > {
 	await page.locator( '#disconnect-from-cloud-btn' ).click();
 	await page.locator( '#confirm-disconnect' ).click();
 	await expect( page.locator( '#disconnect-options-view' ) ).toBeVisible( { timeout: LONG } );
+	await slowBatchesAfterTheFirst( page, 'diluxone_offload_process_reverse_batch' );
 	await page.locator( '#start-disconnect' ).click();
 	await expect( page.locator( '#disconnect-progress-view' ) ).toBeVisible();
 	await expect
@@ -251,10 +285,11 @@ export async function removeProvider( page: Page ): Promise< void > {
 	await expect( page.locator( '#cloud_provider' ) ).toBeVisible();
 }
 
-/** Rotate the access key on the Credentials tab: test the new one, then save it. */
+/** Rotate the key (Azure) or the secret (S3) on the Credentials tab: test the new one, then save it. */
 export async function updateKey( page: Page, key: string, expectSuccess: boolean ): Promise< void > {
-	await expect( page.locator( '#new_account_key' ) ).toBeVisible();
-	await page.locator( '#new_account_key' ).fill( key );
+	const field = page.locator( '#provider-credentials input[data-secret]' );
+	await expect( field ).toBeVisible();
+	await field.fill( key );
 	await page.locator( '#test-new-credentials' ).click();
 	const result = page.locator( '#new-credentials-result' );
 	await expect( result ).toContainText( /success|failed|error|invalid|denied/i, { timeout: 60_000 } );

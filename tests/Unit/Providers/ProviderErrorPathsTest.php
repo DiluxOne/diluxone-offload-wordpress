@@ -58,13 +58,7 @@ class ProviderErrorPathsTest extends TestCase {
 		return $f;
 	}
 
-	// ── DiluxOne: SAS token ─────────────────────────────────
-
-	// ── DiluxOne: 403 → refresh once, then give up ──────────
-
-	// ── DiluxOne: per-operation failures ────────────────────
-
-	// ── DiluxOne: chunked (large file) upload ───────────────
+	// ── Chunked (large file) upload ─────────────────────────
 
 	public function test_azure_chunked_upload_of_a_missing_file_fails_cleanly(): void {
 		$r = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => '/nope/x', 'remote_path' => 'x', 'size' => 1 ) );
@@ -276,7 +270,7 @@ class ProviderErrorPathsTest extends TestCase {
 			. '<Blob><Name>uploads/d.pdf</Name><Properties><Content-Length>40</Content-Length><Last-Modified>x</Last-Modified></Properties></Blob>'
 			. '</Blobs><NextMarker></NextMarker></EnumerationResults>';
 		$GLOBALS['_test_wp_http'] = fn() => self::raw( 200, $xml );
-		$r = $p->get_container_stats( true );
+		$r = $p->get_storage_stats( true );
 		$this->assertTrue( $r['success'] );
 		$this->assertSame( 4, $r['data']['fileCount'] );
 		$this->assertSame( 100, $r['data']['storageUsedBytes'] );

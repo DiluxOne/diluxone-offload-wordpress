@@ -698,6 +698,8 @@ class Admin {
 					'data' => array(
 						'config_cloud_provider' => $template_data['config']['cloud_provider'] ?? '',
 						'urls'                  => self::screen_urls(),
+						// The Connection form derives Endpoint and Public URL from these.
+						's3_presets'            => \DiluxOneOffload\Providers\S3Presets::all(),
 					),
 				);
 				$object  = 'DiluxOneOffloadProvider';
@@ -1032,9 +1034,7 @@ class Admin {
 				$template_data['last_upload']     = ConfigManager::get_last_upload();
 				$template_data['skipped']         = ConfigManager::get_skipped();
 				$template_data['free_disk']       = self::free_disk();
-				$template_data['cloud_host']      = ( $config['provider_config']['storage_account'] ?? '' ) !== ''
-					? sprintf( 'https://%s.blob.core.windows.net/%s/', (string) $config['provider_config']['storage_account'], (string) ( $config['provider_config']['container_name'] ?? '' ) )
-					: '';
+				$template_data['cloud_host']      = CloudStreamWrapper::get_cloud_host();
 				$template_data['screen_urls']     = self::screen_urls();
 				break;
 
@@ -1298,10 +1298,21 @@ class Admin {
 		);
 		$config        = ConfigManager::get_config();
 		$container     = (string) ( $config['provider_config']['container_name'] ?? '' );
-		$where         = $container !== ''
-			/* translators: %s: the name of the storage container */
-			? sprintf( \__( 'the Azure Blob Storage container %s', 'diluxone-offload' ), $container )
-			: \__( 'Azure Blob Storage', 'diluxone-offload' );
+		$bucket        = (string) ( $config['provider_config']['bucket'] ?? '' );
+		if ( 's3' === ( $config['cloud_provider'] ?? '' ) ) {
+			$where = sprintf(
+				/* translators: 1: the storage service (e.g. Amazon S3), 2: the name of the bucket */
+				\__( 'the %1$s bucket %2$s', 'diluxone-offload' ),
+				// Custom's label names examples, not a service: the family's name reads better.
+				'custom' === ( $config['provider_config']['preset'] ?? '' ) ? \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( 's3' ) : \DiluxOneOffload\Providers\S3Presets::label( (string) ( $config['provider_config']['preset'] ?? '' ) ),
+				$bucket
+			);
+		} else {
+			$where = $container !== ''
+				/* translators: %s: the name of the storage container */
+				? sprintf( \__( 'the Azure Blob Storage container %s', 'diluxone-offload' ), $container )
+				: \__( 'Azure Blob Storage', 'diluxone-offload' );
+		}
 
 		// ── Right now ──
 		if ( ! $is_configured ) {
@@ -1395,8 +1406,9 @@ class Admin {
 				$note  = array(
 					'title' => \__( 'Where the keys come from', 'diluxone-offload' ),
 					'body'  => array(
-						\__( 'Azure portal › your storage account › Access keys. The container must allow anonymous read of blobs (public access level Blob); a private container is refused.', 'diluxone-offload' ),
-						\__( 'Test Connection checks the credentials and the container\'s public access level. Both must pass before Save is enabled.', 'diluxone-offload' ),
+						\__( 'Azure: portal › your storage account › Access keys. The container must allow anonymous read of blobs (public access level Blob); a private container is refused.', 'diluxone-offload' ),
+						\__( 'S3-compatible: the keys come from the service\'s console (the form says where for each one), and the bucket must let anyone read its objects.', 'diluxone-offload' ),
+						\__( 'Test Connection checks the credentials and that browsers can read what is stored. Both must pass before Save is enabled.', 'diluxone-offload' ),
 					),
 				);
 				$links = array(
@@ -1629,7 +1641,7 @@ class Admin {
 			case '403':
 				return array(
 					'title'     => __( 'Cloud Permission Denied', 'diluxone-offload' ),
-					'detail'    => __( 'The cloud provider rejected the credentials. The access key may have been rotated, the SAS token may have expired, or the role assignment is missing. Verify the credentials and re-enter them.', 'diluxone-offload' ),
+					'detail'    => __( 'The cloud provider rejected the credentials: the key is wrong, expired, or lacks permission. Verify the credentials and re-enter them.', 'diluxone-offload' ),
 					'cta_label' => __( 'Update Credentials', 'diluxone-offload' ),
 				);
 
@@ -1782,6 +1794,7 @@ class Admin {
 	 *
 	 * @throws \Exception When PluginSettings/ProviderConfig validation fails inside
 	 *                   the inner try blocks (caught and converted to error notices).
+	 * @throws \InvalidArgumentException When the provider configuration did not pass Test Connection (caught likewise).
 	 */
 	public static function save_config(): void {
 		// Check nonce for security
@@ -1830,29 +1843,27 @@ class Admin {
 
 		} elseif ( $screen === 'cloud-provider' ) {
 			// Check if provider credentials were sent (not disabled)
-			$has_provider_credentials = isset( $_POST['cloud_provider'] ) && isset( $_POST['account_name'] );
+			$posted_provider = self::posted_fields( array( 'cloud_provider' ) )['cloud_provider'] ?? '';
 
-			if ( $has_provider_credentials ) {
+			if ( '' !== $posted_provider ) {
 				try {
-					// Only the four fields of the provider form ever reach the
+					// Only the named fields of the provider form ever reach the
 					// DTO, already unslashed and sanitized by posted_fields();
 					// fromPost() validates each one (format regexes). The
 					// superglobal itself is never handed to another function.
 					$provider = \DiluxOneOffload\DTOs\ProviderConfig::fromPost(
-						self::posted_fields(
-							array(
-								'cloud_provider',
-								'account_name',
-								'account_key',
-								'container_name',
-							)
-						)
+						array( 'cloud_provider' => $posted_provider ) + self::posted_fields( \DiluxOneOffload\DTOs\ProviderConfig::FORM_FIELDS[ $posted_provider ] ?? array() )
 					);
+
+					if ( ! self::passed_connection_test( $provider ) ) {
+						throw new \InvalidArgumentException( __( 'Test the connection before saving: only a configuration that passed Test Connection can be saved.', 'diluxone-offload' ) );
+					}
 
 					if ( ! ConfigManager::save_provider_config( $provider ) ) {
 						throw new \Exception( 'Failed to save provider configuration to database' );
 					}
 
+					delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
 					self::flash_notice( 'success', 'Provider configuration saved successfully!' );
 				} catch ( \InvalidArgumentException $e ) {
 					// Validation error from ProviderConfig::fromPost()
@@ -1904,36 +1915,15 @@ class Admin {
 			wp_send_json_error( array( 'message' => esc_html__( 'Unsupported cloud provider', 'diluxone-offload' ) ) );
 		}
 
-		$account_name   = '';
-		$container_name = '';
-
 		try {
-			$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
-			$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
-			$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
-
-			if ( empty( $account_name ) || empty( $account_key ) || empty( $container_name ) ) {
-				wp_send_json_error( array( 'message' => esc_html__( 'Missing required fields', 'diluxone-offload' ) ) );
-			}
-
-			// Same rules as saving: the account name becomes the hostname the
-			// signed request goes to, so it's checked before any request is built.
-			\DiluxOneOffload\DTOs\ProviderConfig::validate_azure_config(
-				array(
-					'storage_account' => $account_name,
-					'access_key'      => $account_key,
-					'container_name'  => $container_name,
-				)
+			// The same fields and rules as saving: fromPost() validates each one
+			// before any request is built (an Azure account name, for one,
+			// becomes the hostname the signed request goes to).
+			$tested = \DiluxOneOffload\DTOs\ProviderConfig::fromPost(
+				array( 'cloud_provider' => $provider ) + self::posted_fields( \DiluxOneOffload\DTOs\ProviderConfig::FORM_FIELDS[ $provider ] ?? array() )
 			);
 
-			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create(
-				$provider,
-				array(
-					'storage_account' => $account_name,
-					'access_key'      => $account_key,
-					'container_name'  => $container_name,
-				)
-			);
+			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create( $provider, $tested->getProviderConfig() );
 
 			if ( $client === null ) {
 				wp_send_json_error( array( 'message' => esc_html__( 'Could not instantiate cloud client for the selected provider.', 'diluxone-offload' ) ) );
@@ -1946,20 +1936,16 @@ class Admin {
 				// The health is the saved connection's: a passing test of other
 				// credentials (a new key being tried, another container) says
 				// nothing about it and must not mark it healthy.
-				$saved = ConfigManager::get_config();
-				if ( ConfigManager::is_configured()
-					&& ( $saved['provider_config']['storage_account'] ?? null ) === $account_name
-					&& ( $saved['provider_config']['container_name'] ?? null ) === $container_name
-					&& ( ConfigManager::get_current_provider_config()['access_key'] ?? null ) === $account_key ) {
+				$saved = new \DiluxOneOffload\DTOs\ProviderConfig( (string) ( ConfigManager::get_config()['cloud_provider'] ?? '' ), ConfigManager::get_current_provider_config() );
+				if ( ConfigManager::is_configured() && $saved->fingerprint() === $tested->fingerprint() ) {
 					ConfigManager::record_connection_success();
 				}
 
-				// Remembered so the save can verify it is the tested account.
+				// Both save paths refuse anything but this exact configuration.
 				$transient_data = array(
-					'provider'       => 'azure',
-					'account_name'   => $account_name,
-					'container_name' => $container_name,
-					'timestamp'      => time(),
+					'provider'    => $provider,
+					'fingerprint' => $tested->fingerprint(),
+					'timestamp'   => time(),
 				);
 
 				set_transient(
@@ -2003,9 +1989,7 @@ class Admin {
 	/**
 	 * AJAX handler for refreshing cloud storage statistics
 	 *
-	 * Calls the provider's stats method with force_refresh=true. Uses
-	 * instanceof because get_container_stats() is Azure-specific and not
-	 * part of the client interface.
+	 * Calls the provider's stats method with force_refresh=true.
 	 */
 	public static function ajax_refresh_stats(): void {
 		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
@@ -2020,12 +2004,7 @@ class Admin {
 		}
 
 		try {
-			$stats = null;
-			if ( $client instanceof \DiluxOneOffload\Providers\AzureProvider ) {
-				$stats = $client->get_container_stats( true );
-			} else {
-				wp_send_json_error( array( 'message' => esc_html__( 'Unknown provider type', 'diluxone-offload' ) ) );
-			}
+			$stats = $client->get_storage_stats( true );
 
 			if ( $stats['success'] ) {
 				ConfigManager::record_connection_success();
@@ -2058,59 +2037,49 @@ class Admin {
 
 		$provider = sanitize_text_field( wp_unslash( $_POST['provider'] ?? '' ) );
 
-		$account_name   = sanitize_text_field( wp_unslash( $_POST['account_name'] ?? '' ) );
-		$account_key    = sanitize_text_field( wp_unslash( $_POST['account_key'] ?? '' ) );
-		$container_name = sanitize_text_field( wp_unslash( $_POST['container_name'] ?? '' ) );
+		// Validated like any other form (fromPost()), and it must be the exact
+		// configuration that passed the test.
+		try {
+			$provider_config = \DiluxOneOffload\DTOs\ProviderConfig::fromPost(
+				array( 'cloud_provider' => $provider ) + self::posted_fields( \DiluxOneOffload\DTOs\ProviderConfig::FORM_FIELDS[ $provider ] ?? array() )
+			);
+		} catch ( \InvalidArgumentException $e ) {
+			wp_send_json_error( array( 'message' => esc_html( $e->getMessage() ) ) );
+		}
 
-		// The credentials being saved must be the ones that were tested.
-		if ( ( $test_data['account_name'] ?? '' ) !== $account_name ||
-			( $test_data['container_name'] ?? '' ) !== $container_name ) {
+		if ( ! self::passed_connection_test( $provider_config ) ) {
 			wp_send_json_error( array( 'message' => esc_html__( 'Credentials do not match tested values. Please test again.', 'diluxone-offload' ) ) );
 		}
 
-		$provider_data = array(
-			'cloud_provider'  => $provider,
-			'provider_config' => array(
-				'storage_account' => $account_name,
-				'access_key'      => $account_key,
-				'container_name'  => $container_name,
-			),
-		);
-
-		try {
-			// $provider_data['provider_config'] is fresh off this request, not
-			// storage — fromArray() itself stays validation-free (see its
-			// docblock), so the same check fromPost() runs is applied here too.
-			if ( 'azure' === $provider ) {
-				\DiluxOneOffload\DTOs\ProviderConfig::validate_azure_config( $provider_data['provider_config'] );
-			}
-
-			$provider_config = \DiluxOneOffload\DTOs\ProviderConfig::fromArray( $provider_data );
-			if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
-				wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the provider configuration is invalid.', 'diluxone-offload' ) ) );
-			}
-
-			// Clear transient
-			delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
-
-			// Log for audit
-			Logger::info( '[DiluxOne Offload] Credentials updated by user ID: ' . get_current_user_id() );
-
-			// The page reloads after this; the notice waits for it there.
-			self::flash_notice( 'success', 'Credentials updated successfully' );
-
-			wp_send_json_success(
-				array(
-					'message' => 'Credentials updated successfully',
-				)
-			);
-		} catch ( \Exception $e ) {
-			wp_send_json_error(
-				array(
-					'message' => 'Error saving: ' . esc_html( $e->getMessage() ),
-				)
-			);
+		if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the provider configuration is invalid.', 'diluxone-offload' ) ) );
 		}
+
+		delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
+
+		// Log for audit
+		Logger::info( '[DiluxOne Offload] Credentials updated by user ID: ' . get_current_user_id() );
+
+		// The page reloads after this; the notice waits for it there.
+		self::flash_notice( 'success', 'Credentials updated successfully' );
+
+		wp_send_json_success(
+			array(
+				'message' => 'Credentials updated successfully',
+			)
+		);
+	}
+
+	/**
+	 * Whether this user's last passing Test Connection was of exactly this
+	 * configuration, secret included.
+	 *
+	 * @param \DiluxOneOffload\DTOs\ProviderConfig $config The configuration about to be saved.
+	 * @return bool
+	 */
+	private static function passed_connection_test( \DiluxOneOffload\DTOs\ProviderConfig $config ): bool {
+		$test = get_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
+		return is_array( $test ) && hash_equals( (string) ( $test['fingerprint'] ?? '' ), $config->fingerprint() );
 	}
 
 	/**
@@ -2307,7 +2276,9 @@ class Admin {
 			DiluxOneOffloadDB::clear_table();
 
 			// Clean up all transients
-			delete_transient( 'diluxone_offload_azure_stats' );
+			foreach ( ConfigManager::STATS_TRANSIENTS as $stats_transient ) {
+				delete_transient( $stats_transient );
+			}
 			delete_transient( 'diluxone_offload_stats' );
 			delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
 

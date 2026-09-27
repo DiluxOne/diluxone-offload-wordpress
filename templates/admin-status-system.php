@@ -123,20 +123,14 @@ $diluxone_offload_free_disk  = $free_disk ?? null;
 					<table class="info-table">
 						<tr>
 							<td><?php esc_html_e( 'Provider', 'diluxone-offload' ); ?></td>
-							<td><strong>Azure Blob Storage</strong></td>
+							<td><strong><?php echo esc_html( \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( (string) ( $plugin_config['cloud_provider'] ?? '' ) ) ); ?></strong></td>
 						</tr>
-						<?php if ( ! empty( $plugin_config['provider_config']['storage_account'] ) ) : ?>
+						<?php foreach ( ( new \DiluxOneOffload\DTOs\ProviderConfig( (string) ( $plugin_config['cloud_provider'] ?? '' ), (array) $plugin_config['provider_config'] ) )->describe() as $row_label => $row_value ) : ?>
 						<tr>
-							<td><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $plugin_config['provider_config']['storage_account'] ); ?></strong></td>
+							<td><?php echo esc_html( $row_label ); ?></td>
+							<td><strong><?php echo esc_html( $row_value ); ?></strong></td>
 						</tr>
-						<?php endif; ?>
-						<?php if ( ! empty( $plugin_config['provider_config']['container_name'] ) ) : ?>
-						<tr>
-							<td><?php esc_html_e( 'Container', 'diluxone-offload' ); ?></td>
-							<td><strong><?php echo esc_html( $plugin_config['provider_config']['container_name'] ); ?></strong></td>
-						</tr>
-						<?php endif; ?>
+						<?php endforeach; ?>
 					</table>
 				</div>
 				<?php endif; ?>
