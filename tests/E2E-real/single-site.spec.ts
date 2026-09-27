@@ -210,6 +210,41 @@ test.describe.serial( 'single site journey', () => {
 		await expect( page.locator( '#connection-health' ) ).toContainText( /Healthy/ );
 	} );
 
+	test( 'the screens show what is where: the figures, the skipped file, the timestamps, Check now', async ( { page } ) => {
+		const inCloud = ( await listKeys( run, 'uploads/' ) ).length;
+		// Sync: everything synced, every copy still here, nothing uploaded through the site yet.
+		await ui.goTab( page, base, 'sync' );
+		expect( await ui.bignumCount( page, 'Synced' ) ).toBe( inCloud );
+		expect( await ui.bignumCount( page, 'Local copies left' ) ).toBe( inCloud );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
+		expect( ( await ui.bignum( page, 'Last upload' ) ).value ).toBe( 'none yet' );
+		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( '100%' );
+		// The empty file is the one thing the scan left out, and the screen says so by name.
+		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( '1 file was left out by the last scan' );
+		const skipped = page.locator( 'details.diluxone-offload-skipped' );
+		await skipped.locator( 'summary' ).click();
+		await expect( skipped ).toContainText( 'Empty files' );
+		await expect( skipped.locator( 'li code' ) ).toHaveText( [ /\/empty-0b\.txt$/ ] );
+		// Offloading: served from the account, every byte still has a copy here, since when.
+		await ui.goTab( page, base, 'offloading' );
+		expect( ( await ui.bignum( page, 'Served from' ) ).value ).toBe( `${ run.account }.blob.core.windows.net` );
+		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( inCloud );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
+		expect( ( await ui.bignum( page, 'Offloading since' ) ).value ).not.toBe( '—' );
+		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( '0% cloud only' );
+		// Disconnect: nothing to bring back yet.
+		await ui.goTab( page, base, 'disconnect' );
+		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( 0 );
+		// Connection: since when.
+		await ui.goTab( page, base, 'connection' );
+		await expect( page.locator( '#provider-info' ) ).toContainText( 'Connected since' );
+		// Health: Check now asks the provider and answers on the spot.
+		await ui.goTab( page, base, 'health' );
+		expect( await ui.checkHealthNow( page ) ).toMatch( /Healthy/ );
+		await expect( page.locator( '#health-last-success' ) ).toHaveText( /just now/ );
+		await expect( page.locator( '#health-failures strong' ) ).toHaveText( '0' );
+	} );
+
 	test( 'a Media Library upload lands in the container with its thumbnails and a public URL', async ( { page } ) => {
 		const source = path.join( FIXTURE_DIR, 'small-300k.png' );
 		const upload = path.join( FIXTURE_DIR, 'ui-upload.png' );
@@ -236,6 +271,16 @@ test.describe.serial( 'single site journey', () => {
 		const front = await http.get( `${ base }/?attachment_id=${ uiUploadId }` );
 		expect( await front.text(), 'the front end links the cloud URL' ).toContain( url );
 		await http.dispose();
+
+		// The Sync tab knows about it without a scan: the upload and its
+		// thumbnails are synced, cloud only, and the last of them is "Last upload".
+		const inCloud = ( await listKeys( run, 'uploads/' ) ).length;
+		await ui.goTab( page, base, 'sync' );
+		expect( await ui.bignumCount( page, 'Synced' ) ).toBe( inCloud );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 1 + sizes.length );
+		const last = await ui.bignum( page, 'Last upload' );
+		expect( last.value ).toMatch( /ago|just now/ );
+		expect( last.detail ).toMatch( /^ui-upload.*\.png · / );
 	} );
 
 	test( 'deleting the local copies frees the disk and the site keeps serving', async ( { page } ) => {
@@ -248,6 +293,18 @@ test.describe.serial( 'single site journey', () => {
 		expect( ( await http.head( attachmentUrl( site, uiUploadId ) ) ).status() ).toBe( 200 );
 		await http.dispose();
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
+
+		// The figures follow: nothing left here, everything cloud only, and
+		// Disconnect says what it would bring back and that the disk can take it.
+		const inCloud = ( await listKeys( run, 'uploads/' ) ).length;
+		await ui.goTab( page, base, 'offloading' );
+		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( 0 );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( inCloud );
+		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( '100% cloud only' );
+		await ui.goTab( page, base, 'disconnect' );
+		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( inCloud );
+		expect( ( await ui.bignum( page, 'Size to bring back' ) ).value ).not.toMatch( /^0 B$/ );
+		expect( ( await ui.bignum( page, 'Free disk here' ) ).detail ).toBe( 'enough for what is in the cloud' );
 	} );
 
 	test( 'a download can be cancelled and resumed', async ( { page } ) => {
@@ -277,6 +334,10 @@ test.describe.serial( 'single site journey', () => {
 			expect( md5Inside( site, `${ uploadsDir }/${ rel }` ), `${ rel } bytes` ).toBe( await blobMd5( run, key ) );
 		}
 		expect( local.filter( ( f ) => f.endsWith( '.dlxpart' ) ).length ).toBe( 0 );
+		// Every row has its copy back: the Sync tab counts no file as cloud only.
+		expect( await ui.bignumCount( page, 'Synced' ) ).toBe( keys.length );
+		expect( await ui.bignumCount( page, 'Local copies left' ) ).toBe( keys.length );
+		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 	} );
 
 	test( 'the access key can be rotated on the Credentials tab', async ( { page } ) => {

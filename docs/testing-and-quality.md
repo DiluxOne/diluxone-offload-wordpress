@@ -20,9 +20,11 @@ The pull request checks run from [`.github/workflows/pull-request.yml`](../.gith
 | Claude review | shared `claude-review` workflow | Everything in [`architecture.md`](architecture.md) and the WordPress review profile; rates risk and complexity. Whole change first, then only new pushes; light model for low-risk paths. | after fast | (runs on PR) |
 | Claude replies | shared `review-reply` workflow | Answers a member or collaborator who mentions `@dilux-bot` in a review thread or the conversation, on a pull request from a branch of this repository; resolves its own thread when the problem is fixed or shown not to be one. | on comment | (runs on a mention) |
 | Integration tests | PHPUnit + wp-env (multisite network) | Behaviour against a real WordPress runtime + DB. | slow | `make test-integration` |
-| End-to-end tests | Playwright + wp-env, fake cloud client | Every admin screen driven as a user. | slow | `make test-e2e` |
+| End-to-end tests | Playwright + wp-env, no cloud account | Every admin screen driven as a user: rendering and layout, settings round trips, what the data screens say with no provider, and Status › Health's "Check now" against a provider that cannot be reached. | slow | `make test-e2e` |
 | Real-storage suite | Playwright + PHPUnit against a real Azure account | Every screen and transfer, single site and network, verified byte for byte. | `tests-real-azure.yml` | `make test-real` |
 | JS supply chain | CodeQL (JS) | Common JS vulnerability patterns. | `codeql.yml` | (runs when JS changes) |
+
+A change carries its tests **at every layer it touches**, in the same pull request: a unit test for logic that stands alone, an integration test for behaviour against WordPress and the database, an end-to-end test for what a user sees without a cloud account, a step in the real-storage suite (single site **and** network) for what needs the cloud, and the listing screenshots retaken (`make screenshots`) when a screen changes. A feature that only its integration test has seen is not done.
 
 **Every job above except CodeQL and the Claude replies is a required status check on `main`**, and branch protection applies to administrators too. CodeQL runs only when JavaScript changes (path filter), so it cannot be required; its alerts land in the Security tab. The replies run only when someone mentions the bot, so they are not a check at all.
 

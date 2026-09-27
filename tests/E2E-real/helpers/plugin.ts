@@ -292,3 +292,31 @@ export async function uploadThroughMediaLibrary( page: Page, base: string, file:
 	const id = await first.getAttribute( 'id' );
 	return Number( ( id ?? '' ).replace( /\D/g, '' ) );
 }
+
+/**
+ * One of the figures a data screen shows (Sync, Offloading, Disconnect): the
+ * value and the line under it, found by the label above it.
+ */
+export async function bignum( page: Page, label: string ): Promise< { value: string; detail: string } > {
+	const card = page.locator( '.diluxone-offload-bignum', { has: page.locator( '.diluxone-offload-bignum__k', { hasText: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) }$` ) } ) } );
+	await expect( card, `the "${ label }" figure is on the screen` ).toHaveCount( 1 );
+	return {
+		value: ( await card.locator( '.diluxone-offload-bignum__v' ).innerText() ).trim(),
+		detail: ( await card.locator( '.diluxone-offload-bignum__d' ).innerText().catch( () => '' ) ).trim(),
+	};
+}
+
+/** The number a figure shows, whatever the locale's thousands separator. */
+export async function bignumCount( page: Page, label: string ): Promise< number > {
+	return Number( ( await bignum( page, label ) ).value.replace( /\D/g, '' ) );
+}
+
+/** Status › Health: click "Check now" and wait for the answer; returns the status cell's text. */
+export async function checkHealthNow( page: Page ): Promise< string > {
+	const button = page.locator( '#check-health-now' );
+	await expect( button ).toBeVisible();
+	await button.click();
+	await expect( button ).toBeEnabled( { timeout: 60_000 } );
+	await expect( page.locator( '#health-last-check' ) ).toHaveText( /just now/ );
+	return ( await page.locator( '#health-status' ).innerText() ).trim();
+}
