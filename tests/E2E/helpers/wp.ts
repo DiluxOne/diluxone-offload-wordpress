@@ -16,12 +16,13 @@ export function wp( args: string[] ): string {
 
 /**
  * Store a provider that looks right and cannot be reached: a storage account
- * that does not exist. Every check against it fails at once, which is what a
- * test of the failure path wants.
+ * that does not exist, with the longest name Azure allows. Every check against
+ * it fails at once, which is what a test of the failure path wants. `state`
+ * puts the plugin further along, to see a screen that only shows there.
  */
-export function configureUnreachableProvider(): void {
+export function configureUnreachableProvider( state: 'CONFIGURED' | 'OFFLOADING_ACTIVE' = 'CONFIGURED' ): void {
 	const key = Buffer.from( 'a key of the right shape that opens nothing at all........' ).toString( 'base64' );
-	wp( [ 'eval', `\\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => array( 'storage_account' => 'diluxonee2enosuchaccount', 'access_key' => '${ key }', 'container_name' => 'nowhere' ) ) ); \\DiluxOneOffload\\ConfigManager::set_state( \\DiluxOneOffload\\Enums\\PluginState::CONFIGURED );` ] );
+	wp( [ 'eval', `\\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => 'azure', 'provider_config' => array( 'storage_account' => 'diluxonee2enosuchaccount', 'access_key' => '${ key }', 'container_name' => 'nowhere' ) ) ); \\DiluxOneOffload\\ConfigManager::set_state( \\DiluxOneOffload\\Enums\\PluginState::${ state } );` ] );
 }
 
 /** Back to an unconfigured plugin, the state every other mock spec expects. */

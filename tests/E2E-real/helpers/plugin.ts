@@ -293,17 +293,27 @@ export async function uploadThroughMediaLibrary( page: Page, base: string, file:
 	return Number( ( id ?? '' ).replace( /\D/g, '' ) );
 }
 
+/** The card of the figure headed `label`. */
+function figure( page: Page, label: string ) {
+	return page.locator( '.diluxone-offload-bignum', { has: page.locator( '.diluxone-offload-bignum__k', { hasText: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) }$` ) } ) } );
+}
+
 /**
  * One of the figures a data screen shows (Sync, Offloading, Disconnect): the
  * value and the line under it, found by the label above it.
  */
 export async function bignum( page: Page, label: string ): Promise< { value: string; detail: string } > {
-	const card = page.locator( '.diluxone-offload-bignum', { has: page.locator( '.diluxone-offload-bignum__k', { hasText: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) }$` ) } ) } );
+	const card = figure( page, label );
 	await expect( card, `the "${ label }" figure is on the screen` ).toHaveCount( 1 );
 	return {
 		value: ( await card.locator( '.diluxone-offload-bignum__v' ).innerText() ).trim(),
 		detail: ( await card.locator( '.diluxone-offload-bignum__d' ).innerText().catch( () => '' ) ).trim(),
 	};
+}
+
+/** How many lines a figure's value takes on the screen. */
+export async function bignumLines( page: Page, label: string ): Promise< number > {
+	return figure( page, label ).locator( '.diluxone-offload-bignum__v' ).evaluate( ( el ) => Math.round( el.getBoundingClientRect().height / parseFloat( getComputedStyle( el ).lineHeight ) ) );
 }
 
 /** The number a figure shows, whatever the locale's thousands separator. */

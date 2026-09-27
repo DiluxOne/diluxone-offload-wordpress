@@ -53,3 +53,21 @@ test.describe.serial( 'Status › Health with a provider that cannot be reached'
 		}
 	} );
 } );
+
+test.describe.serial( 'Sync & Offloading › Offloading with the longest account name', () => {
+	test.beforeAll( () => configureUnreachableProvider( 'OFFLOADING_ACTIVE' ) );
+	test.afterAll( () => resetPlugin() );
+
+	test( 'the hostname media is served from fits its card in at most three lines', async ( { page } ) => {
+		await page.goto( `${ ADMIN }?page=diluxone-offload-sync&tab=offloading` );
+		const card = page.locator( '.diluxone-offload-bignum', { has: page.locator( '.diluxone-offload-bignum__k', { hasText: /^Served from$/ } ) } );
+		const value = card.locator( '.diluxone-offload-bignum__v' );
+		await expect( value ).toHaveText( 'diluxonee2enosuchaccount.blob.core.windows.net' );
+		const lines = await value.evaluate( ( el ) => Math.round( el.getBoundingClientRect().height / parseFloat( getComputedStyle( el ).lineHeight ) ) );
+		expect( lines ).toBeLessThanOrEqual( 3 );
+		// The figures beside it keep their size: only a name is set smaller.
+		const number = page.locator( '.diluxone-offload-bignum__v:not(.diluxone-offload-bignum__v--text)' ).first();
+		const size = ( el: HTMLElement | SVGElement ) => parseFloat( getComputedStyle( el ).fontSize );
+		expect( await value.evaluate( size ) ).toBeLessThan( await number.evaluate( size ) );
+	} );
+} );

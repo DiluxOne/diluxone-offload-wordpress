@@ -36,12 +36,18 @@ $since           = (int) ( $timestamps['offloading_since'] ?? 0 );
 
 <?php
 // The figures every state of this screen can show, from the tracking table.
+// A fourth item marks a value that is a hostname, not a number: set smaller, and
+// a long one wraps after its dots rather than mid-label.
 $diluxone_offload_bignums = static function ( array $items ): void {
 	echo '<div class="diluxone-offload-bignums">';
 	foreach ( $items as $item ) {
 		echo '<div class="diluxone-offload-bignum">';
 		echo '<div class="diluxone-offload-bignum__k">' . esc_html( $item[0] ) . '</div>';
-		echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
+		if ( ! empty( $item[3] ) ) {
+			echo '<div class="diluxone-offload-bignum__v diluxone-offload-bignum__v--text">' . wp_kses( implode( '.<wbr>', array_map( 'esc_html', explode( '.', $item[1] ) ) ), array( 'wbr' => array() ) ) . '</div>';
+		} else {
+			echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
+		}
 		if ( $item[2] !== '' ) {
 			echo '<div class="diluxone-offload-bignum__d">' . esc_html( $item[2] ) . '</div>';
 		}
@@ -68,7 +74,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 			<?php
 			$diluxone_offload_bignums(
 				array(
-					array( __( 'Served from', 'diluxone-offload' ), $cloud_host !== '' ? (string) wp_parse_url( $cloud_host, PHP_URL_HOST ) : __( 'the cloud', 'diluxone-offload' ), __( 'every media URL WordPress hands out', 'diluxone-offload' ) ),
+					array( __( 'Served from', 'diluxone-offload' ), $cloud_host !== '' ? (string) wp_parse_url( $cloud_host, PHP_URL_HOST ) : __( 'the cloud', 'diluxone-offload' ), __( 'every media URL WordPress hands out', 'diluxone-offload' ), true ),
 					array( __( 'Local copies', 'diluxone-offload' ), number_format_i18n( $local_copies ), size_format( $local_size ) . ' ' . __( 'still on this server', 'diluxone-offload' ) ),
 					array( __( 'Not on this server', 'diluxone-offload' ), number_format_i18n( $cloud_only ), size_format( $cloud_only_size ) . ' ' . __( 'in the cloud only', 'diluxone-offload' ) ),
 					array( __( 'Offloading since', 'diluxone-offload' ), $since > 0 ? get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $since ), (string) get_option( 'date_format' ) ) : '—', $since > 0 ? $diluxone_offload_ago( $since ) : '' ),

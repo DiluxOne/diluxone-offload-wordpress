@@ -228,6 +228,7 @@ test.describe.serial( 'single site journey', () => {
 		// Offloading: served from the account, every byte still has a copy here, since when.
 		await ui.goTab( page, base, 'offloading' );
 		expect( ( await ui.bignum( page, 'Served from' ) ).value ).toBe( `${ run.account }.blob.core.windows.net` );
+		expect( await ui.bignumLines( page, 'Served from' ), 'the hostname fits its card' ).toBeLessThanOrEqual( 3 );
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( inCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 		expect( ( await ui.bignum( page, 'Offloading since' ) ).value ).not.toBe( '—' );
