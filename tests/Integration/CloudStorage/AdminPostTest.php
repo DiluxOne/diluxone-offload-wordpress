@@ -255,6 +255,50 @@ class AdminPostTest extends IntegrationTestCase {
         $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state());
     }
 
+    public function test_provider_tab_saves_an_s3_provider_with_the_secret_encrypted(): void {
+        $this->useFakeClient();
+        $post = [
+            's3_preset'            => 'aws',
+            's3_region'            => 'eu-west-1',
+            's3_endpoint'          => 'https://s3.eu-west-1.amazonaws.com/',
+            's3_bucket'            => 'post-media',
+            's3_access_key_id'     => 'AKIAPOSTTEST',
+            's3_secret_access_key' => 'post/secret+key',
+            's3_public_url'        => 'https://post-media.s3.eu-west-1.amazonaws.com/',
+        ];
+        $this->passConnectionTest('s3', \DiluxOneOffload\DTOs\ProviderConfig::fromPost(['cloud_provider' => 's3'] + $post)->getProviderConfig());
+
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'cloud-provider', 'cloud_provider' => 's3'] + $post);
+
+        $this->assertArrayHasKey('success', $q, print_r($q, true));
+        $saved = ConfigManager::get_current_provider_config();
+        $this->assertSame('https://s3.eu-west-1.amazonaws.com', $saved['endpoint'], 'stored normalised');
+        $this->assertSame('https://post-media.s3.eu-west-1.amazonaws.com', $saved['public_url']);
+        $this->assertFalse($saved['path_style'], 'Amazon S3 addresses the bucket in the host');
+        $this->assertSame('post/secret+key', $saved['secret_access_key'], 'the secret round-trips through encryption');
+        $raw = get_option('diluxone_offload_config')['provider_config'];
+        $this->assertStringStartsWith('DILUXONEOFFLOADENC1:', $raw['secret_access_key'], 'the secret is not stored in clear');
+        $this->assertSame('AKIAPOSTTEST', $raw['access_key_id'], 'the key id is not a secret');
+        $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
+        $this->assertInstanceOf(\DiluxOneOffload\Providers\S3CompatibleProvider::class, \DiluxOneOffload\Factories\CloudStorageFactory::create('s3', $saved));
+    }
+
+    public function test_provider_tab_refuses_an_s3_form_with_a_plain_http_endpoint_outside_custom(): void {
+        $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
+            'screen'               => 'cloud-provider',
+            'cloud_provider'       => 's3',
+            's3_preset'            => 'aws',
+            's3_region'            => 'us-east-1',
+            's3_endpoint'          => 'http://s3.us-east-1.amazonaws.com',
+            's3_bucket'            => 'b-media',
+            's3_access_key_id'     => 'AKIA',
+            's3_secret_access_key' => 's',
+            's3_public_url'        => 'https://b-media.s3.us-east-1.amazonaws.com',
+        ]);
+        $this->assertStringContainsString('Endpoint must be an https:// URL', $q['error']);
+        $this->assertSame(PluginState::NOT_CONFIGURED, ConfigManager::get_state());
+    }
+
     public function test_provider_tab_rejects_an_invalid_storage_account_name(): void {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', [
             'screen'         => 'cloud-provider',

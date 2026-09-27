@@ -1,14 +1,14 @@
 # DiluxOne Offload
 
-WordPress plugin that moves the media library to **Azure Blob Storage** and serves it from there. It works through a PHP stream wrapper on `/wp-content/uploads/`, so nothing in your posts, your database or your other plugins has to change.
+WordPress plugin that moves the media library to **Azure Blob Storage** or to **S3-compatible storage** (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO) and serves it from there. It works through a PHP stream wrapper on `/wp-content/uploads/`, so nothing in your posts, your database or your other plugins has to change.
 
 [![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE) [![wordpress.org](https://img.shields.io/badge/wordpress.org-diluxone--offload-21759b.svg)](https://wordpress.org/plugins/diluxone-offload/)
 
 ## Who it is for
 
-Sites that already run on Azure, or that want their uploads off the web server: App Service and container hosts where the disk is small or ephemeral, multisite networks that share one storage account, WooCommerce and page-builder sites that cannot afford URL rewriting.
+Sites that already run on Azure or on an S3-compatible service, or that want their uploads off the web server: App Service and container hosts where the disk is small or ephemeral, multisite networks that share one storage account or bucket, WooCommerce and page-builder sites that cannot afford URL rewriting.
 
-The plugin is complete and free. It ships with one provider, Azure Blob Storage, and works with your own account and key; nothing in it is held back or unlocked by anything else.
+The plugin is complete and free. It ships with two providers, Azure Blob Storage and S3-compatible storage, and works with your own account and keys; nothing in it is held back or unlocked by anything else.
 
 ## Install
 
@@ -16,7 +16,7 @@ From the WordPress admin: **Plugins → Add New**, search for *DiluxOne Offload*
 
 To try what is coming before it is released, install the [**Development build**](https://github.com/DiluxOne/diluxone-offload-wordpress/releases/tag/dev) (Releases → the pre-release): the current state of `main`, replaced on every change, not for production sites. Its notes say which version it will become and what changed.
 
-Then open **DiluxOne Offload → Cloud Provider**: enter the storage account, the container (public access level *Blob*) and the key, click **Test Connection** and save. In **Sync & Offloading**, start the sync and enable offloading when it finishes. Requirements, FAQ and known limitations are in [`readme.txt`](readme.txt), the text shown on wordpress.org.
+Then open **DiluxOne Offload → Cloud Provider**: for Azure, enter the storage account, the container (public access level *Blob*) and the key; for S3-compatible storage, pick the service and enter the region, the bucket (readable by anyone), the key pair and, if the service does not fill it in, the public URL. Click **Test Connection** and save. In **Sync & Offloading**, start the sync and enable offloading when it finishes. Requirements, FAQ and known limitations are in [`readme.txt`](readme.txt), the text shown on wordpress.org.
 
 ## Hosted sync service
 

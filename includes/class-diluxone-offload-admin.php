@@ -698,6 +698,8 @@ class Admin {
 					'data' => array(
 						'config_cloud_provider' => $template_data['config']['cloud_provider'] ?? '',
 						'urls'                  => self::screen_urls(),
+						// The Connection form derives Endpoint and Public URL from these.
+						's3_presets'            => \DiluxOneOffload\Providers\S3Presets::all(),
 					),
 				);
 				$object  = 'DiluxOneOffloadProvider';
@@ -1296,10 +1298,21 @@ class Admin {
 		);
 		$config        = ConfigManager::get_config();
 		$container     = (string) ( $config['provider_config']['container_name'] ?? '' );
-		$where         = $container !== ''
-			/* translators: %s: the name of the storage container */
-			? sprintf( \__( 'the Azure Blob Storage container %s', 'diluxone-offload' ), $container )
-			: \__( 'Azure Blob Storage', 'diluxone-offload' );
+		$bucket        = (string) ( $config['provider_config']['bucket'] ?? '' );
+		if ( 's3' === ( $config['cloud_provider'] ?? '' ) ) {
+			$where = sprintf(
+				/* translators: 1: the storage service (e.g. Amazon S3), 2: the name of the bucket */
+				\__( 'the %1$s bucket %2$s', 'diluxone-offload' ),
+				// Custom's label names examples, not a service: the family's name reads better.
+				'custom' === ( $config['provider_config']['preset'] ?? '' ) ? \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( 's3' ) : \DiluxOneOffload\Providers\S3Presets::label( (string) ( $config['provider_config']['preset'] ?? '' ) ),
+				$bucket
+			);
+		} else {
+			$where = $container !== ''
+				/* translators: %s: the name of the storage container */
+				? sprintf( \__( 'the Azure Blob Storage container %s', 'diluxone-offload' ), $container )
+				: \__( 'Azure Blob Storage', 'diluxone-offload' );
+		}
 
 		// ── Right now ──
 		if ( ! $is_configured ) {
@@ -1393,8 +1406,9 @@ class Admin {
 				$note  = array(
 					'title' => \__( 'Where the keys come from', 'diluxone-offload' ),
 					'body'  => array(
-						\__( 'Azure portal › your storage account › Access keys. The container must allow anonymous read of blobs (public access level Blob); a private container is refused.', 'diluxone-offload' ),
-						\__( 'Test Connection checks the credentials and the container\'s public access level. Both must pass before Save is enabled.', 'diluxone-offload' ),
+						\__( 'Azure: portal › your storage account › Access keys. The container must allow anonymous read of blobs (public access level Blob); a private container is refused.', 'diluxone-offload' ),
+						\__( 'S3-compatible: the keys come from the service\'s console (the form says where for each one), and the bucket must let anyone read its objects.', 'diluxone-offload' ),
+						\__( 'Test Connection checks the credentials and that browsers can read what is stored. Both must pass before Save is enabled.', 'diluxone-offload' ),
 					),
 				);
 				$links = array(

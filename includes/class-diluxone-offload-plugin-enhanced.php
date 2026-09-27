@@ -358,6 +358,23 @@ class Plugin {
 	}
 
 	/**
+	 * Seconds one sync or disconnect request keeps transferring before it
+	 * answers the browser, which then asks for the next batch: 8 by default,
+	 * short enough for a responsive progress bar and far from any
+	 * max_execution_time. A round already started always finishes.
+	 *
+	 * @return float
+	 */
+	private static function batch_seconds(): float {
+		/**
+		 * Filters the seconds one sync or disconnect batch request may run.
+		 *
+		 * @param float $seconds Default 8.0.
+		 */
+		return max( 0.0, (float) apply_filters( 'diluxone_offload_sync_batch_seconds', 8.0 ) );
+	}
+
+	/**
 	 * ⭐ NEW AJAX: Process batch (time-based batching)
 	 * For recursion-based approach
 	 */
@@ -377,8 +394,7 @@ class Plugin {
 		$concurrency = $sync_meta['concurrency'] ?? 5;
 		$this->sync_manager->set_parallel_uploads( $concurrency );
 
-		// Process batch (8 second time limit for responsive UI)
-		$result = $this->sync_manager->process_batch( 8.0 );
+		$result = $this->sync_manager->process_batch( self::batch_seconds() );
 
 		wp_send_json_success( $result );
 	}
@@ -438,7 +454,7 @@ class Plugin {
 		$this->sync_manager->set_parallel_uploads( $concurrency );
 
 		// Process reverse batch (8 second time limit for responsive UI)
-		$result = $this->sync_manager->process_reverse_batch( 8.0 );
+		$result = $this->sync_manager->process_reverse_batch( self::batch_seconds() );
 
 		wp_send_json_success( $result );
 	}

@@ -129,6 +129,114 @@ class ConfigObjectsTest extends TestCase {
 		$this->assertSame( array(), ( new ProviderConfig( 'gcp', array( 'bucket' => 'b' ) ) )->describe() );
 	}
 
+	// ── S3-compatible: fromPost and describe ────────────────
+
+	/** @param array<string,string> $over */
+	private static function s3_post( array $over = array() ): array {
+		return $over + array(
+			'cloud_provider'       => 's3',
+			's3_preset'            => 'aws',
+			's3_region'            => 'EU-West-1',
+			's3_endpoint'          => 'HTTPS://S3.eu-west-1.amazonaws.com/?x=1#f',
+			's3_bucket'            => 'demo-media',
+			's3_access_key_id'     => 'AKIAEXAMPLE',
+			's3_secret_access_key' => 'secret/with+symbols',
+			's3_public_url'        => 'https://CDN.example.com/media/',
+		);
+	}
+
+	public function test_an_s3_form_maps_to_the_stored_keys_normalised(): void {
+		$config = ProviderConfig::fromPost( self::s3_post() )->getProviderConfig();
+
+		$this->assertSame(
+			array(
+				'preset'            => 'aws',
+				'endpoint'          => 'https://s3.eu-west-1.amazonaws.com',
+				'region'            => 'eu-west-1',
+				'bucket'            => 'demo-media',
+				'access_key_id'     => 'AKIAEXAMPLE',
+				'secret_access_key' => 'secret/with+symbols',
+				'public_url'        => 'https://cdn.example.com/media',
+				'path_style'        => false,
+				'object_acl'        => false,
+			),
+			$config
+		);
+	}
+
+	public function test_the_object_acl_is_kept_only_where_the_service_honours_one(): void {
+		$this->assertTrue( ProviderConfig::fromPost( self::s3_post( array( 's3_object_acl' => '1' ) ) )->getProviderConfig()['object_acl'] );
+		$this->assertTrue( ProviderConfig::fromPost( self::s3_post( array( 's3_preset' => 'spaces', 's3_endpoint' => 'https://nyc3.digitaloceanspaces.com', 's3_object_acl' => '1' ) ) )->getProviderConfig()['object_acl'] );
+		$this->assertFalse( ProviderConfig::fromPost( self::s3_post( array( 's3_preset' => 'r2', 's3_endpoint' => 'https://a.r2.cloudflarestorage.com', 's3_object_acl' => '1' ) ) )->getProviderConfig()['object_acl'], 'R2 has no object ACL' );
+	}
+
+	public function test_the_addressing_style_is_the_services_except_under_custom(): void {
+		$this->assertFalse( ProviderConfig::fromPost( self::s3_post( array( 's3_path_style' => 'path' ) ) )->getProviderConfig()['path_style'], 'Amazon stays virtual-hosted' );
+		$custom = array( 's3_preset' => 'custom', 's3_endpoint' => 'https://ceph.example.com' );
+		$this->assertTrue( ProviderConfig::fromPost( self::s3_post( $custom ) )->getProviderConfig()['path_style'] );
+		$this->assertFalse( ProviderConfig::fromPost( self::s3_post( $custom + array( 's3_path_style' => 'virtual' ) ) )->getProviderConfig()['path_style'] );
+	}
+
+	public function test_a_fixed_region_service_stores_its_own_region_whatever_was_posted(): void {
+		$config = ProviderConfig::fromPost( self::s3_post( array( 's3_preset' => 'r2', 's3_region' => 'us-east-1', 's3_endpoint' => 'https://acc.r2.cloudflarestorage.com' ) ) )->getProviderConfig();
+		$this->assertSame( 'auto', $config['region'] );
+		$this->assertTrue( $config['path_style'] );
+	}
+
+	/** @return array<string,array{0:array<string,string>,1:string}> */
+	public function s3_refusals(): array {
+		return array(
+			'unknown service'   => array( array( 's3_preset' => 'dropbox' ), 'Service is required' ),
+			'no bucket'         => array( array( 's3_bucket' => '' ), 'Bucket is required' ),
+			'no secret'         => array( array( 's3_secret_access_key' => '' ), 'Secret Access Key is required' ),
+			'no public url'     => array( array( 's3_public_url' => '' ), 'Public URL is required' ),
+			'bad region'        => array( array( 's3_region' => 'eu west 1' ), 'Region must be' ),
+			'upper-case bucket' => array( array( 's3_bucket' => 'Demo' ), 'Bucket must be' ),
+			'ip bucket'         => array( array( 's3_bucket' => '192.168.1.10' ), 'Bucket must be' ),
+			'http endpoint'     => array( array( 's3_endpoint' => 'http://s3.example.com' ), 'Endpoint must be an https:// URL' ),
+			'ftp public url'    => array( array( 's3_public_url' => 'ftp://cdn.example.com' ), 'Public URL ' ),
+			'long key id'       => array( array( 's3_access_key_id' => str_repeat( 'A', 129 ) ), 'Access Key ID must be' ),
+		);
+	}
+
+	/**
+	 * @dataProvider s3_refusals
+	 * @param array<string,string> $over
+	 */
+	public function test_an_s3_form_is_refused_with_the_field_named_and_no_value( array $over, string $message ): void {
+		try {
+			ProviderConfig::fromPost( self::s3_post( $over ) );
+			$this->fail( 'expected a refusal' );
+		} catch ( \InvalidArgumentException $e ) {
+			$this->assertStringStartsWith( $message, $e->getMessage() );
+			$this->assertStringNotContainsString( 'secret/with+symbols', $e->getMessage() );
+		}
+	}
+
+	public function test_only_custom_accepts_a_plain_http_endpoint(): void {
+		$config = ProviderConfig::fromPost( self::s3_post( array( 's3_preset' => 'custom', 's3_endpoint' => 'http://minio:9000', 's3_public_url' => 'http://minio:9000/e2e' ) ) )->getProviderConfig();
+		$this->assertSame( 'http://minio:9000', $config['endpoint'] );
+		$this->assertSame( 'http://minio:9000/e2e', $config['public_url'] );
+	}
+
+	public function test_describe_gives_the_rows_of_an_s3_connection_and_never_the_secret(): void {
+		$rows = ProviderConfig::fromPost( self::s3_post() )->describe();
+
+		$this->assertSame(
+			array(
+				'Service'           => 'Amazon S3',
+				'Bucket'            => 'demo-media',
+				'Endpoint'          => 'https://s3.eu-west-1.amazonaws.com',
+				'Region'            => 'eu-west-1',
+				'Access Key ID'           => 'AKIAEXAMPLE',
+				'Uploads are made public' => 'No, the bucket decides',
+				'Media served from'       => 'https://cdn.example.com/media/',
+			),
+			$rows
+		);
+		$this->assertNotContains( 'secret/with+symbols', $rows );
+	}
+
 	public function test_every_supported_provider_names_its_form_fields(): void {
 		foreach ( array_keys( \DiluxOneOffload\Factories\CloudStorageFactory::get_supported_providers() ) as $provider ) {
 			$this->assertNotEmpty( ProviderConfig::FORM_FIELDS[ $provider ] ?? array(), $provider );

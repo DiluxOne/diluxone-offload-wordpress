@@ -98,7 +98,7 @@ interface CloudStorageClientInterface {
 	 * List files in cloud storage directory
 	 *
 	 * @param string $remote_path Remote directory path
-	 * @return array<string, mixed> List of files
+	 * @return array<int, array<string, mixed>> One ['path', 'size', 'md5', 'last_modified'] per object
 	 */
 	public function list_files( string $remote_path = '' ): array;
 

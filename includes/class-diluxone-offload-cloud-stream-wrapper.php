@@ -122,6 +122,13 @@ class CloudStreamWrapper {
 	private static ?string $cloud_host_cache = null;
 
 	/**
+	 * Whether the provider's own media URL is https; set with the host.
+	 *
+	 * @var bool
+	 */
+	private static bool $cloud_https = true;
+
+	/**
 	 * @var array<string, mixed>|null \Iterator for directory listing
 	 */
 	private $dir_iterator = null;
@@ -594,7 +601,10 @@ class CloudStreamWrapper {
 			return $url;
 		}
 		$cloud_host = self::get_cloud_host();
-		if ( $cloud_host === '' || ! self::is_force_https_enabled() ) {
+		// A provider whose own URL is plain http (an S3-compatible server on
+		// a private network) is served over http on purpose: https there
+		// would break every image.
+		if ( $cloud_host === '' || ! self::is_force_https_enabled() || ! self::$cloud_https ) {
 			return $url;
 		}
 		$needle = 'http://' . $cloud_host;
@@ -642,8 +652,10 @@ class CloudStreamWrapper {
 			return self::$cloud_host_cache;
 		}
 		$client = self::get_cloud_client();
-		$host   = $client ? wp_parse_url( $client->get_file_url( '' ), PHP_URL_HOST ) : '';
+		$base   = $client ? $client->get_file_url( '' ) : '';
+		$host   = wp_parse_url( $base, PHP_URL_HOST );
 
+		self::$cloud_https      = 'https' === strtolower( (string) wp_parse_url( $base, PHP_URL_SCHEME ) );
 		self::$cloud_host_cache = strtolower( is_string( $host ) ? $host : '' );
 		return self::$cloud_host_cache;
 	}

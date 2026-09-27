@@ -836,7 +836,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * List all files in Azure Blob Storage
 	 *
 	 * @param string $prefix Filter by prefix (e.g., 'uploads/')
-	 * @return array<string, mixed> Array of file info: [['path' => string, 'size' => int, 'md5' => string], ...]
+	 * @return array<int, array<string, mixed>> Array of file info: [['path' => string, 'size' => int, 'md5' => string], ...]
 	 */
 	public function list_files( string $prefix = 'uploads/' ): array {
 		$file_infos = $this->list_files_dto( $prefix );

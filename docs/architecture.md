@@ -7,8 +7,10 @@ When in doubt, prefer the project's existing patterns over textbook WordPress pa
 ## What this repo is
 
 WordPress plugin that offloads media files to cloud object storage and
-serves them back transparently. One provider ships today: **Azure Blob
-Storage** (bring your own credentials). The plugin is GPL-2.0-or-later
+serves them back transparently. Two providers ship: **Azure Blob
+Storage** and **S3-compatible storage** (Amazon S3, Cloudflare R2,
+Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC
+keys, MinIO), both with your own credentials. The plugin is GPL-2.0-or-later
 with no paid tier and no feature held back.
 
 **The plugin's distinguishing technical decision** is the use of a PHP
@@ -49,6 +51,8 @@ handles both.
 | `includes/factories/class-cloud-storage-factory.php` | `CloudStorageFactory::create($provider, $config)`. |
 | `includes/providers/class-azure-provider.php` | `AzureProvider` — Azure Blob Storage REST API. |
 | `includes/providers/trait-storage-stats.php` | `StorageStats` — the usage stats every provider computes the same way from its own listing, cached in the transient `ConfigManager::STATS_TRANSIENTS` names for it. |
+| `includes/providers/class-s3-compatible-provider.php` | `S3CompatibleProvider` — the S3 REST API with SigV4, for every S3-compatible service. Path-style or virtual-hosted addressing, parts of 5 MiB, Content-MD5 on every PUT of file bytes (the service verifies it), downloads through the signed endpoint, Test Connection as a probe written, read back anonymously at the Public URL and deleted. |
+| `includes/providers/class-s3-presets.php` | `S3Presets` — the one table of services (endpoint, region rule, addressing, public URL pattern, whether an object ACL applies), handed as is to the Connection form's JavaScript. |
 | `includes/providers/class-aws-signature-v4.php` | `AwsSignatureV4` — AWS Signature Version 4 for the S3-compatible provider, tested against the vectors AWS publishes (`tests/fixtures/sigv4/`). |
 | `includes/Enums/class-plugin-state.php` | `Enums\PluginState` (string constants, NOT PHP 8.1 enum — PHP 7.4 minimum). |
 | `includes/Enums/SyncStatus.php` | `Enums\SyncStatus`. |
@@ -116,7 +120,7 @@ Conventions:
 - **All `$_POST` / `$_GET` input** must be sanitized: `sanitize_text_field`, `esc_url_raw`, `sanitize_email`, or `wp_kses` for HTML. Never trust raw `$_POST['x']`.
 - **All output** must be escaped: `esc_html`, `esc_attr`, `esc_url`, `esc_textarea`. Never echo a variable into HTML without escaping.
 - **All SQL** must use `$wpdb->prepare()`. Concatenating user input into SQL strings is a defect, even when the value "looks safe". `class-diluxone-offload-db.php` is the reference for the correct pattern.
-- **Credentials must NEVER appear in logs.** This includes Azure access keys, decrypted plaintext credentials, and anything in the `provider_config` array. The pattern `Logger::error('failed: ' . print_r($config, true))` is forbidden — that array contains the credential. When logging connection failures, log the `error_code` and a sanitized `error_message`, not the full payload. The connection-health system is designed for this purpose; use it.
+- **Credentials must NEVER appear in logs.** This includes the Azure access key and the S3 secret access key, decrypted plaintext credentials, and anything in the `provider_config` array. The pattern `Logger::error('failed: ' . print_r($config, true))` is forbidden — that array contains the credential. When logging connection failures, log the `error_code` and a sanitized `error_message`, not the full payload. The connection-health system is designed for this purpose; use it.
 - **Encryption is AES-256-GCM with a key derived from WP salts** (`wp_salt('auth') . wp_salt('secure_auth')` via HMAC-SHA256). Do not propose downgrading the cipher, removing GCM authentication, switching to CBC, accepting a plaintext fallback, or persisting the key anywhere. The `Crypto::encrypt()` / `Crypto::decrypt()` interface is stable; if a credential cannot be decrypted, `decrypt()` returns `null` and the caller surfaces the failure to the user (`decrypt_failed` connection-health event). There is intentionally no fallback to plaintext storage.
 - **Only a configuration that passed Test Connection is saved.** Test Connection stores, per user and for five minutes, the `ProviderConfig::fingerprint()` (a SHA-256 of the whole configuration, secret included, never the secret itself); the Connection form's save and the Credentials tab's save recompute it from what they are about to store and refuse on any difference (`Admin::passed_connection_test()`).
 - **The `DILUXONEOFFLOADENC1:` prefix on encrypted values is a versioning hint.** A future key rotation may bump it. Don't strip it, parse it manually, or assume specific positions of bytes after it.

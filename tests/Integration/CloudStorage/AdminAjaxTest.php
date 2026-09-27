@@ -161,6 +161,58 @@ class AdminAjaxTest extends IntegrationTestCase {
         $this->assertStringStartsWith('SharedKey admacct:', $req['args']['headers']['Authorization']);
     }
 
+    public function test_test_connection_for_s3_writes_reads_anonymously_and_deletes_the_probe(): void {
+        $written = '';
+        $this->scriptHttp(function (string $method, string $url, array $args) use (&$written) {
+            if ($method === 'PUT') {
+                $written = (string) $args['body'];
+                return self::httpReply(200, '');
+            }
+            return $method === 'GET' ? self::httpReply(200, $written) : self::httpReply(204, '');
+        });
+
+        $r = $this->call('diluxone_offload_test_connection', [
+            'provider'             => 's3',
+            's3_preset'            => 'custom',
+            's3_region'            => 'us-east-1',
+            's3_endpoint'          => 'http://minio:9000',
+            's3_bucket'            => 'e2e',
+            's3_access_key_id'     => 'minioadmin',
+            's3_secret_access_key' => 'minio-secret',
+            's3_public_url'        => 'http://minio:9000/e2e',
+        ]);
+
+        $this->assertTrue($r['json']['success'], $r['raw']);
+        $methods = array_column($this->httpRequests(), 'method');
+        $this->assertSame(['PUT', 'GET', 'DELETE'], array_slice($methods, -3));
+        $requests = array_slice($this->httpRequests(), -3);
+        $this->assertStringStartsWith('http://minio:9000/e2e/uploads/.diluxone-offload-probe-', $requests[0]['url']);
+        $this->assertStringStartsWith('AWS4-HMAC-SHA256 ', $requests[0]['args']['headers']['Authorization']);
+        $this->assertArrayNotHasKey('Authorization', $requests[1]['args']['headers'] ?? [], 'read back anonymously');
+        $passed = get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id);
+        $this->assertSame('s3', $passed['provider']);
+        $this->assertStringNotContainsString('minio-secret', (string) json_encode($passed));
+    }
+
+    public function test_test_connection_for_s3_says_the_bucket_is_not_public(): void {
+        $this->scriptHttp(fn(string $method) => $method === 'GET' ? self::httpReply(403, '<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>') : self::httpReply(200, ''));
+
+        $r = $this->call('diluxone_offload_test_connection', [
+            'provider'             => 's3',
+            's3_preset'            => 'custom',
+            's3_region'            => 'us-east-1',
+            's3_endpoint'          => 'https://s3.example.com',
+            's3_bucket'            => 'private-bucket',
+            's3_access_key_id'     => 'k',
+            's3_secret_access_key' => 's',
+            's3_public_url'        => 'https://s3.example.com/private-bucket',
+        ]);
+
+        $this->assertFalse($r['json']['success']);
+        $this->assertStringContainsString('not readable at the Public URL', $r['json']['data']['message']);
+        $this->assertFalse(get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id));
+    }
+
     public function test_test_connection_reports_azures_refusal(): void {
         $this->scriptHttp(fn() => self::httpReply(403, '<Error><Message>Server failed to authenticate the request</Message></Error>'));
 

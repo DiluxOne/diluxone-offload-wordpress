@@ -8,9 +8,9 @@ this file is the short version an agent must follow without exception.
 ## What this is
 
 DiluxOne Offload, a WordPress plugin published on wordpress.org as
-`diluxone-offload`. It moves the media library to Azure Blob Storage through
-a PHP stream wrapper. Architecture, hard rules and review priorities:
-[`docs/architecture.md`](docs/architecture.md).
+`diluxone-offload`. It moves the media library to Azure Blob Storage or to
+S3-compatible storage through a PHP stream wrapper. Architecture, hard rules
+and review priorities: [`docs/architecture.md`](docs/architecture.md).
 
 The repository is `diluxone-offload-wordpress`; the slug and text domain are
 `diluxone-offload`. Before touching a path or a workflow, check which of the

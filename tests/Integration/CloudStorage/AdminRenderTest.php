@@ -468,6 +468,58 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringNotContainsString('Not from us', $html);
     }
 
+    private const S3_SECRET = 'render-secret-never-shown';
+
+    private function configureS3(string $state = PluginState::CONFIGURED): void {
+        ConfigManager::save_config([
+            'cloud_provider'  => 's3',
+            'provider_config' => [
+                'preset'            => 'r2',
+                'endpoint'          => 'https://acc.r2.cloudflarestorage.com',
+                'region'            => 'auto',
+                'bucket'            => 'render-bucket',
+                'access_key_id'     => 'RENDERKEYID',
+                'secret_access_key' => self::S3_SECRET,
+                'public_url'        => 'https://pub-render.r2.dev',
+                'path_style'        => true,
+            ],
+        ]);
+        ConfigManager::set_state($state);
+    }
+
+    public function test_every_view_renders_for_an_s3_provider_and_never_the_secret(): void {
+        $this->configureS3(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        foreach ($this->views() as $view) {
+            $this->assertStringNotContainsString(self::S3_SECRET, $this->render($view), $view);
+        }
+        $connection = $this->render('connection');
+        $this->assertStringContainsString('S3-compatible storage', $connection);
+        foreach (['Cloudflare R2', 'render-bucket', 'https://acc.r2.cloudflarestorage.com', 'RENDERKEYID', 'https://pub-render.r2.dev/'] as $row) {
+            $this->assertStringContainsString($row, $connection);
+        }
+        $overview = $this->render('overview');
+        $this->assertStringContainsString('Service: <strong>Cloudflare R2</strong>', $overview);
+        $this->assertStringContainsString('Bucket: <strong>render-bucket</strong>', $overview);
+        $this->assertStringContainsString('the Cloudflare R2 bucket render-bucket', $overview, 'the rail says where the media is');
+        $credentials = $this->render('credentials');
+        $this->assertStringContainsString('data-field="s3_bucket" data-value="render-bucket"', $credentials);
+        $this->assertStringContainsString('id="new_access_key_id" data-field="s3_access_key_id"', $credentials);
+        $this->assertStringContainsString('value="RENDERKEYID"', $credentials);
+        $this->assertStringContainsString('S3-compatible storage', $this->render('system'));
+    }
+
+    public function test_the_connection_form_offers_both_providers_and_every_service(): void {
+        $html = $this->render('connection');
+        $this->assertStringContainsString('<option value="s3"', $html);
+        $this->assertStringContainsString('id="s3-config"', $html);
+        foreach (\DiluxOneOffload\Providers\S3Presets::all() as $key => $preset) {
+            $this->assertStringContainsString('<option value="' . $key . '">', $html);
+            $this->assertStringContainsString('data-preset="' . $key . '"', $html, "a hint for $key");
+        }
+        $this->assertStringContainsString('name="s3_secret_access_key" value=""', $html, 'the secret field is always empty');
+    }
+
     public function test_overview_names_the_azure_account(): void {
         $this->configure(PluginState::CONFIGURED);
         $this->useFakeClient();
