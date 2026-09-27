@@ -258,14 +258,20 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 					<?php esc_html_e( 'Your cloud provider is configured. Start syncing your media files to the cloud.', 'diluxone-offload' ); ?>
 				</p>
 				<a href="<?php echo esc_url( add_query_arg( 'auto-start', '1', $screen_urls['sync'] ?? '' ) ); ?>" class="button button-primary">
-					<span class="dashicons dashicons-cloud-upload" style="vertical-align: middle;"></span>
+					<span class="dashicons dashicons-cloud-upload"></span>
 					<?php esc_html_e( 'Sync Files to Cloud', 'diluxone-offload' ); ?>
 				</a>
 			</div>
 			<?php endif; ?>
-			<p class="description" style="margin-top: 15px;">
-				<?php esc_html_e( 'To rotate the access key or to remove the provider, use the Credentials tab.', 'diluxone-offload' ); ?>
-				<a href="<?php echo esc_url( $screen_urls['credentials'] ?? '' ); ?>"><?php esc_html_e( 'Credentials', 'diluxone-offload' ); ?></a>
+			<p class="diluxone-offload-provider-actions">
+				<a href="<?php echo esc_url( ( $screen_urls['credentials'] ?? '' ) . '#update-credentials' ); ?>" class="button">
+					<span class="dashicons dashicons-admin-network"></span>
+					<?php esc_html_e( 'Rotate the key', 'diluxone-offload' ); ?>
+				</a>
+				<a href="<?php echo esc_url( ( $screen_urls['credentials'] ?? '' ) . '#delete-provider' ); ?>" class="button diluxone-offload-button-danger">
+					<span class="dashicons dashicons-trash"></span>
+					<?php esc_html_e( 'Delete Cloud Provider', 'diluxone-offload' ); ?>
+				</a>
 			</p>
 		</div>
 	<?php endif; ?>

@@ -230,63 +230,6 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 				<?php endif; ?>
 			</div>
 		</div>
-
-		<!-- Plugin State -->
-		<div class="status-card status-info">
-			<div class="status-icon">
-				<span class="dashicons dashicons-info"></span>
-			</div>
-			<div class="status-content">
-				<h3><?php esc_html_e( 'Plugin State', 'diluxone-offload' ); ?></h3>
-				<p class="status-label">
-					<?php
-					$badge_class = 'state-gray';
-					$badge_label = $plugin_state;
-					switch ( $plugin_state ) {
-						case PluginState::NOT_CONFIGURED:
-							$badge_class = 'state-gray';
-							$badge_label = __( 'Not Configured', 'diluxone-offload' );
-							break;
-						case PluginState::CONFIGURED:
-							$badge_class = 'state-blue';
-							$badge_label = __( 'Configured', 'diluxone-offload' );
-							break;
-						case PluginState::SYNCING:
-							$badge_class = 'state-yellow';
-							$badge_label = __( 'Syncing', 'diluxone-offload' );
-							break;
-						case PluginState::SYNCED:
-							$badge_class = 'state-green';
-							$badge_label = __( 'Synced', 'diluxone-offload' );
-							break;
-						case PluginState::OFFLOADING_ACTIVE:
-							$badge_class = 'state-purple';
-							$badge_label = __( 'Offloading Active', 'diluxone-offload' );
-							break;
-					}
-					if ( $is_paused ) {
-						$badge_class .= ' is-paused';
-					}
-					echo '<span class="state-badge ' . esc_attr( $badge_class ) . '">' . esc_html( $badge_label ) . '</span>';
-					?>
-				</p>
-				<?php if ( $is_paused ) : ?>
-					<p class="status-details" style="color:#856404;">
-						<?php
-						printf(
-							/* translators: %s: short reason for the pause */
-							esc_html__( 'Paused (%s) — see banner above.', 'diluxone-offload' ),
-							esc_html( $pause_label )
-						);
-						?>
-					</p>
-				<?php else : ?>
-					<p class="status-details">
-						<?php esc_html_e( 'Current operational mode', 'diluxone-offload' ); ?>
-					</p>
-				<?php endif; ?>
-			</div>
-		</div>
 	</div>
 
 	<!-- Storage Overview (only if configured) -->

@@ -65,7 +65,7 @@ When requests happen:
 This is **your own Azure account**, under your own agreement with Microsoft. Neither DiluxOne nor the plugin's author is a party to it and neither has any access to your data. Your use of the service is subject to Microsoft's terms:
 
 * Service: [Azure Blob Storage](https://azure.microsoft.com/services/storage/blobs/) (https://azure.microsoft.com/services/storage/blobs/)
-* Terms of Service: [Microsoft Online Services Terms](https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure) (https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure)
+* Terms of Service: [Microsoft Azure Legal Information](https://azure.microsoft.com/support/legal/) (https://azure.microsoft.com/support/legal/), which links the Microsoft Products and Services Agreement and the Online Services Terms
 * Privacy Policy: [Microsoft Privacy Statement](https://www.microsoft.com/privacy/privacystatement) (https://www.microsoft.com/privacy/privacystatement)
 
 = S3-compatible storage =
@@ -80,12 +80,41 @@ When requests happen: the same moments as for Azure above. The connection check 
 
 This is **your own account** with that service, under your own agreement with its provider. Neither DiluxOne nor the plugin's author is a party to it and neither has any access to your data. Your use of the service is subject to its provider's terms:
 
-* Amazon S3: [service](https://aws.amazon.com/s3/), [AWS Service Terms](https://aws.amazon.com/service-terms/), [AWS Privacy Notice](https://aws.amazon.com/privacy/)
-* Cloudflare R2: [service](https://www.cloudflare.com/products/r2/), [Cloudflare Terms](https://www.cloudflare.com/terms/), [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/)
-* Backblaze B2: [service](https://www.backblaze.com/cloud-storage), [Backblaze Terms of Service](https://www.backblaze.com/company/policy/terms-of-service), [Backblaze Privacy Notice](https://www.backblaze.com/company/policy/privacy)
-* DigitalOcean Spaces: [service](https://www.digitalocean.com/products/spaces), [DigitalOcean Terms of Service](https://www.digitalocean.com/legal/terms-of-service-agreement), [DigitalOcean Privacy Policy](https://www.digitalocean.com/legal/privacy-policy)
-* Wasabi: [service](https://wasabi.com/cloud-object-storage), [Wasabi Terms of Use](https://wasabi.com/legal/terms-of-use), [Wasabi Privacy Policy](https://wasabi.com/legal/privacy-policy)
-* Google Cloud Storage: [service](https://cloud.google.com/storage), [Google Cloud Terms of Service](https://cloud.google.com/terms), [Google Privacy Policy](https://policies.google.com/privacy)
+Amazon S3:
+
+* Service: [Amazon S3](https://aws.amazon.com/s3/) (https://aws.amazon.com/s3/)
+* Terms of Service: [AWS Service Terms](https://aws.amazon.com/service-terms/) (https://aws.amazon.com/service-terms/)
+* Privacy Policy: [AWS Privacy Notice](https://aws.amazon.com/privacy/) (https://aws.amazon.com/privacy/)
+
+Cloudflare R2:
+
+* Service: [Cloudflare R2](https://www.cloudflare.com/products/r2/) (https://www.cloudflare.com/products/r2/)
+* Terms of Service: [Cloudflare Terms](https://www.cloudflare.com/terms/) (https://www.cloudflare.com/terms/)
+* Privacy Policy: [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/) (https://www.cloudflare.com/privacypolicy/)
+
+Backblaze B2:
+
+* Service: [Backblaze B2](https://www.backblaze.com/cloud-storage) (https://www.backblaze.com/cloud-storage)
+* Terms of Service: [Backblaze Terms of Service](https://www.backblaze.com/company/policy/terms-of-service) (https://www.backblaze.com/company/policy/terms-of-service)
+* Privacy Policy: [Backblaze Privacy Notice](https://www.backblaze.com/company/policy/privacy) (https://www.backblaze.com/company/policy/privacy)
+
+DigitalOcean Spaces:
+
+* Service: [DigitalOcean Spaces](https://www.digitalocean.com/products/spaces) (https://www.digitalocean.com/products/spaces)
+* Terms of Service: [DigitalOcean Terms of Service](https://www.digitalocean.com/legal/terms-of-service-agreement) (https://www.digitalocean.com/legal/terms-of-service-agreement)
+* Privacy Policy: [DigitalOcean Privacy Policy](https://www.digitalocean.com/legal/privacy-policy) (https://www.digitalocean.com/legal/privacy-policy)
+
+Wasabi:
+
+* Service: [Wasabi](https://wasabi.com/cloud-object-storage) (https://wasabi.com/cloud-object-storage)
+* Terms of Service: [Wasabi Terms of Use](https://wasabi.com/legal/terms-of-use) (https://wasabi.com/legal/terms-of-use)
+* Privacy Policy: [Wasabi Privacy Policy](https://wasabi.com/legal/privacy-policy) (https://wasabi.com/legal/privacy-policy)
+
+Google Cloud Storage:
+
+* Service: [Google Cloud Storage](https://cloud.google.com/storage) (https://cloud.google.com/storage)
+* Terms of Service: [Google Cloud Terms of Service](https://cloud.google.com/terms) (https://cloud.google.com/terms)
+* Privacy Policy: [Google Privacy Policy](https://policies.google.com/privacy) (https://policies.google.com/privacy)
 
 Custom endpoint: the plugin talks only to the server whose address you typed (MinIO, Ceph or any other that speaks the S3 API). No third party is involved unless that server belongs to one you chose.
 
@@ -186,6 +215,7 @@ Unreleased.
 * Status › Health shows the connection health the plugin already recorded (status, last check, last success, consecutive failures) and how many files the tracking table knows, with a "Check now" button that asks the provider right away; Status › System shows the free disk.
 * The screens say what is where: Sync shows how many files are synced, how many still have a local copy, how many live in the cloud only, the last upload made through the site and what the last scan left out (and why); Offloading shows where the media is served from, where the bytes are and since when; Disconnect shows what it would bring back and whether the disk has room; Cloud Provider shows since when it is connected.
 * Files uploaded through the site while offloading is on are now counted like the ones the initial sync moved, and deleting the local copies no longer empties the plugin's tracking table, so those figures stay right on the sites that use offloading. A very long list of failed files shows its first 50 rows and says how many there are.
+* The Overview shows three state cards (the fourth repeated them); Cloud Provider › Connection offers "Rotate the key" and "Delete Cloud Provider" as buttons; every button with an icon has the icon and its label on one line, and the sync window's buttons read at their size.
 * The "Upload Timeout" setting is now "Transfer Timeout" and governs every upload request: the single upload, each block and its commit, and the sync's parallel transfers. Before, block commits waited a fixed 300 seconds whatever the setting said. Downloads keep waiting at least the 300 seconds they always had; a higher setting raises that too.
 * A transfer that runs past the timeout is reported as such: the connection-health banner says "Cloud Transfer Timed Out" and links to Settings, instead of showing a made-up error code.
 * With debug logging on, every successful upload through the stream wrapper writes one line (path and size).

@@ -520,6 +520,23 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringContainsString('name="s3_secret_access_key" value=""', $html, 'the secret field is always empty');
     }
 
+    public function test_the_overview_has_three_state_cards(): void {
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        $html = $this->render('overview');
+        $this->assertSame(3, substr_count($html, 'class="status-card '), 'configuration, synchronization, offloading');
+        $this->assertStringNotContainsString('Plugin State', $html, 'the fourth card repeated the other three');
+    }
+
+    public function test_the_connection_offers_its_actions_as_buttons(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        $html = $this->render('connection');
+        $this->assertStringContainsString('class="diluxone-offload-provider-actions"', $html);
+        $this->assertMatchesRegularExpression('#href="[^"]*tab=credentials\#update-credentials" class="button"#', $html);
+        $this->assertMatchesRegularExpression('#href="[^"]*tab=credentials\#delete-provider" class="button diluxone-offload-button-danger"#', $html);
+    }
+
     public function test_overview_names_the_azure_account(): void {
         $this->configure(PluginState::CONFIGURED);
         $this->useFakeClient();

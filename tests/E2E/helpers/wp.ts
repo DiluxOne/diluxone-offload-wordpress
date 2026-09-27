@@ -29,3 +29,8 @@ export function configureUnreachableProvider( state: 'CONFIGURED' | 'OFFLOADING_
 export function resetPlugin(): void {
 	wp( [ 'eval', '\\DiluxOneOffload\\ConfigManager::reset();' ] );
 }
+
+/** No file tracked: the Sync tab then offers the first "Start Sync" (the big hero button). */
+export function emptyTracking(): void {
+	wp( [ 'eval', 'global $wpdb; $wpdb->query( "DELETE FROM {$wpdb->prefix}diluxone_offload_files" );' ] );
+}

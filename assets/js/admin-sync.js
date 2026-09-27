@@ -708,7 +708,7 @@ jQuery(document).ready(function($) {
 		inactiveHtml += '</div>';
 
 		inactiveHtml += '<button id="continue-here-btn" class="button button-primary button-large" style="padding: 15px 30px; font-size: 14px;">';
-		inactiveHtml += '<span class="dashicons dashicons-controls-play" style="margin-right: 5px;"></span>';
+		inactiveHtml += '<span class="dashicons dashicons-controls-play"></span>';
 		inactiveHtml += 'Continue Here';
 		inactiveHtml += '</button>';
 

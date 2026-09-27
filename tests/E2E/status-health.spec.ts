@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { configureUnreachableProvider, resetPlugin } from './helpers/wp';
+import { configureUnreachableProvider, emptyTracking, resetPlugin } from './helpers/wp';
 
 /**
  * Status › Health and the data screens without a cloud account: what they
@@ -69,5 +69,50 @@ test.describe.serial( 'Sync & Offloading › Offloading with the longest account
 		const number = page.locator( '.diluxone-offload-bignum__v:not(.diluxone-offload-bignum__v--text)' ).first();
 		const size = ( el: HTMLElement | SVGElement ) => parseFloat( getComputedStyle( el ).fontSize );
 		expect( await value.evaluate( size ) ).toBeLessThan( await number.evaluate( size ) );
+	} );
+} );
+
+test.describe.serial( 'Buttons with an icon', () => {
+	test.beforeAll( () => {
+		configureUnreachableProvider();
+		emptyTracking();
+	} );
+	test.afterAll( () => resetPlugin() );
+
+	/** Vertical distance between the centre of a button's icon and the centre of its label. */
+	const offset = ( button: import( '@playwright/test' ).Locator ) =>
+		button.evaluate( ( el ) => {
+			const icon = ( el.querySelector( '.dashicons' ) as HTMLElement ).getBoundingClientRect();
+			const text = Array.from( el.childNodes ).filter( ( n ) => n.nodeType === Node.TEXT_NODE && ( n.textContent ?? '' ).trim() !== '' );
+			const range = document.createRange();
+			range.selectNode( text[ text.length - 1 ] );
+			const label = range.getBoundingClientRect();
+			// The glyph is drawn on the icon's line: a line-height taller than
+			// the icon (WordPress sets 2.3 on hero buttons) moves it below the
+			// box even when the box is centred.
+			const style = getComputedStyle( el.querySelector( '.dashicons' ) as HTMLElement );
+			const drift = parseFloat( style.lineHeight ) - parseFloat( style.fontSize );
+			return Math.abs( icon.top + icon.height / 2 - ( label.top + label.height / 2 ) ) + Math.max( 0, drift );
+		} );
+
+	test( 'the icon sits on the label\'s line, centred with it, on the screen and in the sync modal', async ( { page } ) => {
+		await page.goto( `${ ADMIN }?page=diluxone-offload-sync&tab=sync` );
+		const start = page.locator( '#start-sync-btn' );
+		await expect( start ).toBeVisible();
+		await expect( start, 'nothing tracked: the first Start Sync, a hero button' ).toHaveClass( /button-hero/ );
+		expect( await offset( start ), 'Start Sync' ).toBeLessThanOrEqual( 1 );
+		await start.click();
+		const scratch = page.locator( '#scratch-upload-btn' );
+		await expect( scratch ).toBeVisible( { timeout: 60_000 } );
+		expect( await offset( scratch ), 'Upload from Scratch, a tall button' ).toBeLessThanOrEqual( 1 );
+	} );
+
+	test( 'the Connection offers rotating the key and deleting the provider as buttons', async ( { page } ) => {
+		await page.goto( `${ ADMIN }?page=diluxone-offload-provider&tab=connection` );
+		const actions = page.locator( '.diluxone-offload-provider-actions' );
+		await expect( actions.getByRole( 'link', { name: 'Rotate the key' } ) ).toHaveAttribute( 'href', /tab=credentials#update-credentials$/ );
+		await actions.getByRole( 'link', { name: 'Delete Cloud Provider' } ).click();
+		await expect( page ).toHaveURL( /tab=credentials#delete-provider$/ );
+		await expect( page.locator( '#delete-provider' ) ).toBeVisible();
 	} );
 } );

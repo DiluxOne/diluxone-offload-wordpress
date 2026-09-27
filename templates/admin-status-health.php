@@ -92,7 +92,6 @@ $ago           = static function ( int $ts ): string {
 						<?php
 						printf(
 							/* translators: %s: short reason, e.g. "credentials unreadable" */
-
 							esc_html__( 'Paused (%s) — see banner above.', 'diluxone-offload' ),
 							esc_html( $pause_label )
 						);
