@@ -964,6 +964,7 @@ class SyncManager {
 		$mh           = curl_multi_init();
 		$handles      = array();
 		$file_handles = array(); // Track file handles for cleanup
+		$on_failure   = array(); // What a provider wants done when a transfer fails
 		$results      = array();
 
 		// Prepare all cURL handles
@@ -973,6 +974,7 @@ class SyncManager {
 			if ( $handle_data['success'] ) {
 				$handles[ $i ]      = $handle_data['handle'];
 				$file_handles[ $i ] = $handle_data['file_handle']; // Store file handle
+				$on_failure[ $i ]   = $handle_data['on_failure'] ?? null;
 				curl_multi_add_handle( $mh, $handle_data['handle'] );
 			} else {
 				// Failed to prepare handle
@@ -1013,6 +1015,12 @@ class SyncManager {
 				// carries the request's signature, which has no place in a log
 				// line or the tracking table.
 				$error_details = '' !== $error ? $error : $verdict;
+
+				// A multipart upload whose commit failed leaves its parts
+				// stored (and billed) until the provider is told to drop them.
+				if ( is_callable( $on_failure[ $i ] ?? null ) ) {
+					call_user_func( $on_failure[ $i ] );
+				}
 
 				$results[ $i ] = array(
 					'success' => false,

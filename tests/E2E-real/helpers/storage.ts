@@ -35,7 +35,9 @@ export const RUN_FILE = path.resolve( __dirname, '../../../build/real-run.json' 
 export function newRun( runId: string ): RealRun {
 	const containers = { single: `e2e-${ runId }-single`, network: `e2e-${ runId }-network` };
 	if ( PROVIDER === 's3' ) {
-		return { provider: 's3', account: '', key: '', s3: s3.s3FromEnv(), container: containers.single, containers, runId };
+		const target = s3.s3FromEnv();
+		const buckets = target.fixedBucket ? { single: target.fixedBucket, network: target.fixedBucket } : containers;
+		return { provider: 's3', account: '', key: '', s3: target, container: buckets.single, containers: buckets, runId };
 	}
 	return { provider: 'azure', ...azure.credentialsFromEnv(), container: containers.single, containers, runId };
 }
@@ -55,6 +57,10 @@ export function writeRun( run: RealRun ): void {
 
 /** One per journey, readable by anyone: the way a deployment must be configured. */
 export async function createContainers( run: RealRun ): Promise< void > {
+	if ( run.s3?.fixedBucket ) {
+		await s3.emptyPrefix( run.s3, run.s3.fixedBucket, 'uploads/' );
+		return;
+	}
 	if ( run.s3 ) {
 		for ( const bucket of Object.values( run.containers ) ) await s3.createPublicBucket( run.s3, bucket );
 		return;
@@ -63,6 +69,10 @@ export async function createContainers( run: RealRun ): Promise< void > {
 }
 
 export async function deleteContainers( run: RealRun ): Promise< void > {
+	if ( run.s3?.fixedBucket ) {
+		await s3.emptyPrefix( run.s3, run.s3.fixedBucket, 'uploads/' );
+		return;
+	}
 	if ( run.s3 ) {
 		const target = run.s3;
 		const results = await Promise.allSettled( Object.values( run.containers ).map( ( bucket ) => s3.deleteBucket( target, bucket ) ) );
@@ -71,6 +81,20 @@ export async function deleteContainers( run: RealRun ): Promise< void > {
 		return;
 	}
 	await azure.deleteContainers( run );
+}
+
+/**
+ * Before a journey: a fixed bucket, shared by both journeys, starts without
+ * the previous journey's objects (the plugin never deletes them on
+ * uninstall). A container or bucket of the journey's own is already empty.
+ */
+export async function startJourney( run: RealRun ): Promise< void > {
+	if ( run.s3?.fixedBucket ) await s3.emptyPrefix( run.s3, run.s3.fixedBucket, 'uploads/' );
+}
+
+/** Whether the suite can make a private container or bucket: not with keys limited to one fixed bucket. */
+export function canMakePrivateContainer( run: RealRun ): boolean {
+	return ! run.s3?.fixedBucket;
 }
 
 /** A private container or bucket next to the run's, to prove the plugin refuses it. */

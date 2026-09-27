@@ -5,9 +5,13 @@ name: Real-storage suite (S3-compatible)
 # a throwaway RustFS (`make s3-up`; MinIO no longer publishes images) on
 # wp-env's network, with a bucket per journey created and deleted by the run.
 # It needs no secret, so unlike the Azure suite it also runs on drafts and on
-# pull requests from forks, whenever the change touches code. Amazon S3 and
-# Cloudflare R2 join as targets of their own once their accounts exist
-# (docs/plans/2.0.0.md, 2.12).
+# pull requests from forks, whenever the change touches code.
+#
+# Two more jobs run the same journeys against real services, Cloudflare R2
+# and Google Cloud Storage (HMAC keys), with the repository's secrets for
+# each: under the same rules as the Azure suite (no forks, no drafts). Each
+# uses one fixed, public bucket, emptied before each journey, so its runs are
+# serialised across the whole repository.
 # A failure on main opens an issue that names the commit, its pull request
 # and its author, and comments on that pull request.
 
@@ -82,15 +86,15 @@ jobs:
       REAL_PROVIDER: s3
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '20'
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.2'
           coverage: none
@@ -101,7 +105,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-real-${{ runner.os }}-${{ hashFiles('composer.json') }}
@@ -144,7 +148,7 @@ jobs:
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: real-s3-results
           path: build/real-results
@@ -177,6 +181,250 @@ jobs:
           fi
           if [ -n "$number" ]; then
             gh pr comment "$number" --body "This change broke the real-storage suite (S3) on \`main\`: $RUN_URL"
+          fi
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop
+
+  real-r2:
+    name: Real Cloudflare R2 end-to-end (single site + network)
+    needs: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # The secrets are the maintainer's: never with a fork's code, never on a
+    # draft, and on a pull request or a push only when the change touches
+    # code; the weekly run and the button always run. One run at a time: the
+    # bucket is shared.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)))) }}
+    concurrency:
+      group: real-r2-bucket
+      cancel-in-progress: false
+    env:
+      REAL_PROVIDER: s3
+      S3_E2E_PRESET: r2
+      S3_E2E_REGION: auto
+      S3_E2E_ENDPOINT: ${{ vars.R2_E2E_ENDPOINT }}
+      S3_E2E_BUCKET: ${{ vars.R2_E2E_BUCKET }}
+      S3_E2E_PUBLIC_URL: ${{ vars.R2_E2E_PUBLIC_URL }}
+      S3_E2E_ACCESS_KEY_ID: ${{ secrets.R2_E2E_ACCESS_KEY_ID }}
+      S3_E2E_SECRET_ACCESS_KEY: ${{ secrets.R2_E2E_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
+      - name: Determine Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-real-${{ runner.os }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-real-${{ runner.os }}-
+
+      - name: Install Composer dependencies
+        # vendor/ is mounted into the wp-env container with the plugin; that
+        # is how the container reaches phpunit for the real-provider tests.
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start wp-env
+        run: npx wp-env start
+
+      - name: Activate the plugin on the single site
+        run: npx wp-env run cli wp plugin activate diluxone-offload-wordpress
+
+      - name: Convert the tests site into a multisite network and network-activate
+        run: make env-multisite
+
+      - name: Run the real-storage suite
+        env:
+          CI: 'true'
+        run: npx playwright test -c playwright.real.config.ts
+
+      - name: Run the real-provider PHPUnit tests
+        if: always()
+        env:
+          CI: 'true'
+        run: make test-integration-real
+
+      - name: Upload traces, videos and screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: real-r2-results
+          path: build/real-results
+          retention-days: 14
+
+      - name: Open an issue and notify the pull request when main is broken
+        if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[0]' 2>/dev/null || true)"
+          number="$(printf '%s' "$pr" | jq -r '.number // empty')"
+          author="$(printf '%s' "$pr" | jq -r '.user.login // empty')"
+          mention="@${{ github.repository_owner }}"
+          [ -n "$author" ] && [ "$author" != "${{ github.repository_owner }}" ] && mention="$mention @$author"
+          title="Real-storage suite (R2) failed on main (${SHA:0:7})"
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          body="$mention the real Cloudflare R2 end-to-end suite failed on \`main\` after ${SHA:0:7}."
+          [ "${{ github.event_name }}" = schedule ] && body="$mention the weekly run of the real Cloudflare R2 end-to-end suite failed on \`main\` at ${SHA:0:7}; nothing merged caused it, something drifted."
+          body="$body"$'\n\n'"Run: $RUN_URL"
+          [ -n "$number" ] && body="$body"$'\n'"Pull request: #$number"
+          body="$body"$'\n\n'"Traces, videos and screenshots are attached to the run as \`real-r2-results\`."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --label bug --assignee "${{ github.repository_owner }}" --body "$body"
+          fi
+          if [ -n "$number" ]; then
+            gh pr comment "$number" --body "This change broke the real-storage suite (R2) on \`main\`: $RUN_URL"
+          fi
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop
+
+  real-gcs:
+    name: Real Google Cloud Storage end-to-end (single site + network)
+    needs: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # The secrets are the maintainer's: never with a fork's code, never on a
+    # draft, and on a pull request or a push only when the change touches
+    # code; the weekly run and the button always run. One run at a time: the
+    # bucket is shared.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft)))) }}
+    concurrency:
+      group: real-gcs-bucket
+      cancel-in-progress: false
+    env:
+      REAL_PROVIDER: s3
+      S3_E2E_PRESET: gcs
+      S3_E2E_REGION: auto
+      S3_E2E_ENDPOINT: https://storage.googleapis.com
+      S3_E2E_BUCKET: ${{ vars.GCS_E2E_BUCKET }}
+      S3_E2E_PUBLIC_URL: ${{ vars.GCS_E2E_PUBLIC_URL }}
+      S3_E2E_ACCESS_KEY_ID: ${{ secrets.GCS_E2E_ACCESS_KEY_ID }}
+      S3_E2E_SECRET_ACCESS_KEY: ${{ secrets.GCS_E2E_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
+      - name: Determine Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-real-${{ runner.os }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-real-${{ runner.os }}-
+
+      - name: Install Composer dependencies
+        # vendor/ is mounted into the wp-env container with the plugin; that
+        # is how the container reaches phpunit for the real-provider tests.
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start wp-env
+        run: npx wp-env start
+
+      - name: Activate the plugin on the single site
+        run: npx wp-env run cli wp plugin activate diluxone-offload-wordpress
+
+      - name: Convert the tests site into a multisite network and network-activate
+        run: make env-multisite
+
+      - name: Run the real-storage suite
+        env:
+          CI: 'true'
+        run: npx playwright test -c playwright.real.config.ts
+
+      - name: Run the real-provider PHPUnit tests
+        if: always()
+        env:
+          CI: 'true'
+        run: make test-integration-real
+
+      - name: Upload traces, videos and screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: real-gcs-results
+          path: build/real-results
+          retention-days: 14
+
+      - name: Open an issue and notify the pull request when main is broken
+        if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[0]' 2>/dev/null || true)"
+          number="$(printf '%s' "$pr" | jq -r '.number // empty')"
+          author="$(printf '%s' "$pr" | jq -r '.user.login // empty')"
+          mention="@${{ github.repository_owner }}"
+          [ -n "$author" ] && [ "$author" != "${{ github.repository_owner }}" ] && mention="$mention @$author"
+          title="Real-storage suite (Google) failed on main (${SHA:0:7})"
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          body="$mention the real Google Cloud Storage end-to-end suite failed on \`main\` after ${SHA:0:7}."
+          [ "${{ github.event_name }}" = schedule ] && body="$mention the weekly run of the real Google Cloud Storage end-to-end suite failed on \`main\` at ${SHA:0:7}; nothing merged caused it, something drifted."
+          body="$body"$'\n\n'"Run: $RUN_URL"
+          [ -n "$number" ] && body="$body"$'\n'"Pull request: #$number"
+          body="$body"$'\n\n'"Traces, videos and screenshots are attached to the run as \`real-gcs-results\`."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --label bug --assignee "${{ github.repository_owner }}" --body "$body"
+          fi
+          if [ -n "$number" ]; then
+            gh pr comment "$number" --body "This change broke the real-storage suite (Google) on \`main\`: $RUN_URL"
           fi
 
       - name: Stop wp-env

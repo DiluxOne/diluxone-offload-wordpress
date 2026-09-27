@@ -238,13 +238,16 @@ test-real: ## Run the real-storage suite: every screen, single site and network,
 	npx playwright test -c playwright.real.config.ts
 	$(MAKE) test-integration-real
 
+# RustFS 1.0.0, pinned by digest so every run starts the same server.
+RUSTFS_IMAGE ?= rustfs/rustfs@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff
+
 .PHONY: s3-up
 s3-up: ## Start a local S3-compatible server (RustFS; MinIO no longer publishes images) for the S3 real suite, on wp-env's network, reachable as http://s3local:9000 from WordPress and from this machine (adds "127.0.0.1 s3local" to /etc/hosts once; needs `make env`).
 	@net=$$(docker ps --filter publish=8888 --format '{{.Networks}}' | head -1); \
 	 [ -n "$$net" ] || { echo "wp-env is not running: make env first"; exit 1; }; \
 	 docker rm -f diluxone-offload-s3 >/dev/null 2>&1; \
 	 docker run -d --name diluxone-offload-s3 --network "$$net" --network-alias s3local -p 9000:9000 \
-	   -e RUSTFS_ACCESS_KEY=e2eadmin -e RUSTFS_SECRET_KEY=e2eadmin-secret rustfs/rustfs:latest >/dev/null
+	   -e RUSTFS_ACCESS_KEY=e2eadmin -e RUSTFS_SECRET_KEY=e2eadmin-secret $(RUSTFS_IMAGE) >/dev/null
 	@grep -qE '^[0-9.]+[[:space:]]+s3local([[:space:]]|$$)' /etc/hosts || { echo "Adding '127.0.0.1 s3local' to /etc/hosts"; echo '127.0.0.1 s3local' | sudo tee -a /etc/hosts >/dev/null; }
 	@for i in $$(seq 1 30); do curl -s -o /dev/null http://s3local:9000/ && break; sleep 1; done; \
 	 curl -s -o /dev/null http://s3local:9000/ && echo "✔ S3-compatible server ready at http://s3local:9000 (e2eadmin / e2eadmin-secret)" || { echo "The S3 server did not start"; exit 1; }
@@ -263,9 +266,10 @@ test-integration-real: ## PHPUnit against the real provider REAL_PROVIDER names 
 	@mkdir -p build
 	@set -a; [ -f .env.e2e ] && . ./.env.e2e; set +a; \
 	 if [ "$${REAL_PROVIDER:-azure}" = "s3" ]; then \
+	   local_public='http://s3local:9000/{bucket}'; \
 	   printf '{"preset":"%s","endpoint":"%s","region":"%s","bucket":"%s","access_key_id":"%s","secret_access_key":"%s","public_url":"%s","run_id":"%s"}\n' \
 	     "$${S3_E2E_PRESET:-custom}" "$${S3_E2E_ENDPOINT:-http://s3local:9000}" "$${S3_E2E_REGION:-us-east-1}" "$${S3_E2E_BUCKET:-}" \
-	     "$${S3_E2E_ACCESS_KEY_ID:-e2eadmin}" "$${S3_E2E_SECRET_ACCESS_KEY:-e2eadmin-secret}" "$${S3_E2E_PUBLIC_URL:-http://s3local:9000/{bucket}}" "$${GITHUB_RUN_ID:-local}" > build/real-s3-credentials.json; \
+	     "$${S3_E2E_ACCESS_KEY_ID:-e2eadmin}" "$${S3_E2E_SECRET_ACCESS_KEY:-e2eadmin-secret}" "$${S3_E2E_PUBLIC_URL:-$$local_public}" "$${GITHUB_RUN_ID:-local}" > build/real-s3-credentials.json; \
 	   chmod 600 build/real-s3-credentials.json; filter=RealS3; \
 	 else \
 	   [ -n "$$AZURE_E2E_ACCOUNT" ] && [ -n "$$AZURE_E2E_KEY" ] || { echo "AZURE_E2E_ACCOUNT / AZURE_E2E_KEY missing (env or .env.e2e)"; exit 1; }; \

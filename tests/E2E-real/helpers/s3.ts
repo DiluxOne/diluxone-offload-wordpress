@@ -16,7 +16,9 @@ import { createHash } from 'node:crypto';
  * (`make s3-up`: RustFS, since MinIO no longer publishes images), with a
  * bucket per journey created and deleted by the run, readable by anyone
  * through a bucket policy the way a deployment must be. The S3_E2E_*
- * variables point it at another service.
+ * variables point it at another service; with S3_E2E_BUCKET the run uses
+ * that bucket, already public, for both journeys, and empties its uploads/
+ * before each one and at the end.
  */
 export interface S3Target {
 	preset: string;
@@ -27,6 +29,12 @@ export interface S3Target {
 	/** Public URL pattern with {bucket}. */
 	publicUrl: string;
 	pathStyle: boolean;
+	/**
+	 * A bucket that already exists and is public (a real service, where the
+	 * suite's keys cannot create one or make it public), or '' to create one
+	 * per journey (the local server).
+	 */
+	fixedBucket: string;
 }
 
 export function s3FromEnv(): S3Target {
@@ -39,6 +47,7 @@ export function s3FromEnv(): S3Target {
 		secretAccessKey: env( 'S3_E2E_SECRET_ACCESS_KEY', 'e2eadmin-secret' ),
 		publicUrl: env( 'S3_E2E_PUBLIC_URL', 'http://s3local:9000/{bucket}' ),
 		pathStyle: env( 'S3_E2E_PRESET', 'custom' ) !== 'aws',
+		fixedBucket: env( 'S3_E2E_BUCKET', '' ),
 	};
 }
 
@@ -90,6 +99,17 @@ export async function deleteBucket( target: S3Target, bucket: string ): Promise<
 		await s3.send( new DeleteBucketCommand( { Bucket: bucket } ) );
 	} catch ( e ) {
 		if ( ! /NoSuchBucket|NotFound/.test( ( e as Error ).name ) ) throw e;
+	}
+}
+
+/** Every object under a prefix goes; the bucket stays. */
+export async function emptyPrefix( target: S3Target, bucket: string, prefix: string ): Promise< void > {
+	const s3 = client( target );
+	for ( ;; ) {
+		const page = await s3.send( new ListObjectsV2Command( { Bucket: bucket, Prefix: prefix } ) );
+		const objects = ( page.Contents ?? [] ).map( ( o ) => ( { Key: o.Key as string } ) );
+		if ( ! objects.length ) return;
+		await s3.send( new DeleteObjectsCommand( { Bucket: bucket, Delete: { Objects: objects } } ) );
 	}
 }
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, form, publicUrlPrefix } from './helpers/storage';
+import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
 import { BASE_URL, wp, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -26,8 +26,9 @@ test.describe.serial( 'multisite journey', () => {
 	let otherSeeded: number[] = [];
 	let otherUploadId = 0;
 
-	test.beforeAll( () => {
+	test.beforeAll( async () => {
 		run = readRun( 'network' );
+		await startJourney( run );
 		generateFixtures();
 		blogId = Number( wp( site, [ 'site', 'create', `--slug=real-${ run.runId }`, '--title=Real suite', '--porcelain' ] ) );
 		expect( blogId ).toBeGreaterThan( 1 );

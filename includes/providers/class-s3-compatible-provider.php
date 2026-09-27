@@ -745,6 +745,8 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			array(
 				'x-amz-copy-source'        => '/' . rawurlencode( $this->bucket ) . '/' . $this->object_path( $source_path ),
 				'x-amz-metadata-directive' => 'COPY',
+				// A PUT without a body: Google answers 411 unless the length is stated.
+				'Content-Length'           => '0',
 			) + $this->acl_headers(),
 			'',
 			$this->transfer_timeout
@@ -957,10 +959,16 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			)
 		);
 
+		$object_url = $this->request_url( $key );
+		$upload_id  = $parts['upload_id'];
 		return array(
 			'success'     => true,
 			'handle'      => $ch,
 			'file_handle' => null,
+			// The commit runs under curl_multi; if it fails, the parts go.
+			'on_failure'  => function () use ( $object_url, $upload_id ): void {
+				$this->abort( $object_url, $upload_id );
+			},
 		);
 	}
 

@@ -418,6 +418,7 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertStringEndsWith( '/media/uploads/c.jpg', $put['url'] );
 		$this->assertSame( '/media/uploads/a%20b.jpg', $put['args']['headers']['x-amz-copy-source'] );
 		$this->assertSame( 'COPY', $put['args']['headers']['x-amz-metadata-directive'] );
+		$this->assertSame( '0', $put['args']['headers']['Content-Length'], 'a bodiless PUT states its length (Google answers 411 otherwise)' );
 		$this->assertStringContainsString( 'x-amz-copy-source;', $put['args']['headers']['Authorization'] );
 	}
 
@@ -524,6 +525,14 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertTrue( $r['success'], (string) ( $r['error'] ?? '' ) );
 		$this->assertSame( array( 'POST', 'PUT', 'PUT', 'PUT' ), array_column( $this->requests(), 'method' ), 'create and three parts; the commit is the handle' );
 		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=C1', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
+
+		// If the sync's commit fails, the provider drops the parts it sent.
+		$this->assertIsCallable( $r['on_failure'] );
+		$this->answer( fn() => self::reply( 204 ) );
+		( $r['on_failure'] )();
+		$abort = array_slice( $this->requests(), -1 )[0];
+		$this->assertSame( 'DELETE', $abort['method'] );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=C1', $abort['url'] );
 	}
 
 	public function test_the_download_handle_writes_to_a_part_file(): void {

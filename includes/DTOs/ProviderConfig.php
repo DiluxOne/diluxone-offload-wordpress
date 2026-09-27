@@ -198,6 +198,11 @@ class ProviderConfig {
 		if ( ! preg_match( '/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/', $bucket ) || false !== filter_var( $bucket, FILTER_VALIDATE_IP ) ) {
 			throw new \InvalidArgumentException( 'Bucket must be 3-63 lowercase letters, numbers, dots and hyphens, and not an IP address' );
 		}
+		if ( 'aws' === $preset && false !== strpos( $bucket, '.' ) ) {
+			// Amazon addresses the bucket in the host name, and its https
+			// certificate covers one level only: bucket.with.dots fails TLS.
+			throw new \InvalidArgumentException( 'Bucket names with dots do not work over https on Amazon S3; use a name without dots' );
+		}
 		$scheme = (string) wp_parse_url( (string) $provider_config['endpoint'], PHP_URL_SCHEME );
 		if ( 'https' !== $scheme && ! ( 'http' === $scheme && \DiluxOneOffload\Providers\S3Presets::allows_http( $preset ) ) ) {
 			throw new \InvalidArgumentException( 'Endpoint must be an https:// URL (http:// only with the Custom service)' );
