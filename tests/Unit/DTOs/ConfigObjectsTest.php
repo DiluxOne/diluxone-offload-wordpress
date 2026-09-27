@@ -193,6 +193,7 @@ class ConfigObjectsTest extends TestCase {
 			'bad region'        => array( array( 's3_region' => 'eu west 1' ), 'Region must be' ),
 			'upper-case bucket' => array( array( 's3_bucket' => 'Demo' ), 'Bucket must be' ),
 			'ip bucket'         => array( array( 's3_bucket' => '192.168.1.10' ), 'Bucket must be' ),
+			'dotted on amazon'  => array( array( 's3_bucket' => 'media.example.com' ), 'Bucket names with dots' ),
 			'http endpoint'     => array( array( 's3_endpoint' => 'http://s3.example.com' ), 'Endpoint must be an https:// URL' ),
 			'ftp public url'    => array( array( 's3_public_url' => 'ftp://cdn.example.com' ), 'Public URL ' ),
 			'long key id'       => array( array( 's3_access_key_id' => str_repeat( 'A', 129 ) ), 'Access Key ID must be' ),

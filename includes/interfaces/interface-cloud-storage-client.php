@@ -160,6 +160,10 @@ interface CloudStorageClientInterface {
 	 * Prepare chunked upload handle for large files (>10MB)
 	 * Used by SyncManager for optimized chunked uploads
 	 *
+	 * The result may carry `on_failure`, a callable SyncManager calls when the
+	 * handle's transfer fails (the S3 provider aborts its multipart upload
+	 * there, so the parts already sent are not kept).
+	 *
 	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
 	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
 	 */

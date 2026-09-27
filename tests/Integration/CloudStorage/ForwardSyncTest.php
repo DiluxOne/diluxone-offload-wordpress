@@ -272,6 +272,38 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame($threshold + 1, strlen($this->client->blobs['uploads/big/huge.big']));
     }
 
+    public function test_a_chunked_upload_whose_commit_fails_is_handed_back_to_the_provider(): void {
+        // The provider sent the parts itself; only the engine knows the commit
+        // failed, and it says so through the handle's on_failure, so the
+        // provider can drop the parts instead of leaving them stored and billed.
+        $this->configure(['allowed_file_types' => 'big']);
+        $sm            = new SyncManager();
+        $thresholdProp = new \ReflectionProperty($sm, 'chunked_threshold');
+        if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+        	$thresholdProp->setAccessible( true );
+        }
+        $path = $this->fixture('big/refused.big', '');
+        $fh   = fopen($path, 'w');
+        ftruncate($fh, $thresholdProp->getValue($sm) + 1);
+        fclose($fh);
+        $this->client->upload_status = 500;
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->process_batch(30.0);
+        // Every attempt the engine made (it retries within the batch) is handed back.
+        $this->assertNotEmpty($this->client->abandoned);
+        $this->assertSame(['uploads/big/refused.big'], array_values(array_unique($this->client->abandoned)));
+    }
+
+    public function test_a_small_upload_that_fails_needs_nothing_handed_back(): void {
+        $this->configure(['allowed_file_types' => 'sml']);
+        $this->fixture('sml/refused.sml', 'small');
+        $this->client->upload_status = 500;
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->process_batch(30.0);
+        $this->assertSame([], $this->client->abandoned);
+    }
+
 
     public function test_cancel_clears_a_running_sync(): void {
         update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'a', 'last_heartbeat' => time()], false);

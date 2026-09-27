@@ -155,8 +155,15 @@ class FakeCloudClient implements CloudStorageClientInterface {
         return ['success' => true, 'handle' => $ch, 'file_handle' => $fh];
     }
 
+    /** @var string[] Remote paths whose failed transfer the engine reported back through on_failure. */
+    public array $abandoned = [];
+
     public function prepare_chunked_upload_handle(array $file_info): array {
-        return $this->prepare_batch_upload_handle($file_info);
+        $handle = $this->prepare_batch_upload_handle($file_info);
+        $handle['on_failure'] = function () use ($file_info): void {
+            $this->abandoned[] = ltrim($file_info['remote_path'], '/');
+        };
+        return $handle;
     }
 
     /**
