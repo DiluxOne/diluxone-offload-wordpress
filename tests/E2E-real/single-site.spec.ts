@@ -1,7 +1,7 @@
 import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
+import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
 import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -24,8 +24,9 @@ test.describe.serial( 'single site journey', () => {
 	let uiUploadId = 0;
 	let wrongKey = '';
 
-	test.beforeAll( () => {
+	test.beforeAll( async () => {
 		run = readRun( 'single' );
+		await startJourney( run );
 		uploadsDir = nativeUploadsDir( site );
 		wrongKey = wrongSecret( run );
 	} );
@@ -53,6 +54,7 @@ test.describe.serial( 'single site journey', () => {
 	} );
 
 	test( 'a private container is refused with an explanation, even with the right key', async ( { page } ) => {
+		test.skip( ! canMakePrivateContainer( run ), 'the keys of a fixed bucket cannot create a private one; the local server and Azure cover this' );
 		const name = `${ run.container }-private`;
 		await createPrivateContainer( run, name );
 		try {
