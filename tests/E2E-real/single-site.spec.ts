@@ -134,6 +134,7 @@ test.describe.serial( 'single site journey', () => {
 			await ui.startSyncAndCancel( page );
 		} finally {
 			shortBatches( site, false );
+			await page.unrouteAll( { behavior: 'ignoreErrors' } );
 		}
 		expect( pluginState( site ) ).toBe( 'configured' );
 		expect( ( await listKeys( run, 'uploads/' ) ).length ).toBeGreaterThan( 0 );
@@ -315,10 +316,13 @@ test.describe.serial( 'single site journey', () => {
 		shortBatches( site, true );
 		try {
 			await ui.startDisconnectAndCancel( page );
+			// Read while batches are still slow: against a fast server, a
+			// download the reloaded screen picks up could otherwise finish first.
+			expect( pluginState( site ) ).toBe( 'offloading_active' );
 		} finally {
 			shortBatches( site, false );
+			await page.unrouteAll( { behavior: 'ignoreErrors' } );
 		}
-		expect( pluginState( site ) ).toBe( 'offloading_active' );
 		// The batch in flight when the page reloaded finishes on the server; once
 		// it has, every part file has become its attachment and none is left.
 		await expect

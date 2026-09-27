@@ -6,6 +6,14 @@
  * prefill in the browser and the checks on the server never diverge. A
  * preset only fills fields in: the user can overwrite every value it gives.
  *
+ * The patterns below are the addresses of the storage the site owner picks
+ * and pays for, filled into a form they submit themselves; the plugin loads
+ * nothing of its own from them. Plugin Check's rule against offloading a
+ * plugin's own assets to a remote service does not apply, and is suppressed
+ * for this file only:
+ *
+ * phpcs:disable PluginCheck.CodeAnalysis.Offloading.OffloadedContent
+ *
  * @package DiluxOneOffload\Providers
  * @since 2.0.0
  */

@@ -167,8 +167,9 @@ export async function completeSyncAndEnable( page: Page ): Promise< void > {
 /**
  * Against a fast server (the local S3 one) a whole library can move before
  * a click lands, so every batch of `action` after the first waits a few
- * seconds on its way back: long enough to cancel mid-way, anywhere.
- * Undone with page.unrouteAll().
+ * seconds on its way back: long enough to cancel mid-way, anywhere. It
+ * stays on after the page reloads (a batch the reloaded screen resumes is
+ * slow too) until the caller runs page.unrouteAll().
  */
 async function slowBatchesAfterTheFirst( page: Page, action: string ): Promise< void > {
 	let batches = 0;
@@ -192,7 +193,6 @@ export async function startSyncAndCancel( page: Page ): Promise< void > {
 		.toBeGreaterThan( 0 );
 	await page.locator( '#sync-modal-cancel' ).click();
 	await page.waitForURL( onScreen( 'sync' ), { timeout: 60_000 } );
-	await page.unrouteAll( { behavior: 'ignoreErrors' } );
 	// A cancelled sync leaves a continuation offer, not a fresh start.
 	await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Continue Sync/i );
 }
@@ -263,7 +263,6 @@ export async function startDisconnectAndCancel( page: Page ): Promise< void > {
 		.toBeGreaterThan( 0 );
 	await page.locator( '#cancel-disconnect' ).click();
 	await page.waitForURL( onScreen( 'disconnect' ), { timeout: 60_000 } );
-	await page.unrouteAll( { behavior: 'ignoreErrors' } );
 	// Still offloading: the download can be resumed.
 	await expect( page.locator( '#disconnect-from-cloud-btn' ) ).toBeVisible();
 }
