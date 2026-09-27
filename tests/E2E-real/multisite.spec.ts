@@ -121,6 +121,7 @@ test.describe.serial( 'multisite journey', () => {
 		// The main site's figures count its tracked rows, which are its keys in the container.
 		const mainInCloud = ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ).length;
 		await ui.goTab( page, base, 'offloading' );
+		expect( await ui.bignumLines( page, 'Served from' ), 'the hostname fits its card' ).toBeLessThanOrEqual( 3 );
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( mainInCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 

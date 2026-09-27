@@ -192,6 +192,13 @@
 	overflow-wrap: anywhere;
 }
 
+/* A name instead of a number (the hostname media is served from): long, so smaller. */
+.diluxone-offload-bignum__v--text {
+	font-size: 15px;
+	line-height: 1.35;
+	margin-top: 8px;
+}
+
 .diluxone-offload-bignum__d {
 	font-size: 12px;
 	color: #646970;
