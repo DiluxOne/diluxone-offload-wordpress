@@ -74,7 +74,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 			<?php
 			$diluxone_offload_bignums(
 				array(
-					array( __( 'Served from', 'diluxone-offload' ), $cloud_host !== '' ? (string) wp_parse_url( $cloud_host, PHP_URL_HOST ) : __( 'the cloud', 'diluxone-offload' ), __( 'every media URL WordPress hands out', 'diluxone-offload' ), true ),
+					array( __( 'Served from', 'diluxone-offload' ), $cloud_host !== '' ? $cloud_host : __( 'the cloud', 'diluxone-offload' ), __( 'every media URL WordPress hands out', 'diluxone-offload' ), true ),
 					array( __( 'Local copies', 'diluxone-offload' ), number_format_i18n( $local_copies ), size_format( $local_size ) . ' ' . __( 'still on this server', 'diluxone-offload' ) ),
 					array( __( 'Not on this server', 'diluxone-offload' ), number_format_i18n( $cloud_only ), size_format( $cloud_only_size ) . ' ' . __( 'in the cloud only', 'diluxone-offload' ) ),
 					array( __( 'Offloading since', 'diluxone-offload' ), $since > 0 ? get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $since ), (string) get_option( 'date_format' ) ) : '—', $since > 0 ? $diluxone_offload_ago( $since ) : '' ),

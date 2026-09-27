@@ -44,7 +44,7 @@ $config = $config ?? array();
 							<?php esc_html_e( 'Force HTTPS for cloud storage URLs', 'diluxone-offload' ); ?>
 						</label>
 						<p class="description">
-							<?php esc_html_e( 'Re-applies https:// to URLs WordPress emits for the cloud storage. Needed when the site is served over plain http (typical in local dev): WP downgrades them to http and Azure rejects them with HTTP 400. Leave enabled unless you know what you are doing.', 'diluxone-offload' ); ?>
+							<?php esc_html_e( 'Re-applies https:// to URLs WordPress emits for the cloud storage. Needed when the site is served over plain http (typical in local dev): WP downgrades them to http and storage services reject them. Leave enabled unless you know what you are doing.', 'diluxone-offload' ); ?>
 						</p>
 					</td>
 				</tr>

@@ -139,19 +139,23 @@ class AdminAjaxTest extends IntegrationTestCase {
     public function test_test_connection_succeeds_and_remembers_it_for_save(): void {
         $this->scriptHttp(fn() => self::httpReply(200, '', ['x-ms-blob-public-access' => 'blob']));
 
+        $key = base64_encode(random_bytes(32));
         $r = $this->call('diluxone_offload_test_connection', [
             'provider'       => 'azure',
             'account_name'   => 'admacct',
-            'account_key'    => base64_encode(random_bytes(32)),
+            'account_key'    => $key,
             'container_name' => 'media',
         ]);
 
         $this->assertNotNull($r['json'], $r['raw']);
         $this->assertTrue($r['json']['success'], $r['raw']);
-        $this->assertNotFalse(
-            get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id),
-            'a passed test is what later authorises saving these credentials'
+        $passed = get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id);
+        $this->assertSame(
+            (new \DiluxOneOffload\DTOs\ProviderConfig('azure', ['storage_account' => 'admacct', 'access_key' => $key, 'container_name' => 'media']))->fingerprint(),
+            $passed['fingerprint'] ?? null,
+            'a passed test is what later authorises saving exactly this configuration'
         );
+        $this->assertStringNotContainsString($key, (string) json_encode($passed), 'the key itself never sits in the transient');
         $req = $this->httpRequests('GET')[0];
         $this->assertStringContainsString('admacct.blob.core.windows.net/media?restype=container', $req['url']);
         $this->assertStringStartsWith('SharedKey admacct:', $req['args']['headers']['Authorization']);

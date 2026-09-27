@@ -29,6 +29,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var bool Make test_connection() fail. */
     public bool $connection_ok = true;
 
+    /** @var string|null When set, verify_upload_response() refuses every upload with this line. */
+    public ?string $upload_verdict = null;
+
     /** @var int Download handles handed out (one per attempted download). */
     public int $downloads = 0;
 
@@ -112,6 +115,21 @@ class FakeCloudClient implements CloudStorageClientInterface {
 
     public function get_provider_name(): string {
         return 'fake';
+    }
+
+    public function get_storage_stats(bool $force_refresh = false): array {
+        return ['success' => true, 'data' => ['fileCount' => count($this->blobs), 'storageUsedBytes' => array_sum(array_map('strlen', $this->blobs))]];
+    }
+
+    public function describe_error_body(string $body): string {
+        return '' === $body ? '' : ' - Fake ' . $body;
+    }
+
+    public function verify_upload_response(int $status, string $body): ?string {
+        if (null !== $this->upload_verdict) {
+            return $this->upload_verdict;
+        }
+        return $status >= 200 && $status < 300 ? null : 'HTTP ' . $status . $this->describe_error_body($body);
     }
 
     /** Real cURL handle so SyncManager's curl_multi loop runs for real. */

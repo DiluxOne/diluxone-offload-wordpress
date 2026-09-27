@@ -82,10 +82,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-label status-active"><?php esc_html_e( 'Configured', 'diluxone-offload' ); ?></p>
 					<p class="status-details">
 						<?php
-						$provider_names   = array(
-							'azure' => 'Azure Blob Storage',
-						);
-						$provider_display = $provider_names[ $config['cloud_provider'] ?? '' ] ?? ucfirst( $config['cloud_provider'] ?? '' );
+						$provider_display = \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( (string) ( $config['cloud_provider'] ?? '' ) );
 						echo wp_kses(
 							sprintf(
 								/* translators: %s: cloud provider name */
@@ -96,18 +93,20 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						);
 						?>
 					</p>
-					<?php $overview_account = (string) ( $config['provider_config']['storage_account'] ?? '' ); ?>
-					<?php if ( $overview_account !== '' ) : ?>
+					<?php
+					$overview_rows = array_slice( ( new \DiluxOneOffload\DTOs\ProviderConfig( (string) ( $config['cloud_provider'] ?? '' ), (array) ( $config['provider_config'] ?? array() ) ) )->describe(), 0, 2, true );
+					foreach ( $overview_rows as $row_label => $row_value ) :
+						?>
 						<p class="status-details">
 							<?php
 							echo wp_kses(
-								/* translators: %s: storage account name */
-								sprintf( __( 'Account: <strong>%s</strong>', 'diluxone-offload' ), esc_html( $overview_account ) ),
+								/* translators: 1: what the value is (e.g. "Container"), 2: the value */
+								sprintf( __( '%1$s: <strong>%2$s</strong>', 'diluxone-offload' ), esc_html( $row_label ), esc_html( $row_value ) ),
 								array( 'strong' => array() )
 							);
 							?>
 						</p>
-					<?php endif; ?>
+					<?php endforeach; ?>
 				<?php elseif ( $is_decrypt_failure ) : ?>
 					<p class="status-label" style="color:#dba617;"><?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?></p>
 					<p class="status-details" style="color:#856404;">

@@ -23,9 +23,10 @@ $screen_urls   = $screen_urls ?? array();
 $connected_at  = (int) ( $timestamps['connected_at'] ?? 0 );
 
 $provider_name         = $config['cloud_provider'] ?? '';
-$provider_display_name = $provider_name === 'azure' ? __( 'Microsoft Azure Blob Storage', 'diluxone-offload' ) : '';
-$account_name          = (string) ( $config['provider_config']['storage_account'] ?? $config['account_name'] ?? '' );
-$container_name_val    = (string) ( $config['provider_config']['container_name'] ?? $config['container_name'] ?? '' );
+$provider_display_name = \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( $provider_name );
+$provider_rows         = ( new \DiluxOneOffload\DTOs\ProviderConfig( $provider_name, (array) ( $config['provider_config'] ?? array() ) ) )->describe();
+$account_name          = (string) ( $config['provider_config']['storage_account'] ?? '' );
+$container_name_val    = (string) ( $config['provider_config']['container_name'] ?? '' );
 $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 ?>
 
@@ -77,7 +78,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="text" id="account_name" name="account_name"
 									value="<?php echo esc_attr( $account_name ); ?>"
-									class="regular-text" required>
+									class="regular-text" required data-required>
 							<p class="description"><?php esc_html_e( 'Your storage account name (3-24 lowercase characters and numbers only).', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -86,7 +87,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="password" id="account_key" name="account_key"
 									value=""
-									class="large-text" required autocomplete="off">
+									class="large-text" required data-required autocomplete="off">
 							<p class="description"><?php esc_html_e( 'Primary or secondary access key from your storage account.', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -95,7 +96,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<td>
 							<input type="text" id="container_name" name="container_name"
 									value="<?php echo esc_attr( $container_name_val ); ?>"
-									class="regular-text" required>
+									class="regular-text" required data-required>
 							<p class="description"><?php esc_html_e( 'Container name for storing your media files.', 'diluxone-offload' ); ?></p>
 						</td>
 					</tr>
@@ -138,20 +139,12 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 					<th scope="row"><?php esc_html_e( 'Provider', 'diluxone-offload' ); ?></th>
 					<td><strong><?php echo esc_html( $provider_display_name ); ?></strong></td>
 				</tr>
-				<?php if ( $provider_name === 'azure' ) : ?>
+				<?php foreach ( $provider_rows as $row_label => $row_value ) : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( $account_name ); ?></code></td>
+					<th scope="row"><?php echo esc_html( $row_label ); ?></th>
+					<td><code><?php echo esc_html( $row_value ); ?></code></td>
 				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Container', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( $container_name_val ); ?></code></td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Media served from', 'diluxone-offload' ); ?></th>
-					<td><code><?php echo esc_html( sprintf( 'https://%s.blob.core.windows.net/%s/', $account_name, $container_name_val ) ); ?></code></td>
-				</tr>
-				<?php endif; ?>
+				<?php endforeach; ?>
 				<?php if ( $connected_at > 0 ) : ?>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Connected since', 'diluxone-offload' ); ?></th>

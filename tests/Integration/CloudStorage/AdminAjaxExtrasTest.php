@@ -90,7 +90,7 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         } catch (WPAjaxDieContinueException $e) {
         }
         $j = json_decode((string) ob_get_clean(), true);
-        $this->assertStringContainsString('Missing required fields', $j['data']['message'], 'got past the nonce check');
+        $this->assertStringContainsString('Storage Account Name is required', $j['data']['message'], 'got past the nonce check');
     }
 
     public function test_connection_test_without_any_nonce_is_refused(): void {
@@ -113,13 +113,13 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
     }
 
     public function test_saving_azure_credentials_that_differ_from_the_tested_ones_is_refused(): void {
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'azure', 'account_name' => 'tested', 'container_name' => 'media', 'timestamp' => time()], 300);
+        $this->passConnectionTest('azure', ['storage_account' => 'tested', 'access_key' => 'k', 'container_name' => 'media']);
         $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'azure', 'account_name' => 'other', 'account_key' => 'k', 'container_name' => 'media']);
         $this->assertStringContainsString('do not match', $r['json']['data']['message']);
     }
 
     public function test_saving_an_invalid_provider_config_is_an_error_not_a_fatal(): void {
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'azure', 'account_name' => '', 'container_name' => '', 'timestamp' => time()], 300);
+        $this->passConnectionTest('azure', ['storage_account' => '', 'access_key' => '', 'container_name' => '']);
         $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'azure', 'account_name' => '', 'account_key' => '', 'container_name' => '']);
         $this->assertFalse($r['json']['success'], $r['raw']);
         // Rejected by ProviderConfig::validate_azure_config() before it ever reaches
@@ -130,10 +130,10 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
     }
 
     public function test_saving_credentials_for_an_unknown_provider_is_an_error(): void {
-        set_transient('diluxone_offload_connection_test_passed_' . $this->admin_id, ['provider' => 'azure', 'account_name' => 'tested', 'container_name' => 'media', 'timestamp' => time()], 300);
+        $this->passConnectionTest('azure', ['storage_account' => 'tested', 'access_key' => 'k', 'container_name' => 'media']);
         $r = $this->call('diluxone_offload_save_updated_credentials', ['provider' => 'dropbox', 'account_name' => 'tested', 'account_key' => 'k', 'container_name' => 'media']);
         $this->assertFalse($r['json']['success']);
-        $this->assertStringContainsString('not saved', $r['json']['data']['message']);
+        $this->assertStringContainsString('Unsupported cloud provider', $r['json']['data']['message']);
     }
 
     public function test_mark_sync_complete_without_a_sync_manager_says_so(): void {
@@ -165,13 +165,16 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         $this->assertFalse(get_option('diluxone_offload_failed_files'));
     }
 
-    // ── refresh_stats per provider ──────────────────────────
+    // ── refresh_stats through the interface ─────────────────
 
-    public function test_refresh_stats_with_an_unknown_provider_type_is_an_error(): void {
+    public function test_refresh_stats_asks_whatever_provider_is_configured(): void {
+        // Before, only an AzureProvider had stats; any client does now.
         $this->fake = new FakeCloudClient(self::$server->base_url);
+        $this->fake->blobs = ['uploads/a.jpg' => 'abc', 'uploads/b.jpg' => 'de'];
         add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectFake']);
         $r = $this->call('diluxone_offload_refresh_stats');
-        $this->assertFalse($r['json']['success']);
-        $this->assertStringContainsString('Unknown provider', $r['json']['data']['message']);
+        $this->assertTrue($r['json']['success'], $r['raw']);
+        $this->assertSame(2, $r['json']['data']['fileCount']);
+        $this->assertSame(5, $r['json']['data']['storageUsedBytes']);
     }
 }

@@ -99,6 +99,42 @@ class ConfigObjectsTest extends TestCase {
 		$this->assertSame( 'azure', $p->getCloudProvider() );
 	}
 
+	// ── fingerprint and describe ────────────────────────────
+
+	public function test_the_fingerprint_covers_every_field_the_secret_included(): void {
+		$tested = new ProviderConfig( 'azure', array( 'storage_account' => 'acct', 'container_name' => 'media', 'access_key' => 'k1' ) );
+
+		$this->assertSame( $tested->fingerprint(), ( new ProviderConfig( 'azure', array( 'access_key' => 'k1', 'container_name' => 'media', 'storage_account' => 'acct' ) ) )->fingerprint(), 'key order does not matter' );
+		$this->assertNotSame( $tested->fingerprint(), ( new ProviderConfig( 'azure', array( 'storage_account' => 'acct', 'container_name' => 'media', 'access_key' => 'k2' ) ) )->fingerprint(), 'another key is another configuration' );
+		$this->assertNotSame( $tested->fingerprint(), ( new ProviderConfig( 'azure', array( 'storage_account' => 'acct', 'container_name' => 'other', 'access_key' => 'k1' ) ) )->fingerprint() );
+		$this->assertStringNotContainsString( 'k1', $tested->fingerprint() );
+		$this->assertMatchesRegularExpression( '/^[0-9a-f]{64}$/', $tested->fingerprint() );
+	}
+
+	public function test_describe_gives_the_rows_of_an_azure_connection_and_never_the_key(): void {
+		$rows = ( new ProviderConfig( 'azure', array( 'storage_account' => 'acct', 'container_name' => 'media', 'access_key' => 'secret-key' ) ) )->describe();
+
+		$this->assertSame(
+			array(
+				'Storage Account'   => 'acct',
+				'Container'         => 'media',
+				'Media served from' => 'https://acct.blob.core.windows.net/media/',
+			),
+			$rows
+		);
+		$this->assertNotContains( 'secret-key', $rows );
+	}
+
+	public function test_describe_is_empty_for_an_unknown_provider(): void {
+		$this->assertSame( array(), ( new ProviderConfig( 'gcp', array( 'bucket' => 'b' ) ) )->describe() );
+	}
+
+	public function test_every_supported_provider_names_its_form_fields(): void {
+		foreach ( array_keys( \DiluxOneOffload\Factories\CloudStorageFactory::get_supported_providers() ) as $provider ) {
+			$this->assertNotEmpty( ProviderConfig::FORM_FIELDS[ $provider ] ?? array(), $provider );
+		}
+	}
+
 	/**
 	 * The nested merge is the one that protects credentials: a partial update
 	 * touching only the container name must not wipe the stored access key.

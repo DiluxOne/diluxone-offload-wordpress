@@ -167,7 +167,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 					<?php esc_html_e( 'Scanning Cloud Storage...', 'diluxone-offload' ); ?>
 				</h3>
 				<p style="margin: 0; font-size: 15px; color: #666;">
-					<?php esc_html_e( 'Finding all files in Azure. This may take a moment.', 'diluxone-offload' ); ?>
+					<?php esc_html_e( 'Finding all files in the cloud. This may take a moment.', 'diluxone-offload' ); ?>
 				</p>
 			</div>
 

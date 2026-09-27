@@ -118,6 +118,36 @@ interface CloudStorageClientInterface {
 	public function get_provider_name(): string;
 
 	/**
+	 * Usage stats of the current site's files, cached for five minutes in
+	 * the transient ConfigManager::STATS_TRANSIENTS names for this provider.
+	 *
+	 * @param bool $force_refresh Skip the cache and list the storage again.
+	 * @return array{success: bool, data?: array<string, mixed>, message?: string}
+	 */
+	public function get_storage_stats( bool $force_refresh = false ): array;
+
+	/**
+	 * The error code and message of a raw error response body, for a log
+	 * line or the failed-files list: ' - <service> <Code>: <Message>', or ''
+	 * when the body carries neither. Never the signature or the string the
+	 * server signed, which some services echo back on an authentication error.
+	 *
+	 * @param string $body Raw response body.
+	 * @return string
+	 */
+	public function describe_error_body( string $body ): string;
+
+	/**
+	 * Whether a transfer the sync engine ran from one of this provider's
+	 * upload handles (batch, or the commit of a chunked upload) succeeded.
+	 *
+	 * @param int    $status HTTP status of the response.
+	 * @param string $body   Raw response body.
+	 * @return string|null Null on success; otherwise the error line, starting with 'HTTP <status>'.
+	 */
+	public function verify_upload_response( int $status, string $body ): ?string;
+
+	/**
 	 * Prepare batch upload handle for parallel sync
 	 * Used by SyncManager for optimized parallel uploads
 	 *

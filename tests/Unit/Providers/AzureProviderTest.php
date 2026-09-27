@@ -297,11 +297,11 @@ class AzureProviderTest extends TestCase {
 		$this->assertSame( 2, $calls );
 	}
 
-	// ── get_container_stats ─────────────────────────────────
+	// ── get_storage_stats ─────────────────────────────────
 
 	public function test_stats_count_and_classify_files(): void {
 		$this->answer( fn() => self::reply( 200, self::blobsXml( array( 'uploads/a.jpg' => 100, 'uploads/b.mp4' => 200, 'uploads/c.pdf' => 300 ) ) ) );
-		$r = $this->provider->get_container_stats( true );
+		$r = $this->provider->get_storage_stats( true );
 		$this->assertTrue( $r['success'] );
 		$this->assertSame( 3, $r['data']['fileCount'] );
 		$this->assertSame( 600, $r['data']['storageUsedBytes'] );
@@ -314,7 +314,7 @@ class AzureProviderTest extends TestCase {
 	public function test_stats_are_served_from_the_transient_when_cached(): void {
 		$GLOBALS['_test_wp_transients']['diluxone_offload_azure_stats'] = array( 'fileCount' => 42 );
 		$this->answer( fn() => self::reply( 500 ) );
-		$r = $this->provider->get_container_stats();
+		$r = $this->provider->get_storage_stats();
 		$this->assertTrue( $r['success'] );
 		$this->assertSame( 42, $r['data']['fileCount'] );
 		$this->assertSame( array(), $this->requests(), 'a warm cache must not hit the network' );
@@ -323,21 +323,21 @@ class AzureProviderTest extends TestCase {
 	public function test_force_refresh_bypasses_the_transient(): void {
 		$GLOBALS['_test_wp_transients']['diluxone_offload_azure_stats'] = array( 'fileCount' => 42 );
 		$this->answer( fn() => self::reply( 200, self::blobsXml( array( 'uploads/a.jpg' => 1 ) ) ) );
-		$r = $this->provider->get_container_stats( true );
+		$r = $this->provider->get_storage_stats( true );
 		$this->assertSame( 1, $r['data']['fileCount'] );
 		$this->assertNotEmpty( $this->requests() );
 	}
 
 	public function test_stats_write_the_transient_on_success(): void {
 		$this->answer( fn() => self::reply( 200, self::blobsXml( array( 'uploads/a.jpg' => 1 ) ) ) );
-		$this->provider->get_container_stats( true );
+		$this->provider->get_storage_stats( true );
 		$this->assertSame( 1, $GLOBALS['_test_wp_transients']['diluxone_offload_azure_stats']['fileCount'] );
 	}
 
 	public function test_stats_failure_clears_the_transient_and_reports(): void {
 		$GLOBALS['_test_wp_transients']['diluxone_offload_azure_stats'] = array( 'fileCount' => 42 );
 		$this->answer( fn() => self::reply( 403 ) );
-		$r = $this->provider->get_container_stats( true );
+		$r = $this->provider->get_storage_stats( true );
 		$this->assertFalse( $r['success'] );
 		$this->assertArrayNotHasKey( 'diluxone_offload_azure_stats', $GLOBALS['_test_wp_transients'] );
 	}
@@ -424,4 +424,25 @@ class AzureProviderTest extends TestCase {
 		$provider->test_connection();
 		$this->assertSame( 30, $this->requests()[0]['args']['timeout'] );
 	}
+
+	// ── verify_upload_response ──────────────────────────────
+
+	public function test_an_upload_is_verified_by_its_created_status(): void {
+		$this->assertNull( $this->provider->verify_upload_response( 201, '' ) );
+		$this->assertNull( $this->provider->verify_upload_response( 200, '' ) );
+	}
+
+	public function test_a_refused_upload_says_the_status_and_the_azure_error_without_the_signature(): void {
+		$body = '<?xml version="1.0"?><Error><Code>AuthenticationFailed</Code><Message>Server failed to authenticate</Message><AuthenticationErrorDetail>The MAC signature found in the HTTP request \'c2lnbmF0dXJl\' is not the same</AuthenticationErrorDetail></Error>';
+
+		$line = $this->provider->verify_upload_response( 403, $body );
+
+		$this->assertSame( 'HTTP 403 - Azure AuthenticationFailed: Server failed to authenticate', $line );
+	}
+
+	public function test_a_non_success_status_without_a_body_is_just_the_status(): void {
+		$this->assertSame( 'HTTP 304', $this->provider->verify_upload_response( 304, '' ) );
+		$this->assertSame( 'HTTP 500', $this->provider->verify_upload_response( 500, 'not xml' ) );
+	}
+
 }

@@ -113,6 +113,17 @@ class ConfigManagerExtrasTest extends TestCase {
 		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'] );
 	}
 
+	public function test_a_connection_failure_clears_the_configured_providers_stats_only(): void {
+		$this->configure();
+		$GLOBALS['_test_wp_transients']['diluxone_offload_azure_stats'] = array( 'fileCount' => 9 );
+		$GLOBALS['_test_wp_transients']['diluxone_offload_other_stats'] = array( 'fileCount' => 1 );
+
+		ConfigManager::record_connection_failure( '403', 'HTTP 403', 'test' );
+
+		$this->assertArrayNotHasKey( 'diluxone_offload_azure_stats', $GLOBALS['_test_wp_transients'] );
+		$this->assertArrayHasKey( 'diluxone_offload_other_stats', $GLOBALS['_test_wp_transients'] );
+	}
+
 	public function test_cached_cloud_stats_is_null_for_an_unknown_provider(): void {
 		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'cloud_provider' => 'gcp', 'provider_config' => array() );
 		$this->assertNull( ConfigManager::get_cached_cloud_stats() );

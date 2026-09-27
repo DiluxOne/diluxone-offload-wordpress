@@ -190,6 +190,23 @@ class SyncManagerTest extends IntegrationTestCase {
         $this->assertGreaterThanOrEqual(1, (int) $row['errors'], 'the failure is counted for retry');
     }
 
+    public function test_the_provider_decides_whether_an_upload_succeeded_and_its_line_is_recorded(): void {
+        // The server answers 201, but the provider reads the response and
+        // refuses it (S3 can answer 200 with an <Error> body): the engine
+        // takes the provider's word and records its line, not the status.
+        $this->fixture('2026/09/verdict.jpg', 'looks fine');
+        $this->client->upload_verdict = 'HTTP 200 - Fake InternalError: the body said no';
+        $sm = $this->scanAndStart();
+
+        $sm->process_batch(30.0);
+
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare("SELECT synced, errors, error_message FROM `" . self::$table_name . "` WHERE file = %s", '/2026/09/verdict.jpg'), ARRAY_A);
+        $this->assertSame(0, (int) $row['synced']);
+        $this->assertGreaterThanOrEqual(1, (int) $row['errors']);
+        $this->assertSame('HTTP 200 - Fake InternalError: the body said no', $row['error_message']);
+    }
+
     public function test_a_file_deleted_between_scan_and_upload_is_recorded_as_an_error(): void {
         $path = $this->fixture('2026/09/vanish.jpg', 'gone soon');
         $sm = $this->scanAndStart();

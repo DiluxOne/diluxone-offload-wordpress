@@ -41,6 +41,11 @@ class CloudStorageFactoryTest extends TestCase {
         $this->assertFalse(CloudStorageFactory::is_provider_supported('s3'));
     }
 
+    public function test_the_label_is_the_name_the_screens_show(): void {
+        $this->assertSame('Microsoft Azure Blob Storage', CloudStorageFactory::get_provider_label('azure'));
+        $this->assertSame('', CloudStorageFactory::get_provider_label('nope'));
+    }
+
     public function test_get_provider_config_fields(): void {
         $azure_fields = CloudStorageFactory::get_provider_config_fields('azure');
 

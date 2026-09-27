@@ -22,10 +22,16 @@ jQuery(document).ready(function($) {
 			provider: provider
 		};
 
-		data.account_name = $('#account_name').val();
-		data.account_key = $('#account_key').val();
-		data.container_name = $('#container_name').val();
-		if (!data.account_name || !data.account_key || !data.container_name) {
+		// Every named field of the chosen provider's section; the server
+		// reads only the ones that provider posts.
+		var missing = false;
+		$section.find(':input[name]').each(function() {
+			data[this.name] = $(this).val();
+			if ($(this).is('[data-required]') && !data[this.name]) {
+				missing = true;
+			}
+		});
+		if (missing) {
 			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</div>').show();
 			return;
 		}
@@ -136,19 +142,22 @@ jQuery(document).ready(function($) {
 		$('#new_account_key').attr('type', $(this).is(':checked') ? 'text' : 'password');
 	});
 
-	$('#new_account_key').on('input change', function() {
+	$('#provider-credentials :input[data-field]').on('input change', function() {
 		// A key that changed after a test has not been tested.
 		$('#save-new-credentials').prop('disabled', true);
 	});
 
+	// The saved fields shown on the tab plus the new secret, each under the
+	// name the provider posts (data-field).
 	function newCredentials() {
-		return {
+		var data = {
 			nonce: diluxOneOffloadAdmin.nonce,
-			provider: getCurrentProvider(),
-			account_name: $('#credentials_account_name').text().trim(),
-			account_key: $('#new_account_key').val(),
-			container_name: $('#credentials_container_name').text().trim()
+			provider: getCurrentProvider()
 		};
+		$('#provider-credentials [data-field]').each(function() {
+			data[$(this).data('field')] = $(this).is(':input') ? $(this).val() : $(this).text().trim();
+		});
+		return data;
 	}
 
 	$('#test-new-credentials').on('click', function() {
@@ -156,7 +165,10 @@ jQuery(document).ready(function($) {
 		var $result = $('#new-credentials-result');
 		var data = $.extend({ action: 'diluxone_offload_test_connection' }, newCredentials());
 
-		if (!data.account_key) {
+		var missing = $('#provider-credentials :input[data-field][data-required]').filter(function() {
+			return !$(this).val();
+		}).length > 0;
+		if (missing) {
 			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
 			return;
 		}
@@ -234,8 +246,8 @@ function showProviderConfig(provider) {
 		var selected = document.getElementById(provider + '-config');
 		if (selected) {
 			selected.style.display = 'block';
-			// Restore required on visible fields
-			selected.querySelectorAll('input[name]').forEach(function(input) {
+			// Restore required on the visible fields that need it
+			selected.querySelectorAll('[data-required]').forEach(function(input) {
 				input.setAttribute('required', '');
 			});
 		}

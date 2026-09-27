@@ -46,16 +46,16 @@ $container_name_val = (string) ( $config['provider_config']['container_name'] ??
 			<table class="form-table">
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Storage Account', 'diluxone-offload' ); ?></th>
-					<td><code id="credentials_account_name"><?php echo esc_html( $account_name ); ?></code></td>
+					<td><code id="credentials_account_name" data-field="account_name"><?php echo esc_html( $account_name ); ?></code></td>
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Container', 'diluxone-offload' ); ?></th>
-					<td><code id="credentials_container_name"><?php echo esc_html( $container_name_val ); ?></code></td>
+					<td><code id="credentials_container_name" data-field="container_name"><?php echo esc_html( $container_name_val ); ?></code></td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="new_account_key"><?php esc_html_e( 'New Account Key', 'diluxone-offload' ); ?></label></th>
 					<td>
-						<input type="password" id="new_account_key" class="large-text" autocomplete="off" placeholder="<?php esc_attr_e( 'Enter new access key', 'diluxone-offload' ); ?>">
+						<input type="password" id="new_account_key" data-field="account_key" data-required class="large-text" autocomplete="off" placeholder="<?php esc_attr_e( 'Enter new access key', 'diluxone-offload' ); ?>">
 						<p>
 							<label><input type="checkbox" id="show_new_account_key"> <?php esc_html_e( 'Show key', 'diluxone-offload' ); ?></label>
 						</p>

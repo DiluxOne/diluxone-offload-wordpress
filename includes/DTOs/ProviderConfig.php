@@ -21,6 +21,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class ProviderConfig {
 
+	/**
+	 * The form fields each provider posts, besides `cloud_provider`: the
+	 * Connection form, Test Connection and the Update credentials modal all
+	 * send these names, and only these reach fromPost().
+	 */
+	const FORM_FIELDS = array(
+		'azure' => array( 'account_name', 'account_key', 'container_name' ),
+	);
+
 	/** @var string */
 	private string $cloudProvider;
 	/**
@@ -128,6 +137,44 @@ class ProviderConfig {
 		}
 		if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9]|[-](?![.])){1,61}[a-z0-9]$/', (string) $provider_config['container_name'] ) ) {
 			throw new \InvalidArgumentException( 'Container Name must be lowercase letters, numbers, and hyphens only (3-63 characters)' );
+		}
+	}
+
+	/**
+	 * A fingerprint of the complete configuration, secret included.
+	 *
+	 * Test Connection stores it; both save paths recompute it from what they
+	 * are about to save and refuse when it differs, so only the exact
+	 * configuration that passed a test is ever saved. A hash, so the secret
+	 * never sits in a transient.
+	 *
+	 * @return string
+	 */
+	public function fingerprint(): string {
+		$config = $this->providerConfig;
+		ksort( $config );
+		return hash( 'sha256', (string) wp_json_encode( array( $this->cloudProvider, $config ) ) );
+	}
+
+	/**
+	 * The rows the read-only screens show for this configuration, label to
+	 * value, in order: where the media lives first (the Overview shows the
+	 * first two rows), where it is served from last. Never the secret.
+	 *
+	 * @return array<string, string>
+	 */
+	public function describe(): array {
+		switch ( $this->cloudProvider ) {
+			case 'azure':
+				$account   = (string) ( $this->providerConfig['storage_account'] ?? '' );
+				$container = (string) ( $this->providerConfig['container_name'] ?? '' );
+				return array(
+					__( 'Storage Account', 'diluxone-offload' ) => $account,
+					__( 'Container', 'diluxone-offload' ) => $container,
+					__( 'Media served from', 'diluxone-offload' ) => sprintf( 'https://%s.blob.core.windows.net/%s/', $account, $container ),
+				);
+			default:
+				return array();
 		}
 	}
 

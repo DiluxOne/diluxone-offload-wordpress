@@ -45,12 +45,14 @@ handles both.
 | `includes/class-diluxone-offload-validation-helper.php` | `ValidationHelper` — input validation utilities. |
 | `includes/class-diluxone-offload-mime-helper.php` | `MimeHelper` — extension → MIME mapping. |
 | `uninstall.php` | Uninstall logic: drops the plugin's options, transients and table (per site on multisite). |
-| `includes/interfaces/interface-cloud-storage-client.php` | `CloudStorageClientInterface` — contract for all providers. |
+| `includes/interfaces/interface-cloud-storage-client.php` | `CloudStorageClientInterface` — contract for all providers. Besides the file operations and the transfer handles the sync engine runs, each provider answers `get_storage_stats()`, `describe_error_body()` (the error code and message of a response, never the signature some services echo) and `verify_upload_response()` (whether a transfer the engine ran succeeded, and the line to record when not), so nothing outside `includes/providers/` asks which provider it is talking to. |
 | `includes/factories/class-cloud-storage-factory.php` | `CloudStorageFactory::create($provider, $config)`. |
 | `includes/providers/class-azure-provider.php` | `AzureProvider` — Azure Blob Storage REST API. |
+| `includes/providers/trait-storage-stats.php` | `StorageStats` — the usage stats every provider computes the same way from its own listing, cached in the transient `ConfigManager::STATS_TRANSIENTS` names for it. |
+| `includes/providers/class-aws-signature-v4.php` | `AwsSignatureV4` — AWS Signature Version 4 for the S3-compatible provider, tested against the vectors AWS publishes (`tests/fixtures/sigv4/`). |
 | `includes/Enums/class-plugin-state.php` | `Enums\PluginState` (string constants, NOT PHP 8.1 enum — PHP 7.4 minimum). |
 | `includes/Enums/SyncStatus.php` | `Enums\SyncStatus`. |
-| `includes/DTOs/*.php` | Value objects with `->toArray()` — `PluginConfig`, `AzureConfig`, `ConnectionResult`, `FileInfo`, `OperationResult`, `UploadResult`, `SyncProgress`, etc. |
+| `includes/DTOs/*.php` | Value objects with `->toArray()` — `PluginConfig`, `PluginSettings`, `ProviderConfig`, `AzureConfig`, `ConnectionResult`, `FileInfo`, `OperationResult`, `UploadResult`, `SyncFilter`. `ProviderConfig` also knows each provider's form fields (`FORM_FIELDS`), the rows the read-only screens show (`describe()`, never the secret) and the `fingerprint()` of a complete configuration. |
 | `includes/class-diluxone-offload-image-editor-{gd,imagick}.php` | Image-editor adapters that play nicely with the stream wrapper. |
 | `templates/admin-*.php` | Admin views (rendered by `Admin::render_screen_content()`). One file per screen or tab: `admin-overview.php`; `admin-provider-{connection,credentials}.php`; `admin-sync-{sync,offloading,disconnect}.php`; `admin-settings-{transfers,serving,logging}.php`; `admin-status-{health,system}.php`. `templates/partials/` holds the rail beside every screen and the sync modal the three Sync & Offloading tabs share. The screens, their submenu slugs and their tabs are one list, `Admin::screens()`; the old `&tab=` URLs redirect through `Admin::legacy_tab()`. |
 | `assets/css/admin.css`, `assets/js/admin.js` | Plugin runtime assets bundled with the plugin. |
@@ -89,16 +91,18 @@ Stored in WP option `diluxone_offload_connection_health`. The shape:
 
 ```php
 [
-    'is_healthy'           => bool,
-    'error_code'           => string|null, // e.g. 'decrypt_failed', '401', '403', '404', 'exception'
-    'error_message'        => string|null,
+    'status'               => string, // 'unknown', 'healthy' or 'unhealthy'
+    'last_check'           => int,    // timestamp
+    'last_success'         => int,    // timestamp
+    'error_code'           => string, // e.g. 'decrypt_failed', '401', '403', '404', 'timeout'
+    'error_message'        => string,
+    'error_source'         => string, // where it was detected, e.g. 'health_check', 'upload', 'list_files', 'crypto'
     'consecutive_failures' => int,
-    'last_check'           => int (timestamp),
 ]
 ```
 
 Conventions:
-- **Failure recording is idempotent for the same error_code.** `ConfigManager::record_failure()` does NOT bump `consecutive_failures` if the previous failure had the same code. This prevents `decrypt_failed` from inflating the counter on every page load.
+- **A `decrypt_failed` is recorded once per failure cycle.** `ConfigManager::record_connection_failure()` counts every call; the decrypt path in `ConfigManager::get_config()` checks that the health is not already `unhealthy` with `decrypt_failed` before calling it, so the counter does not grow on every page load.
 - **After `consecutive_failures >= 3` the stream wrapper refuses writes** (`CloudStreamWrapper::writes_allowed()`): the upload fails and WordPress reports it. There is **no local fallback** — nothing is ever written to `uploads/` on the server instead. Any proposal to add one is a defect. The threshold is the agreed safety valve; don't change it without discussion.
 - **Two helpers map `error_code` to user-facing copy**, both in `Admin`: `pause_reason_short(string $error_code): string` and `health_banner_copy(string $error_code, string $error_message): array`. The same vocabulary appears in the banner, the Status cards, and the Overview cards. If you add a new error_code, update BOTH helpers.
 
@@ -114,6 +118,7 @@ Conventions:
 - **All SQL** must use `$wpdb->prepare()`. Concatenating user input into SQL strings is a defect, even when the value "looks safe". `class-diluxone-offload-db.php` is the reference for the correct pattern.
 - **Credentials must NEVER appear in logs.** This includes Azure access keys, decrypted plaintext credentials, and anything in the `provider_config` array. The pattern `Logger::error('failed: ' . print_r($config, true))` is forbidden — that array contains the credential. When logging connection failures, log the `error_code` and a sanitized `error_message`, not the full payload. The connection-health system is designed for this purpose; use it.
 - **Encryption is AES-256-GCM with a key derived from WP salts** (`wp_salt('auth') . wp_salt('secure_auth')` via HMAC-SHA256). Do not propose downgrading the cipher, removing GCM authentication, switching to CBC, accepting a plaintext fallback, or persisting the key anywhere. The `Crypto::encrypt()` / `Crypto::decrypt()` interface is stable; if a credential cannot be decrypted, `decrypt()` returns `null` and the caller surfaces the failure to the user (`decrypt_failed` connection-health event). There is intentionally no fallback to plaintext storage.
+- **Only a configuration that passed Test Connection is saved.** Test Connection stores, per user and for five minutes, the `ProviderConfig::fingerprint()` (a SHA-256 of the whole configuration, secret included, never the secret itself); the Connection form's save and the Credentials tab's save recompute it from what they are about to store and refuse on any difference (`Admin::passed_connection_test()`).
 - **The `DILUXONEOFFLOADENC1:` prefix on encrypted values is a versioning hint.** A future key rotation may bump it. Don't strip it, parse it manually, or assume specific positions of bytes after it.
 
 ### WordPress conventions
@@ -145,7 +150,7 @@ Conventions:
   - Synchronous network calls inside `stream_read`, `stream_write`, `url_stat` unless a cache miss.
   - Allocations of large strings or arrays per call.
   - `error_log` calls in hot methods (use `Logger::debug` so they're gated).
-- **Connection-health checks must be idempotent.** A repeated `decrypt_failed` event must NOT inflate `consecutive_failures` on every page load. The pattern is in `ConfigManager::record_failure()` — preserve it.
+- **Connection-health checks must be idempotent.** A repeated `decrypt_failed` event must NOT inflate `consecutive_failures` on every page load. The pattern is in `ConfigManager::get_config()`, around its call to `record_connection_failure()` — preserve it.
 - For sync, the engine uses parallel/chunked uploads via `prepare_batch_upload_handle()` and `prepare_chunked_upload_handle()` on the provider. Don't introduce sequential per-file loops in new sync paths.
 
 ---
@@ -172,7 +177,7 @@ The failure modes that have actually shown up in this codebase, or are likely to
 - **Missing `check_ajax_referer` or `current_user_can` on a new AJAX handler.** Both are required.
 - **Plain SQL strings instead of `$wpdb->prepare()`.** Even for "simple" queries with `intval()`-cast inputs, the convention is `prepare()`.
 - **New external HTTP calls without `timeout`** in the args. Always specify, never default. An upload request (a single PUT, a block, a commit, a batch handle) takes the provider's transfer timeout, which is the "Transfer Timeout" setting; a download takes the setting or 300 seconds, whichever is longer; a control request (HEAD, listing, the health probe) keeps a short fixed one.
-- **New external HTTP calls without integration with the connection-health system.** Provider classes record failures via `ConfigManager::record_failure()`. New calls that fail silently break the banner and the write-refusal logic.
+- **New external HTTP calls without integration with the connection-health system.** Provider classes record failures via `ConfigManager::record_connection_failure()`. New calls that fail silently break the banner and the write-refusal logic.
 - **New strings not wrapped in `__()`** — particularly when adding admin UI text or error messages.
 - **Hardcoded English strings inside `templates/`.** Templates are the most common place for accidental untranslated strings.
 - **Logging credentials.** Any `Logger::*` or `error_log` line that includes a `provider_config`, `access_key`, `api_key`, `password`, decrypted ciphertext, or `print_r($config)` is a defect.

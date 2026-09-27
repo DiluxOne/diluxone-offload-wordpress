@@ -47,7 +47,7 @@ class CloudStorageFactory {
 	public static function get_supported_providers() {
 		return array(
 			'azure' => array(
-				'name'          => 'Azure Blob Storage',
+				'name'          => __( 'Microsoft Azure Blob Storage', 'diluxone-offload' ),
 				'implemented'   => true,
 				'config_fields' => array(
 					'storage_account' => 'Storage Account Name',
@@ -56,6 +56,17 @@ class CloudStorageFactory {
 				),
 			),
 		);
+	}
+
+	/**
+	 * The name the screens show for a provider, '' for an unknown one.
+	 *
+	 * @param string $provider Provider key.
+	 * @return string
+	 */
+	public static function get_provider_label( $provider ) {
+		$providers = self::get_supported_providers();
+		return (string) ( $providers[ $provider ]['name'] ?? '' );
 	}
 
 	/**
