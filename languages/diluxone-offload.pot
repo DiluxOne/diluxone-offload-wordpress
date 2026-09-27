@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-27T21:42:22+00:00\n"
+"POT-Creation-Date: 2026-09-27T22:17:03+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -73,7 +73,7 @@ msgstr ""
 #: includes/class-diluxone-offload-admin.php:86
 #: includes/class-diluxone-offload-admin.php:1446
 #: templates/admin-overview.php:200
-#: templates/admin-status-health.php:171
+#: templates/admin-status-health.php:170
 #: templates/admin-sync-offloading.php:70
 #: templates/admin-sync-sync.php:472
 msgid "Offloading"
@@ -104,7 +104,7 @@ msgid "Logging"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:100
-#: templates/admin-status-health.php:235
+#: templates/admin-status-health.php:234
 msgid "Status"
 msgstr ""
 
@@ -189,18 +189,18 @@ msgid "Checking…"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:713
-#: templates/admin-status-health.php:225
+#: templates/admin-status-health.php:224
 msgid "Check now"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:714
-#: templates/admin-status-health.php:238
+#: templates/admin-status-health.php:237
 msgid "Healthy"
 msgstr ""
 
 #. translators: %s: short reason
 #: includes/class-diluxone-offload-admin.php:716
-#: templates/admin-status-health.php:240
+#: templates/admin-status-health.php:239
 #, php-format
 msgid "Unhealthy (%s)"
 msgstr ""
@@ -744,7 +744,7 @@ msgid "Insufficient permissions"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1145
-#: templates/admin-status-health.php:229
+#: templates/admin-status-health.php:228
 msgid "No provider is connected, so there is no connection to check."
 msgstr ""
 
@@ -764,7 +764,7 @@ msgstr ""
 #: includes/class-diluxone-offload-admin.php:1181
 #: includes/class-diluxone-offload-admin.php:1637
 #: templates/admin-overview.php:116
-#: templates/admin-status-health.php:154
+#: templates/admin-status-health.php:153
 msgid "Re-enter Credentials"
 msgstr ""
 
@@ -849,7 +849,7 @@ msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1347
 #: templates/admin-overview.php:202
-#: templates/admin-status-health.php:175
+#: templates/admin-status-health.php:174
 msgid "Active"
 msgstr ""
 
@@ -1183,7 +1183,7 @@ msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:1742
 #: templates/admin-overview.php:217
-#: templates/admin-status-health.php:192
+#: templates/admin-status-health.php:191
 msgid "New uploads are refused until the connection recovers."
 msgstr ""
 
@@ -1479,13 +1479,13 @@ msgstr ""
 
 #: includes/Enums/class-plugin-state.php:52
 #: templates/admin-overview.php:132
-#: templates/admin-status-health.php:135
+#: templates/admin-status-health.php:134
 msgid "Not Configured"
 msgstr ""
 
 #: includes/Enums/class-plugin-state.php:53
 #: templates/admin-overview.php:82
-#: templates/admin-status-health.php:120
+#: templates/admin-status-health.php:119
 msgid "Configured"
 msgstr ""
 
@@ -1551,7 +1551,7 @@ msgid "More Info"
 msgstr ""
 
 #: templates/admin-overview.php:80
-#: templates/admin-status-health.php:111
+#: templates/admin-status-health.php:110
 msgid "Configuration"
 msgstr ""
 
@@ -1568,12 +1568,12 @@ msgid "%1$s: <strong>%2$s</strong>"
 msgstr ""
 
 #: templates/admin-overview.php:111
-#: templates/admin-status-health.php:123
+#: templates/admin-status-health.php:122
 msgid "Awaiting Re-entry"
 msgstr ""
 
 #: templates/admin-overview.php:113
-#: templates/admin-status-health.php:150
+#: templates/admin-status-health.php:149
 msgid "Stored credentials cannot be decrypted. See banner above."
 msgstr ""
 
@@ -1581,14 +1581,14 @@ msgstr ""
 #: templates/admin-overview.php:123
 #: templates/admin-overview.php:163
 #: templates/admin-overview.php:211
-#: templates/admin-status-health.php:129
-#: templates/admin-status-health.php:181
+#: templates/admin-status-health.php:128
+#: templates/admin-status-health.php:180
 #, php-format
 msgid "Paused (%s)"
 msgstr ""
 
 #: templates/admin-overview.php:129
-#: templates/admin-status-health.php:159
+#: templates/admin-status-health.php:158
 msgid "See banner above for details."
 msgstr ""
 
@@ -1634,7 +1634,7 @@ msgid "Files served from cloud storage"
 msgstr ""
 
 #: templates/admin-overview.php:220
-#: templates/admin-status-health.php:187
+#: templates/admin-status-health.php:186
 msgid "Inactive"
 msgstr ""
 
@@ -2069,66 +2069,67 @@ msgstr ""
 msgid "Plugin State"
 msgstr ""
 
-#: templates/admin-status-health.php:96
+#. translators: %s: short reason, e.g. "credentials unreadable"
+#: templates/admin-status-health.php:95
 #, php-format
 msgid "Paused (%s) — see banner above."
 msgstr ""
 
 #. translators: %s: storage provider name wrapped in <strong>
-#: templates/admin-status-health.php:143
+#: templates/admin-status-health.php:142
 #, php-format
 msgid "Provider: %s"
 msgstr ""
 
-#: templates/admin-status-health.php:204
+#: templates/admin-status-health.php:203
 msgid "Tracking table"
 msgstr ""
 
 #. translators: %s: number of rows in the plugin's tracking table
-#: templates/admin-status-health.php:209
+#: templates/admin-status-health.php:208
 #, php-format
 msgid "%s file tracked"
 msgid_plural "%s files tracked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: templates/admin-status-health.php:213
+#: templates/admin-status-health.php:212
 msgid "One row per file the sync has seen: synced, pending or failed."
 msgstr ""
 
-#: templates/admin-status-health.php:223
+#: templates/admin-status-health.php:222
 msgid "Connection Health"
 msgstr ""
 
-#: templates/admin-status-health.php:242
+#: templates/admin-status-health.php:241
 msgid "Not checked yet"
 msgstr ""
 
-#: templates/admin-status-health.php:247
+#: templates/admin-status-health.php:246
 msgid "Last check"
 msgstr ""
 
-#: templates/admin-status-health.php:251
+#: templates/admin-status-health.php:250
 msgid "Last success"
 msgstr ""
 
-#: templates/admin-status-health.php:255
+#: templates/admin-status-health.php:254
 msgid "Consecutive failures"
 msgstr ""
 
-#: templates/admin-status-health.php:259
+#: templates/admin-status-health.php:258
 msgid "(uploads refused from 3)"
 msgstr ""
 
-#: templates/admin-status-health.php:265
+#: templates/admin-status-health.php:264
 msgid "Error source"
 msgstr ""
 
-#: templates/admin-status-health.php:272
+#: templates/admin-status-health.php:271
 msgid "How it checks"
 msgstr ""
 
-#: templates/admin-status-health.php:274
+#: templates/admin-status-health.php:273
 msgid "Every upload and every listing of the container records a success or a failure; a check against the provider runs when a screen opens and the last one is older than five minutes. Three consecutive failures pause new uploads, which are refused rather than written elsewhere, until the next success."
 msgstr ""
 
