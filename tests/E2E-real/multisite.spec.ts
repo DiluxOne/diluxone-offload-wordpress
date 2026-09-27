@@ -118,8 +118,10 @@ test.describe.serial( 'multisite journey', () => {
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( otherInCloud );
 		await ui.goTab( page, other, 'disconnect' );
 		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( otherInCloud );
+		// The main site's figures count its tracked rows, which are its keys in the container.
+		const mainInCloud = ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ).length;
 		await ui.goTab( page, base, 'offloading' );
-		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( mainOwnBefore.length );
+		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( mainInCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 
 		// And the other way round: Delete Local Files on the main site leaves the other site's directory alone.

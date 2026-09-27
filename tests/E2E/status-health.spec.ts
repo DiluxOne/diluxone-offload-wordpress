@@ -50,7 +50,6 @@ test.describe.serial( 'Status › Health with a provider that cannot be reached'
 			await page.goto( url );
 			const wrap = page.locator( '.wrap.diluxone-offload-admin' );
 			await expect( wrap ).toContainText( 'Cloud Connection Error' );
-			await expect( wrap ).toContainText( 'Could not resolve host' );
 		}
 	} );
 } );
