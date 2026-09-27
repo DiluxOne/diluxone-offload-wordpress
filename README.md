@@ -10,6 +10,19 @@ Sites that already run on Azure or on an S3-compatible service, or that want the
 
 The plugin is complete and free. It ships with two providers, Azure Blob Storage and S3-compatible storage, and works with your own account and keys; nothing in it is held back or unlocked by anything else.
 
+## Where your media can live
+
+| Provider | How it is set up | Tested against a real account on every change |
+|---|---|---|
+| **Azure Blob Storage** | storage account, container, key | yes |
+| **Cloudflare R2** | preset: paste the account endpoint and the bucket's public URL | yes |
+| **Google Cloud Storage** (HMAC keys) | preset | yes |
+| **Amazon S3** | preset: region and bucket fill in the rest | not yet |
+| **Backblaze B2**, **DigitalOcean Spaces**, **Wasabi** | presets | not yet |
+| **Anything else that speaks the S3 API**: MinIO, Ceph, Hetzner, Akamai/Linode, Vultr, Scaleway, OVHcloud, IDrive e2, Oracle Cloud, … | *Custom*: endpoint, region and public URL typed in; path-style or virtual-hosted addressing | an S3 server started in CI (RustFS), on every pull request |
+
+For the S3 family the **Public URL** is its own field, prefilled and always editable, which is where a CDN or a custom domain goes. **Test Connection** writes a small probe, reads it back without credentials at the public URL and deletes it, so a bucket browsers cannot read is refused before anything is saved.
+
 ## Install
 
 From the WordPress admin: **Plugins → Add New**, search for *DiluxOne Offload*, install, activate. Or download it from [wordpress.org/plugins/diluxone-offload](https://wordpress.org/plugins/diluxone-offload/).

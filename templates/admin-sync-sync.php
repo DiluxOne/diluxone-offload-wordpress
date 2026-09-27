@@ -329,7 +329,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 				<!-- ACTIONS: START SYNC (fresh configuration) -->
 				<div style="padding: 20px 0;">
 					<button id="start-sync-btn" class="button button-primary button-hero" style="margin-bottom: 15px;">
-						<span class="dashicons dashicons-cloud-upload" style="margin-top: 5px;"></span>
+						<span class="dashicons dashicons-cloud-upload"></span>
 						<?php esc_html_e( 'Start Sync', 'diluxone-offload' ); ?>
 					</button>
 
@@ -348,7 +348,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 						<strong style="color: #e65100; font-size: 13px;"><?php esc_html_e( 'DEV MODE', 'diluxone-offload' ); ?></strong>
 					</div>
 					<button id="dev-enable-without-sync-btn" class="button" style="width: 100%; height: 45px; font-size: 14px; background: #ff9800; border-color: #e65100; color: #fff;">
-						<span class="dashicons dashicons-controls-skipforward" style="margin-top: 3px;"></span>
+						<span class="dashicons dashicons-controls-skipforward"></span>
 						<?php esc_html_e( 'Enable Without Sync', 'diluxone-offload' ); ?>
 					</button>
 					<p class="description" style="margin: 10px 0 0 0; font-size: 12px; line-height: 1.5; color: #795548;">
@@ -396,7 +396,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 				<!-- View failed files link (small, below buttons) -->
 				<div style="margin-bottom: 30px; margin-top: 15px;">
 					<button class="view-failed-btn button button-link" style="text-decoration: none; padding: 0; height: auto; font-size: 13px; color: #0073aa;">
-						<span class="dashicons dashicons-visibility" style="font-size: 13px; margin-top: 2px;"></span>
+						<span class="dashicons dashicons-visibility" style="font-size: 13px; width: 13px; height: 13px;"></span>
 						<?php esc_html_e( 'View Failed Files', 'diluxone-offload' ); ?>
 					</button>
 				</div>

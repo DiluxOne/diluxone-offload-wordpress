@@ -1554,7 +1554,7 @@ class Admin {
 				$note  = array(
 					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
 					'body'  => array(
-						\__( 'The four cards are the plugin\'s state as a person sees it: whether a provider is connected, whether the library is in the cloud, whether the site serves it from there.', 'diluxone-offload' ),
+						\__( 'The three cards are the plugin\'s state as a person sees it: whether a provider is connected, whether the library is in the cloud, whether the site serves it from there.', 'diluxone-offload' ),
 						\__( 'Storage Overview shows the last reading of the container, kept for five minutes; Refresh lists it again (a few seconds on a large library).', 'diluxone-offload' ),
 					),
 				);

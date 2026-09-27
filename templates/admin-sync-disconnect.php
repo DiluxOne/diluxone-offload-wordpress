@@ -96,7 +96,7 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 							<strong style="color: #e65100; font-size: 13px;"><?php esc_html_e( 'DEV MODE', 'diluxone-offload' ); ?></strong>
 						</div>
 						<button id="dev-disconnect-without-sync-btn" class="button" style="width: 100%; height: 45px; font-size: 14px; background: #ff9800; border-color: #e65100; color: #fff;">
-							<span class="dashicons dashicons-controls-skipforward" style="margin-top: 3px;"></span>
+							<span class="dashicons dashicons-controls-skipforward"></span>
 							<?php esc_html_e( 'Disconnect Without Sync', 'diluxone-offload' ); ?>
 						</button>
 						<p class="description" style="margin: 10px 0 0 0; font-size: 12px; line-height: 1.5; color: #795548;">

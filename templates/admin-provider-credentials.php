@@ -128,7 +128,7 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 					<?php esc_html_e( 'Forgets the saved credentials and the sync state, and returns the plugin to Not Configured. The files already in the cloud are not touched.', 'diluxone-offload' ); ?>
 				</p>
 				<p>
-					<button type="button" id="remove-provider" class="button button-secondary">
+					<button type="button" id="remove-provider" class="button diluxone-offload-button-danger">
 						<?php esc_html_e( 'Delete Cloud Provider', 'diluxone-offload' ); ?>
 					</button>
 				</p>

@@ -12,33 +12,48 @@ What DiluxOne Offload does, what is paid, what comes next and what it will not d
 
 ## Paid, outside the plugin
 
-- **DiluxOne hosted sync service** (in preparation, monthly fee): <https://diluxone.com/plugins-wordpress/dilux-offload/>. The plugin does not need it, never contacts it, and nothing in the plugin is unlocked by it. A report that something "does not work" because it needs this service is not a bug: it is this line.
+- **DiluxOne hosted sync service** (in preparation, monthly fee): <https://diluxone.com/plugins-wordpress/dilux-offload/>. The plugin does not need it and nothing in the plugin is unlocked by it; until 4.0.0 connects it as one more provider, the plugin never contacts it. A report that something "does not work" because it needs this service is not a bug: it is this line.
 
 ## Next: one thing per version
 
-Each version does one big thing, ships on its own and is usable without the next one. `main` stays publishable between steps; a fix found on the way ships as a patch of the current version without waiting. The detailed plan for the next version is [`plans/2.0.0.md`](plans/2.0.0.md).
+Each version does one big thing, ships on its own and is usable without the next one. `main` stays publishable between steps; a fix found on the way ships as a patch of the current version without waiting. The plan 2.0.0 was built from is [`plans/2.0.0.md`](plans/2.0.0.md); each later version gets its plan before its code.
 
-### 2.0.0: S3-compatible storage (October to November 2026)
+### 2.0.0: S3-compatible storage (ready, September 2026)
 
-1. **Tests for the settings' effects.** Today the suites check that Maximum File Size, Upload Timeout, Force HTTPS and debug logging are saved; they will also check what each one does. The timeout becomes "Transfer Timeout" and governs every upload request; downloads keep waiting at least the 300 seconds they always had, or the setting when it is higher.
-2. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen has a second level; every screen titled `DiluxOne Offload | Screen`; a column on the right with the state of this site, a note and the related links; WordPress' own buttons, tabs and form rows; the cards, the sync flow and the health banner as they are. The numbers on the Sync screens become honest on an offloaded site: the tracking table is no longer emptied after Delete Local Files, live uploads are recorded, skipped files are listed, a Connection Health table with "Check now", free disk before Disconnect.
-3. **An "S3-compatible" provider.** One provider in the code, signing requests with AWS Signature Version 4, and a preset per service that fills in the endpoint, the region rule and the public URL pattern: **Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage (HMAC keys)** and **Custom** (MinIO or any other, every field editable). The **public URL** is a field of its own, prefilled by the preset and always editable, which is also how a CDN or a custom domain is used; Cloudflare R2 needs it typed, since R2's public URL cannot be derived from the credentials. **Test Connection** checks both that the keys can write to the bucket and that the written object is readable anonymously at the public URL, the way it refuses a private container on Azure today. An **Advanced** section of the form holds the object ACL (only for services that have one) and the addressing style (editable only under Custom). Real-storage suites run against Amazon S3 and Cloudflare R2, and against MinIO locally and on every pull request.
+1. **Tests for the settings' effects.** The suites check what Maximum File Size, Transfer Timeout, Force HTTPS and debug logging do, not only that they are saved. The timeout governs every upload request; downloads wait at least 300 seconds, or the setting when it is higher.
+2. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen has a second level; a column on the right with the state of this site; honest figures on an offloaded site; a Connection Health table with "Check now"; buttons with their icon and label aligned; the provider's actions as buttons on Cloud Provider › Connection.
+3. **An "S3-compatible" provider**, signing with AWS Signature Version 4, with a preset per service (**Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC keys**) and **Custom** for any other server that speaks the S3 API. The public URL is its own field, which is where a CDN or custom domain goes; Test Connection proves the bucket is readable by browsers. Real-storage suites run on every change against Azure, Cloudflare R2, Google Cloud Storage and an S3 server started in CI.
 
-### 2.1.0: the options around the provider
+### 2.1.0: safer targets, and the look
 
-Small settings that the remodelled screens have room for and the audit of the mock-up found honest: a browser-caching header on upload (`Cache-Control`, one week by default, new uploads only), path prefixes skipped by the initial sync, an e-mail to the administrator when the connection fails three times and when it recovers, a section and a test in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool) on the Advanced tab.
+- Before the first sync, the plugin lists the container or bucket it is about to use; if it already holds files it says how many and how much, and offers to empty it (confirmed by typing its name) or to pick another. Nothing is deleted without that confirmation.
+- **Disconnect** brings back only the files this site put in the cloud, never whatever else sits under `uploads/` in the same container or bucket.
+- The rest of the look and feel pass: the modals and big buttons on WordPress' own button styles and sizes across every screen.
 
-### 3.0.0: Google Cloud Storage, native
+### 2.2.0: speed and more services
+
+- A sync round sized by the parallelism chosen instead of a fixed 12 MB, so a library that starts with its biggest files uses the parallel uploads from the first second; large files send their parts in parallel; connections reused between rounds.
+- Presets for the S3 services people ask for (Hetzner, Akamai/Linode, Vultr, Scaleway, OVHcloud, IDrive e2), and Backblaze B2 among the real-storage suites.
+
+### 2.3.0: the options around the provider
+
+Small settings the remodelled screens have room for: a browser-caching header on upload (`Cache-Control`, one week by default, new uploads only), path prefixes skipped by the initial sync, an e-mail to the administrator when the connection fails three times and when it recovers, a section and a test in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool).
+
+### 3.0.0: migrating between providers
+
+More than one provider saved (tested, one of them active), and **Migrate to…**: every file copied from the active provider to another, with the same progress window as the sync (cancel, resume, verified byte for byte); offloading cannot be switched while it runs; when the copy is complete the other provider becomes the active one, and the old one keeps its files until they are deleted by hand. A permanent mirror to a second provider (a backup queue) is not part of it.
+
+### 4.0.0: DiluxOne Storage
+
+The DiluxOne subscription storage as one more provider next to Azure and the S3 family, when its API exists. Azure and S3 stay complete and free; nothing in the plugin is unlocked by the subscription, and the service is disclosed under External services like every other.
+
+### 5.0.0: Google Cloud Storage, native
 
 Service-account JSON and the JSON API, the way Google users expect to authenticate. Google works through the S3-compatible provider (HMAC keys) from 2.0.0.
 
-### 4.0.0: Filenames
+### 6.0.0: Filenames
 
 The Smart Filename plugin as a screen of Offload, off by default: unique names for uploads, with the original name kept as the attachment title and in the attachment's metadata; rewritten on Offload's rules rather than pasted in.
-
-### After that
-
-The **DiluxOne hosted sync service** connected to the plugin as a provider, when its API exists.
 
 Requirements stay as they are: WordPress 5.1 and PHP 7.4 minimum, tested up to the current WordPress. No Composer dependency at runtime; the signing code is the plugin's own, like Azure's today.
 

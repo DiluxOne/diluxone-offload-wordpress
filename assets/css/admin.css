@@ -637,3 +637,50 @@
 		opacity: 0.35;
 	}
 }
+
+/* A button with an icon: icon and label on one line, centred on each
+ * other, whatever the button's size (hero, large, full width). */
+.diluxone-offload-admin .button:has(> .dashicons) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+/* WordPress gives a button's icon a tall line-height (2.3 on a hero
+ * button), which draws the glyph below its box; the flex row does the
+ * centring here, so the icon needs none. */
+.diluxone-offload-admin .button > .dashicons,
+.diluxone-offload-admin .button.button-hero > .dashicons {
+	margin: 0;
+	line-height: 1;
+}
+
+/* The big buttons of the sync and disconnect modals: a label that reads at
+ * the size of the button. */
+.diluxone-offload-admin #sync-modal .button-large,
+.diluxone-offload-admin .diluxone-offload-modal .button-large {
+	font-size: 15px;
+}
+
+/* Cloud Provider › Connection: what can be done with the saved provider. */
+.diluxone-offload-provider-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 20px 0 0;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+.diluxone-offload-admin .button.diluxone-offload-button-danger {
+	color: #b32d2e;
+	border-color: #b32d2e;
+}
+
+.diluxone-offload-admin .button.diluxone-offload-button-danger:hover,
+.diluxone-offload-admin .button.diluxone-offload-button-danger:focus {
+	color: #fff;
+	background: #b32d2e;
+	border-color: #b32d2e;
+}
