@@ -23,7 +23,7 @@
 	font-size: 14px;
 }
 
-/* Status Grid: four cards of equal width and height; two per row on narrower screens. */
+/* Status Grid: three cards of equal width and height; one per row below 1100px. */
 .status-grid {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
