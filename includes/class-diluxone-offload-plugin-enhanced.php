@@ -442,6 +442,8 @@ class Plugin {
 	 * every time: a cancelled and reset sync leaves objects there a minute
 	 * after the prefix was empty, and a kept answer would say it still is.
 	 * Messages go out as plain text; the script inserts them with .text().
+	 * A provider's exception message comes escaped (WordPress's standard for
+	 * a thrown message), so it is decoded back to text first.
 	 */
 	public function ajax_inspect_target(): void {
 		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
@@ -463,7 +465,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::warning( '[DiluxOne Offload Plugin] The target could not be listed: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ) );
 		}
 
 		wp_send_json_success(
@@ -512,7 +514,7 @@ class Plugin {
 		} catch ( \Exception $e ) {
 			Logger::warning( '[DiluxOne Offload Plugin] The target could not be emptied: ' . $e->getMessage() );
 			/* translators: %s: error message */
-			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), $e->getMessage() ) );
+			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ) );
 		}
 
 		wp_send_json_success( $result );

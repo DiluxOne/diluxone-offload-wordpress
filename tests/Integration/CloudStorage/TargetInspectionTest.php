@@ -216,9 +216,12 @@ class TargetInspectionTest extends IntegrationTestCase {
     }
 
     public function test_messages_are_plain_text_for_the_script_to_insert(): void {
-        $this->client->list_error = 'HTTP 403 "denied" & logged';
+        // Providers escape what they throw, as WordPress's standard asks.
+        $this->client->list_error = esc_html('HTTP 403 "denied" & logged');
         $r = $this->call('diluxone_offload_inspect_target');
         $this->assertStringContainsString('"denied" & logged', $r['json']['data'], 'no HTML entities: the script uses .text()');
+        $r = $this->call('diluxone_offload_empty_target', ['confirm' => 'media']);
+        $this->assertStringContainsString('"denied" & logged', $r['json']['data']);
     }
 
     public function test_the_provider_cannot_be_deleted_once_offloading_is_on(): void {
