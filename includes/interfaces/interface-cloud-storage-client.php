@@ -103,6 +103,18 @@ interface CloudStorageClientInterface {
 	public function list_files( string $remote_path = '' ): array;
 
 	/**
+	 * One page of the objects under a prefix, in key order, and where the
+	 * next page starts. For work done a page at a time across requests
+	 * (emptying a prefix); list_files() lists everything in one call.
+	 *
+	 * @param string $prefix Key prefix.
+	 * @param string $marker Where the page starts: '' for the first page, or the `next` of the page before.
+	 * @return array{files: array<int, array<string, mixed>>, next: string} `next` is '' on the last page.
+	 * @throws \Exception When the listing fails.
+	 */
+	public function list_page( string $prefix, string $marker = '' ): array;
+
+	/**
 	 * Get file URL for public access
 	 *
 	 * @param string $remote_path Remote path

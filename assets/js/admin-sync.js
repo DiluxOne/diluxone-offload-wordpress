@@ -2141,16 +2141,22 @@ jQuery(document).ready(function($) {
 		$('#start-sync-btn').prop('disabled', false);
 	}
 
+	// The listing failed: only the reason shows, and the sync may start.
+	function listFailed(reason) {
+		$target.prop('hidden', false).find('.diluxone-offload-target-actions, .description').not('#diluxone-offload-target-status').prop('hidden', true);
+		targetStatus(targetText(DiluxOneOffloadSync.i18n.target_list_failed, [reason]));
+		releaseStart();
+		targetChecked.resolve(false);
+	}
+
 	if ($target.length) {
 		var i18n = DiluxOneOffloadSync.i18n;
+		var found = 0;
 		$('#start-sync-btn').prop('disabled', true);
 		$.post(ajaxurl, { action: 'diluxone_offload_inspect_target', nonce: diluxOneOffloadAdmin.nonce })
 			.done(function(response) {
 				if (!response.success) {
-					$target.prop('hidden', false).find('.diluxone-offload-target-actions, .description').not('#diluxone-offload-target-status').prop('hidden', true);
-					targetStatus(targetText(i18n.target_list_failed, [response.data || '']));
-					releaseStart();
-					targetChecked.resolve(false);
+					listFailed(response.data || '');
 					return;
 				}
 				var d = response.data;
@@ -2159,15 +2165,13 @@ jQuery(document).ready(function($) {
 					targetChecked.resolve(true);
 					return;
 				}
+				found = d.files;
 				$('#diluxone-offload-target-found').text(targetText(d.files === 1 ? i18n.target_found_one : i18n.target_found_many, [d.files, d.size, d.prefix, d.target]));
 				$target.prop('hidden', false);
 				targetChecked.resolve(false);
 			})
 			.fail(function() {
-				targetStatus(targetText(i18n.target_list_failed, ['HTTP']));
-				$target.prop('hidden', false);
-				releaseStart();
-				targetChecked.resolve(false);
+				listFailed('HTTP');
 			});
 
 		$('#diluxone-offload-target-continue').on('click', function() {
@@ -2191,8 +2195,9 @@ jQuery(document).ready(function($) {
 			$go.prop('disabled', true);
 			$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', true);
 
-			(function round() {
-				$.post(ajaxurl, { action: 'diluxone_offload_empty_target', nonce: diluxOneOffloadAdmin.nonce, confirm: typed })
+			// Each round resumes the listing where the one before stopped.
+			(function round(marker) {
+				$.post(ajaxurl, { action: 'diluxone_offload_empty_target', nonce: diluxOneOffloadAdmin.nonce, confirm: typed, marker: marker })
 					.done(function(response) {
 						if (!response.success) {
 							targetStatus(response.data || i18n.target_request_failed);
@@ -2208,9 +2213,9 @@ jQuery(document).ready(function($) {
 							$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', false);
 							return;
 						}
-						if (r.remaining > 0) {
-							targetStatus(targetText(i18n.target_emptying, [r.remaining]));
-							round();
+						if (!r.done) {
+							targetStatus(targetText(i18n.target_emptying, [Math.max(0, found - deleted)]));
+							round(r.next);
 							return;
 						}
 						$('#diluxone-offload-target-found').text('');
@@ -2223,7 +2228,7 @@ jQuery(document).ready(function($) {
 						$go.prop('disabled', false);
 						$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', false);
 					});
-			})();
+			})('');
 		});
 	} else {
 		targetChecked.resolve(true);

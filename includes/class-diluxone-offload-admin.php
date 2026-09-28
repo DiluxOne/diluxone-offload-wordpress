@@ -995,11 +995,10 @@ class Admin {
 
 				$current_state_cp = ConfigManager::get_state();
 
-				$template_data['current_state'] = $current_state_cp;
-				$template_data['is_configured'] = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
-				$template_data['health']        = ConfigManager::get_connection_health();
-				// Delete Provider is offered before offloading is active (disconnect first via Sync & Offloading › Disconnect).
-				$template_data['can_delete_provider'] = in_array( $current_state_cp, array( 'configured', 'syncing', 'synced' ), true );
+				$template_data['current_state']       = $current_state_cp;
+				$template_data['is_configured']       = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
+				$template_data['health']              = ConfigManager::get_connection_health();
+				$template_data['can_delete_provider'] = self::can_delete_provider( $current_state_cp );
 				$template_data['timestamps']          = ConfigManager::get_timestamps();
 				$template_data['screen_urls']         = self::screen_urls();
 				break;
@@ -2255,6 +2254,20 @@ class Admin {
 	}
 
 	/**
+	 * Whether the provider may be deleted in this state: only before
+	 * offloading is active, while every file still has its local copy
+	 * (disconnect first via Sync & Offloading › Disconnect). Deleting it
+	 * empties the tracking table, and an empty table is what lets the next
+	 * provider's container be emptied, so the cloud must not be the only copy.
+	 *
+	 * @param string $state Plugin state.
+	 * @return bool
+	 */
+	public static function can_delete_provider( string $state ): bool {
+		return in_array( $state, array( 'configured', 'syncing', 'synced' ), true );
+	}
+
+	/**
 	 * AJAX handler to remove provider configuration
 	 */
 	public static function ajax_remove_provider(): void {
@@ -2264,6 +2277,10 @@ class Admin {
 		// Check permissions
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions', 'diluxone-offload' ) ) );
+		}
+
+		if ( ! self::can_delete_provider( ConfigManager::get_state() ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'The provider can be deleted only before offloading is active; disconnect first.', 'diluxone-offload' ) ) );
 		}
 
 		try {

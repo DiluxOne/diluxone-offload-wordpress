@@ -400,10 +400,11 @@ class MultisiteTest extends IntegrationTestCase {
         $client->blobs[$mine] = 'o';
         $this->configureCurrentSite();
         $this->assertSame(1, (new SyncManager())->inspect_target()['files']);
+        $client->page_size = 1; // Page through the other sites' objects too.
         $result = (new SyncManager())->empty_target(8.0);
         restore_current_blog();
         $this->assertSame(1, $result['deleted']);
-        $this->assertSame(0, $result['remaining']);
+        $this->assertTrue($result['done']);
         $this->assertArrayNotHasKey($mine, $client->blobs);
         $this->assertArrayHasKey('uploads/2025/01/main.jpg', $client->blobs, 'the main site keeps its files');
         $this->assertArrayHasKey('uploads/sites/7/old.jpg', $client->blobs, 'and so does every other site');

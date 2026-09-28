@@ -125,7 +125,7 @@ class TargetInspectionTest extends IntegrationTestCase {
         $r = $this->call('diluxone_offload_empty_target', ['confirm' => 'media']);
         $this->assertTrue($r['json']['success'], $r['raw']);
         $this->assertSame(2, $r['json']['data']['deleted']);
-        $this->assertSame(0, $r['json']['data']['remaining']);
+        $this->assertTrue($r['json']['data']['done']);
         $this->assertSame(['backups/site.zip', 'uploadsX/not-ours.txt'], array_keys($this->client->blobs), 'nothing outside uploads/ was touched');
     }
 
@@ -158,7 +158,7 @@ class TargetInspectionTest extends IntegrationTestCase {
         $d = $r['json']['data'];
         $this->assertSame(1, $d['deleted']);
         $this->assertSame(1, $d['failed']);
-        $this->assertSame(1, $d['remaining']);
+        $this->assertTrue($d['done'], 'the page was gone through; what failed stays');
         $this->assertStringContainsString('403', $d['errors'][0]);
     }
 
@@ -166,10 +166,70 @@ class TargetInspectionTest extends IntegrationTestCase {
         $sm = new SyncManager();
         $first = $sm->empty_target(0.0);
         $this->assertSame(1, $first['deleted'], 'one delete, then the budget is spent');
-        $this->assertSame(1, $first['remaining']);
-        $second = $sm->empty_target(8.0);
+        $this->assertFalse($first['done']);
+        $second = $sm->empty_target(8.0, $first['next']);
         $this->assertSame(1, $second['deleted']);
-        $this->assertSame(0, $second['remaining']);
+        $this->assertTrue($second['done']);
+    }
+
+    public function test_a_large_prefix_is_listed_a_page_per_round_not_whole(): void {
+        $this->client->page_size = 2;
+        for ($i = 0; $i < 5; $i++) {
+            $this->client->blobs["uploads/2025/02/f$i.jpg"] = 'x';
+        }
+        $sm = new SyncManager();
+        $marker = '';
+        $rounds = 0;
+        $deleted = 0;
+        do {
+            $r = $sm->empty_target(0.0, $marker);
+            $marker = $r['next'];
+            $deleted += $r['deleted'];
+            $this->assertLessThan(20, ++$rounds, 'the rounds end');
+        } while (!$r['done']);
+        $this->assertSame(7, $deleted, 'the two old objects and the five new ones');
+        $this->assertSame($rounds, $this->client->pages_listed, 'one page listed per round, never the whole prefix');
+        $this->assertSame(['backups/site.zip', 'uploadsX/not-ours.txt'], array_keys($this->client->blobs));
+    }
+
+    public function test_with_time_left_a_round_goes_on_to_the_next_page(): void {
+        $this->client->page_size = 1;
+        $r = (new SyncManager())->empty_target(8.0);
+        $this->assertSame(2, $r['deleted']);
+        $this->assertTrue($r['done']);
+        $this->assertSame(['backups/site.zip', 'uploadsX/not-ours.txt'], array_keys($this->client->blobs));
+    }
+
+    public function test_a_sync_started_meanwhile_stops_the_round_and_refuses_the_next(): void {
+        // Another tab's scan fills the tracking table after the first delete.
+        $this->client->on_delete = static function () {
+            DB::add_file('/2025/03/new.jpg', 10);
+        };
+        $r = $this->call('diluxone_offload_empty_target', ['confirm' => 'media']);
+        $this->assertTrue($r['json']['success'], $r['raw']);
+        $this->assertSame(1, $r['json']['data']['deleted'], 'nothing after the table stopped being empty');
+        $this->assertFalse($r['json']['data']['done']);
+        $this->client->on_delete = null;
+        $r = $this->call('diluxone_offload_empty_target', ['confirm' => 'media', 'marker' => $r['json']['data']['next']]);
+        $this->assertFalse($r['json']['success']);
+        $this->assertCount(1, $this->client->deleted);
+    }
+
+    public function test_messages_are_plain_text_for_the_script_to_insert(): void {
+        $this->client->list_error = 'HTTP 403 "denied" & logged';
+        $r = $this->call('diluxone_offload_inspect_target');
+        $this->assertStringContainsString('"denied" & logged', $r['json']['data'], 'no HTML entities: the script uses .text()');
+    }
+
+    public function test_the_provider_cannot_be_deleted_once_offloading_is_on(): void {
+        // Deleting it empties the tracking table, which would make the cloud's
+        // only copies look like an untouched target that may be emptied.
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        DB::add_file('/2025/01/old.jpg', 300);
+        $r = $this->call('diluxone_offload_ajax_remove_provider');
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('media', SyncManager::target_name(), 'the configuration is still there');
+        $this->assertSame(1, (int) DB::get_stats()['total_files']);
     }
 
     public function test_unauthorised_users_are_turned_away(): void {

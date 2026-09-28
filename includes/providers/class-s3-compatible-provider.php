@@ -801,45 +801,60 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @throws \Exception On any failed page.
 	 */
 	private function list_all( string $prefix ): array {
-		$files = array();
-		$token = '';
-		$page  = 0;
-
+		$files  = array();
+		$marker = '';
 		do {
-			++$page;
-			$query = 'list-type=2&prefix=' . rawurlencode( $prefix );
-			if ( '' !== $token ) {
-				$query .= '&continuation-token=' . rawurlencode( $token );
-			}
-
-			$response = $this->request( 'GET', $this->request_url( '', $query ), array(), '', 60 );
-			if ( is_wp_error( $response ) ) {
-				throw new \Exception( 'Listing failed on page ' . (int) $page . ': ' . esc_html( $response->get_error_message() ) );
-			}
-			$status = (int) wp_remote_retrieve_response_code( $response );
-			$body   = (string) wp_remote_retrieve_body( $response );
-			if ( 200 !== $status ) {
-				throw new \Exception( esc_html( $this->failure_line( $status, $body ) ) . ' on listing page ' . (int) $page );
-			}
-			$xml = self::parse_xml( $body );
-			if ( null === $xml || 'ListBucketResult' !== $xml->getName() ) {
-				throw new \Exception( 'Invalid listing on page ' . (int) $page );
-			}
-
-			foreach ( $xml->Contents as $object ) {
-				$info    = new FileInfo(
-					(string) $object->Key,
-					(int) $object->Size,
-					self::md5_of_etag( (string) $object->ETag ),
-					(string) $object->LastModified
-				);
-				$files[] = $info->toArray();
-			}
-
-			$token = 'true' === (string) $xml->IsTruncated ? (string) $xml->NextContinuationToken : '';
-		} while ( '' !== $token );
+			$page   = $this->list_page( $prefix, $marker );
+			$files  = array_merge( $files, $page['files'] );
+			$marker = $page['next'];
+		} while ( '' !== $marker );
 
 		return $files;
+	}
+
+	/**
+	 * One ListObjectsV2 page (up to 1000 objects); `next` is its continuation token.
+	 *
+	 * @param string $prefix Key prefix.
+	 * @param string $marker Continuation token of the page before, or ''.
+	 * @return array{files: array<int, array<string, mixed>>, next: string}
+	 * @throws \Exception When the page cannot be listed.
+	 */
+	public function list_page( string $prefix, string $marker = '' ): array {
+		$query = 'list-type=2&prefix=' . rawurlencode( $prefix );
+		if ( '' !== $marker ) {
+			$query .= '&continuation-token=' . rawurlencode( $marker );
+		}
+
+		$response = $this->request( 'GET', $this->request_url( '', $query ), array(), '', 60 );
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Listing failed: ' . esc_html( $response->get_error_message() ) );
+		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = (string) wp_remote_retrieve_body( $response );
+		if ( 200 !== $status ) {
+			throw new \Exception( esc_html( $this->failure_line( $status, $body ) ) . ' on a listing page' );
+		}
+		$xml = self::parse_xml( $body );
+		if ( null === $xml || 'ListBucketResult' !== $xml->getName() ) {
+			throw new \Exception( 'Invalid listing page' );
+		}
+
+		$files = array();
+		foreach ( $xml->Contents as $object ) {
+			$info    = new FileInfo(
+				(string) $object->Key,
+				(int) $object->Size,
+				self::md5_of_etag( (string) $object->ETag ),
+				(string) $object->LastModified
+			);
+			$files[] = $info->toArray();
+		}
+
+		return array(
+			'files' => $files,
+			'next'  => 'true' === (string) $xml->IsTruncated ? (string) $xml->NextContinuationToken : '',
+		);
 	}
 
 	// ── Identity ────────────────────────────────────────────
