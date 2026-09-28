@@ -986,8 +986,9 @@ class AzureProvider implements CloudStorageClientInterface {
 					throw $e;
 				}
 
-				// Only retry server errors (5xx) and network errors
-				if ( $attempt < $max_retries ) {
+				// A 5xx or a dropped connection was already asked again three
+				// times by send_with_retry(); a timeout or a bad body is retried here.
+				if ( $attempt < $max_retries && ! self::retried_inside( $error_code ) ) {
 					Logger::error( '[DiluxOne Offload AzureProvider] Attempt ' . $attempt . ' failed (retryable), retrying in ' . $retry_delay . 's... Error: ' . $e->getMessage() );
 					sleep( $retry_delay );
 					continue;
@@ -1478,7 +1479,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @return string Error code (e.g. '403', '401', 'network')
 	 */
 	private function extract_error_code( string $message ): string {
-		if ( preg_match( '/\b(400|401|403|404|409|500|502|503)\b/', $message, $matches ) ) {
+		if ( preg_match( '/\b(400|401|403|404|409|500|502|503|504)\b/', $message, $matches ) ) {
 			return $matches[1];
 		}
 		if ( stripos( $message, 'timeout' ) !== false ) {

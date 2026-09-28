@@ -21,8 +21,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * the key is), and neither is a timeout, which already spent its time: the
  * request that waited is the owner's, in a browser.
  *
- * Every request the providers make is safe to repeat: a PUT of the same bytes
- * to the same key, a GET, a HEAD, a DELETE, a copy onto the same destination.
+ * Only requests that are safe to repeat are sent again: a PUT of the same
+ * bytes to the same key, a GET, a HEAD, a DELETE, a copy onto the same
+ * destination. A POST (S3's start and commit of a multipart upload) is sent
+ * once: a start that worked but answered 500 would leave an upload that is
+ * kept and billed, and a commit that worked would be reported as a failure.
+ * Nor is an answer that took long (`$slow_answer`, ten seconds): asking
+ * again would keep the owner waiting several times the timeout, the same
+ * reason a timeout is not retried.
  */
 trait TransientRetry {
 
@@ -34,6 +40,13 @@ trait TransientRetry {
 	protected static $retry_pauses = array( 250000, 750000 );
 
 	/**
+	 * Seconds after which an answer, even a transient one, is not asked again.
+	 *
+	 * @var float
+	 */
+	protected static $slow_answer = 10.0;
+
+	/**
 	 * Send a request through the WordPress HTTP API, up to three times.
 	 *
 	 * @param string              $url  Request URL.
@@ -41,15 +54,29 @@ trait TransientRetry {
 	 * @return array<string,mixed>|\WP_Error The last answer.
 	 */
 	protected function send_with_retry( string $url, array $args ) {
-		$attempt = 0;
+		$repeatable = 'POST' !== strtoupper( (string) ( $args['method'] ?? 'GET' ) );
+		$attempt    = 0;
 		while ( true ) {
+			$started  = microtime( true );
 			$response = wp_remote_request( $url, $args );
-			if ( ! self::is_transient( $response ) || $attempt >= count( static::$retry_pauses ) ) {
+			$slow     = microtime( true ) - $started >= static::$slow_answer;
+			if ( ! $repeatable || $slow || ! self::is_transient( $response ) || $attempt >= count( static::$retry_pauses ) ) {
 				return $response;
 			}
 			usleep( static::$retry_pauses[ $attempt ] );
 			++$attempt;
 		}
+	}
+
+	/**
+	 * Whether a failure, by its code, is one send_with_retry() already asked
+	 * again for, so a caller's own retry loop does not repeat it three more times.
+	 *
+	 * @param string $code '500'…'504', 'network', or another code.
+	 * @return bool
+	 */
+	private static function retried_inside( string $code ): bool {
+		return in_array( $code, array( '500', '502', '503', '504', 'network' ), true );
 	}
 
 	/**

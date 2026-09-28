@@ -144,4 +144,55 @@ class TransientRetryTest extends TestCase {
 		$this->assertTrue( $make()->file_exists( 'uploads/a.png' ) );
 		$this->assertCount( 2, $GLOBALS['_test_wp_http_log'] );
 	}
+
+	/**
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_post_is_sent_once( \Closure $make ): void {
+		// S3's start and commit of a multipart upload: a start that worked but
+		// answered 500 would leave a billed upload behind if sent again.
+		$this->answers( array( self::reply( 500 ) ) );
+		$send = new \ReflectionMethod( $make(), 'send_with_retry' );
+		if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+			$send->setAccessible( true );
+		}
+		$send->invoke( $make(), 'https://s3.example.com/media/a.bin?uploads=', array( 'method' => 'POST' ) );
+		$this->assertCount( 1, $GLOBALS['_test_wp_http_log'] );
+	}
+
+	/**
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_slow_transient_answer_is_not_asked_again( \Closure $make, int $created ): void {
+		$provider = $make();
+		$slow     = new \ReflectionProperty( get_class( $provider ), 'slow_answer' );
+		if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+			$slow->setAccessible( true );
+		}
+		$slow->setValue( null, 0.0 ); // Every answer counts as slow.
+		try {
+			$this->answers( array( self::reply( 503 ), self::reply( $created ) ) );
+			$this->assertFalse( $provider->upload_file( $this->tmp(), 'uploads/a.png' )['success'] );
+			$this->assertCount( 1, $GLOBALS['_test_wp_http_log'], 'waiting again would cost several times the timeout' );
+		} finally {
+			$slow->setValue( null, 10.0 );
+		}
+	}
+
+	/**
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_listing_that_meets_a_5xx_is_asked_three_times_not_nine( \Closure $make ): void {
+		$this->answers( array( self::reply( 503 ) ) );
+		try {
+			$make()->list_files( 'uploads/' );
+			$this->fail( 'expected an exception' );
+		} catch ( \Exception $e ) {
+			$this->assertStringContainsString( '503', $e->getMessage() );
+		}
+		$this->assertCount( 3, $GLOBALS['_test_wp_http_log'], 'the listing does not retry what the request already retried' );
+	}
 }

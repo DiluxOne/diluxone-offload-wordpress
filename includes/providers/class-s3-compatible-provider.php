@@ -790,7 +790,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 					ConfigManager::record_connection_failure( $code, $e->getMessage(), 'list_files' );
 					throw $e;
 				}
-				if ( $attempt >= $max_retries ) {
+				// A 5xx or a dropped connection was already asked again three
+				// times by send_with_retry(); only a bad listing body is retried here.
+				if ( $attempt >= $max_retries || self::retried_inside( $code ) ) {
 					throw new \Exception( 'Failed to list files after ' . (int) $max_retries . ' attempts: ' . esc_html( $e->getMessage() ) );
 				}
 				Logger::error( '[DiluxOne Offload S3CompatibleProvider] Attempt ' . $attempt . ' failed (retryable), retrying in 2s... Error: ' . $e->getMessage() );
