@@ -108,6 +108,7 @@ Stored in WP option `diluxone_offload_connection_health`. The shape:
 Conventions:
 - **A `decrypt_failed` is recorded once per failure cycle.** `ConfigManager::record_connection_failure()` counts every call; the decrypt path in `ConfigManager::get_config()` checks that the health is not already `unhealthy` with `decrypt_failed` before calling it, so the counter does not grow on every page load.
 - **After `consecutive_failures >= 3` the stream wrapper refuses writes** (`CloudStreamWrapper::writes_allowed()`): the upload fails and WordPress reports it. There is **no local fallback** — nothing is ever written to `uploads/` on the server instead. Any proposal to add one is a defect. The threshold is the agreed safety valve; don't change it without discussion.
+- **An upload that goes through ends a pause.** Both the stream wrapper (an upload through WordPress) and the sync (`SyncManager::process_batch()`, a round with at least one upload accepted) call `ConfigManager::record_connection_success()` when the health is `unhealthy`: a key fixed since the failures is healthy again as soon as it works, not at the next five-minute check.
 - **Two helpers map `error_code` to user-facing copy**, both in `Admin`: `pause_reason_short(string $error_code): string` and `health_banner_copy(string $error_code, string $error_message): array`. The same vocabulary appears in the banner, the Status cards, and the Overview cards. If you add a new error_code, update BOTH helpers.
 
 ---
