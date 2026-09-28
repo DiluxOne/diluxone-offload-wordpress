@@ -24,19 +24,15 @@ Each version does one big thing, ships on its own and is usable without the next
 2. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen has a second level; a column on the right with the state of this site; honest figures on an offloaded site; a Connection Health table with "Check now"; buttons with their icon and label aligned; the provider's actions as buttons on Cloud Provider › Connection.
 3. **An "S3-compatible" provider**, signing with AWS Signature Version 4, with a preset per service (**Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC keys**) and **Custom** for any other server that speaks the S3 API. The public URL is its own field, which is where a CDN or custom domain goes; Test Connection proves the bucket is readable by browsers. Real-storage suites run on every change against Azure, Cloudflare R2, Google Cloud Storage and an S3 server started in CI.
 
-### 2.1.0: safer targets, and the look
+### 2.1.0: safer targets, speed, more services and the options around the provider
 
-- Before the first sync, the plugin lists the container or bucket it is about to use; if it already holds files it says how many and how much, and offers to empty it (confirmed by typing its name) or to pick another. Nothing is deleted without that confirmation.
-- The rest of the look and feel pass: the modals and big buttons on WordPress' own button styles and sizes across every screen.
+What was planned as 2.1.0, 2.2.0 and 2.3.0, released together (all of it improves what exists, so it is one minor). The plan: [`plans/2.1.0.md`](plans/2.1.0.md).
 
-### 2.2.0: speed and more services
-
-- A sync round sized by the parallelism chosen instead of a fixed 12 MB, so a library that starts with its biggest files uses the parallel uploads from the first second; large files send their parts in parallel; connections reused between rounds.
-- Presets for the S3 services people ask for (Hetzner, Akamai/Linode, Vultr, Scaleway, OVHcloud, IDrive e2), and Backblaze B2 among the real-storage suites.
-
-### 2.3.0: the options around the provider
-
-Small settings the remodelled screens have room for: a browser-caching header on upload (`Cache-Control`, configurable and off-able, one week by default, new uploads only), path prefixes skipped by the initial sync, an e-mail to the administrator when the connection fails three times and when it recovers, a section and a test in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool) for new uploads, changeable at any time, offering only the classes that serve media at once (never an archive tier).
+- **A target that already holds files.** Before the first sync, the plugin lists this site's prefix in the container or bucket; if it already holds files it says how many and how much, and offers to continue, to empty it (only under this site's prefix, confirmed by typing its name) or to use another one. Nothing is deleted without that confirmation.
+- **Speed.** A sync round sized by the parallelism chosen instead of a fixed 12 MB, big and small files mixed, so a library that starts with its biggest files uses the parallel uploads from the first second; large files send their parts in parallel; connections reused between rounds.
+- **More services.** Presets for Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud and IDrive e2; Backblaze B2 among the real-storage suites.
+- **The options around the provider.** A browser-caching header on upload (`Cache-Control`, configurable and off-able, one week by default, new uploads only), folders the initial sync leaves out, an e-mail to the administrator when the connection fails three times and when it recovers, a test and a section in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool) for new uploads, changeable at any time, never an archive class.
+- **The look.** The modals and big buttons on WordPress' own button styles, notices and the admin colour scheme across every screen.
 
 ### 3.0.0: migrating between providers
 
