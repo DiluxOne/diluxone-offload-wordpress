@@ -26,6 +26,19 @@ test.describe.serial( 'Sync › a target that cannot be listed', () => {
 		await expect( page.locator( '#start-sync-btn' ) ).toBeEnabled();
 	} );
 
+	test( 'a check that fails on the way shows only the reason, like a refused one', async ( { page } ) => {
+		await page.route( '**/admin-ajax.php', ( route ) =>
+			( route.request().postData() ?? '' ).includes( 'action=diluxone_offload_inspect_target' )
+				? route.fulfill( { status: 502, body: 'Bad Gateway' } )
+				: route.continue()
+		);
+		await page.goto( SYNC );
+		await expect( page.locator( '#diluxone-offload-target-status' ) ).toContainText( 'could not be checked (HTTP)' );
+		await expect( page.locator( '#diluxone-offload-target-continue' ) ).toBeHidden();
+		await expect( page.locator( '#diluxone-offload-target-empty-open' ) ).toBeHidden();
+		await expect( page.locator( '#start-sync-btn' ) ).toBeEnabled();
+	} );
+
 	test( 'emptying is refused without the right name', async ( { page } ) => {
 		await page.goto( SYNC );
 		const refused = await page.evaluate( async () => {
