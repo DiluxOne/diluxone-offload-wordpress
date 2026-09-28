@@ -154,6 +154,11 @@ export async function putObject( target: S3Target, bucket: string, key: string, 
 	await client( target ).send( new PutObjectCommand( { Bucket: bucket, Key: key, Body: body } ) );
 }
 
+/** Deletes one object; a key that is already gone is fine (Google answers NoSuchKey where S3 answers 204). */
 export async function deleteObject( target: S3Target, bucket: string, key: string ): Promise< void > {
-	await client( target ).send( new DeleteObjectCommand( { Bucket: bucket, Key: key } ) );
+	try {
+		await client( target ).send( new DeleteObjectCommand( { Bucket: bucket, Key: key } ) );
+	} catch ( e ) {
+		if ( ! /NoSuchKey|NotFound/.test( ( e as Error ).name ) ) throw e;
+	}
 }
