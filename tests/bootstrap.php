@@ -49,3 +49,14 @@ require_once __DIR__ . '/stubs/wordpress-stubs.php';
 
 // 4. Plugin's class autoloader. Maps DiluxOneOffload\* to includes/.
 require_once DILUXONE_OFFLOAD_DIR . 'includes/enhanced-autoloader.php';
+
+// 5. No pauses between retries of a transient error: the scripted HTTP layer
+//    answers at once, and the suite would otherwise sleep through every retry.
+foreach ([\DiluxOneOffload\Providers\AzureProvider::class, \DiluxOneOffload\Providers\S3CompatibleProvider::class] as $_diluxone_offload_provider) {
+    $_diluxone_offload_pauses = new \ReflectionProperty($_diluxone_offload_provider, 'retry_pauses');
+    if (PHP_VERSION_ID < 80100) { // Required before 8.1, deprecated from 8.5.
+        $_diluxone_offload_pauses->setAccessible(true);
+    }
+    $_diluxone_offload_pauses->setValue(null, [0, 0]);
+}
+unset($_diluxone_offload_provider, $_diluxone_offload_pauses);

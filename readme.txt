@@ -215,6 +215,7 @@ Unreleased.
 
 * Before the first sync, Sync & Offloading › Sync checks this site's folder in the container or bucket. If something is already there (an earlier install, a staging copy) it says how many files and how much, and lets you continue with them, empty that folder (typing the container's or bucket's name) or connect another one. Emptying never touches anything outside this site's folder.
 * A sync whose uploads go through ends a pause the connection health had recorded (a key that failed and was fixed since), instead of showing "Paused" for up to five more minutes.
+* An upload, a delete or a check that meets a temporary error from the storage service (a 500 or 503, a dropped connection) is sent again, up to three times, instead of failing at once. Backblaze B2 answers that way to about one upload in a hundred, which could leave an image without one of its thumbnails.
 
 = 2.0.0 =
 

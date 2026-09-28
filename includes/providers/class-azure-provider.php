@@ -57,6 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class AzureProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
+	use TransientRetry;
 
 	/**
 	 * Bytes per block, and the largest file sent in a single Put Blob request.
@@ -180,9 +181,10 @@ class AzureProvider implements CloudStorageClientInterface {
 			$url     = $this->endpoint . '/' . $this->container_name . '?restype=container';
 			$headers = $this->get_auth_headers( 'GET', $url );
 
-			$response = wp_remote_get(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'GET',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -287,7 +289,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Get auth headers (already includes x-ms-blob-type)
 			$headers = $this->get_auth_headers( 'PUT', $url, $file_content, $content_type );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'PUT',
@@ -357,9 +359,10 @@ class AzureProvider implements CloudStorageClientInterface {
 				wp_mkdir_p( $dir );
 			}
 
-			$response = wp_remote_get(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'      => 'GET',
 					'headers'     => $headers,
 					'timeout'     => $this->download_timeout,
 					'stream'      => true,
@@ -459,7 +462,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\nblockid:{$block_id}\ncomp:block";
 			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'PUT',
@@ -515,7 +518,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\ncomp:blocklist";
 		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-		$response = wp_remote_request(
+		$response = $this->send_with_retry(
 			$base_url . '?comp=blocklist',
 			array(
 				'method'  => 'PUT',
@@ -559,9 +562,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -592,9 +596,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -641,9 +646,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -696,7 +702,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'DELETE', $url );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'DELETE',
@@ -802,7 +808,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			);
 
 			// Execute copy request
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$dest_url,
 				array(
 					'method'  => 'PUT',
@@ -886,9 +892,10 @@ class AzureProvider implements CloudStorageClientInterface {
 			$url .= '&marker=' . rawurlencode( $marker );
 		}
 
-		$response = wp_remote_get(
+		$response = $this->send_with_retry(
 			$url,
 			array(
+				'method'  => 'GET',
 				'headers' => $this->get_auth_headers( 'GET', $url ),
 				'timeout' => 60,
 			)
@@ -979,8 +986,9 @@ class AzureProvider implements CloudStorageClientInterface {
 					throw $e;
 				}
 
-				// Only retry server errors (5xx) and network errors
-				if ( $attempt < $max_retries ) {
+				// A 5xx or a dropped connection was already asked again three
+				// times by send_with_retry(); a timeout or a bad body is retried here.
+				if ( $attempt < $max_retries && ! self::retried_inside( $error_code ) ) {
 					Logger::error( '[DiluxOne Offload AzureProvider] Attempt ' . $attempt . ' failed (retryable), retrying in ' . $retry_delay . 's... Error: ' . $e->getMessage() );
 					sleep( $retry_delay );
 					continue;
@@ -1266,7 +1274,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\nblockid:{$block_id}\ncomp:block";
 				$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-				$block_response = wp_remote_request(
+				$block_response = $this->send_with_retry(
 					$url,
 					array(
 						'method'  => 'PUT',
@@ -1471,7 +1479,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @return string Error code (e.g. '403', '401', 'network')
 	 */
 	private function extract_error_code( string $message ): string {
-		if ( preg_match( '/\b(400|401|403|404|409|500|502|503)\b/', $message, $matches ) ) {
+		if ( preg_match( '/\b(400|401|403|404|409|500|502|503|504)\b/', $message, $matches ) ) {
 			return $matches[1];
 		}
 		if ( stripos( $message, 'timeout' ) !== false ) {
