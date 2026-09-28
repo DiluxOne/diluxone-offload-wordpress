@@ -496,7 +496,7 @@ class Plugin {
 
 		$typed  = isset( $_POST['confirm'] ) ? sanitize_text_field( wp_unslash( $_POST['confirm'] ) ) : '';
 		$target = SyncManager::target_name();
-		if ( '' === $target || ! hash_equals( $target, $typed ) ) {
+		if ( $target === '' || ! hash_equals( $target, $typed ) ) {
 			wp_send_json_error( esc_html__( 'The name typed is not the name of the container or bucket; nothing was deleted.', 'diluxone-offload' ) );
 		}
 

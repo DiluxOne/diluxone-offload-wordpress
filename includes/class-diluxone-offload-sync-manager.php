@@ -582,7 +582,7 @@ class SyncManager {
 			// recorded before (a key that has since been fixed) ends here, as
 			// it does for an upload through the stream wrapper, instead of
 			// waiting for the next check of the connection.
-			if ( $round_uploaded > 0 && 'unhealthy' === ( ConfigManager::get_connection_health()['status'] ?? '' ) ) {
+			if ( $round_uploaded > 0 && ( ConfigManager::get_connection_health()['status'] ?? '' ) === 'unhealthy' ) {
 				ConfigManager::record_connection_success();
 			}
 
@@ -1512,8 +1512,8 @@ class SyncManager {
 	 */
 	public static function target_untouched(): bool {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-		return PluginState::CONFIGURED === ConfigManager::get_state()
-			&& 0 === (int) ( DiluxOneOffloadDB::get_stats()['total_files'] ?? 0 );
+		return ConfigManager::get_state() === PluginState::CONFIGURED
+			&& (int) ( DiluxOneOffloadDB::get_stats()['total_files'] ?? 0 ) === 0;
 	}
 
 	/**
