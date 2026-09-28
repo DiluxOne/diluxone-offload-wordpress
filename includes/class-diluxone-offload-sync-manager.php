@@ -559,10 +559,12 @@ class SyncManager {
 			$results = $this->sync_files_parallel( $batch_to_upload );
 
 			// Update DB based on results
+			$round_uploaded = 0;
 			foreach ( $results as $i => $result ) {
 				$file_info = $batch_to_upload[ $i ];
 
 				if ( $result['success'] ) {
+					++$round_uploaded;
 					$mark_result = DiluxOneOffloadDB::mark_synced( $file_info['path'] );
 					if ( $mark_result === false || $mark_result === 0 ) {
 						Logger::info( '[DiluxOne Offload SyncManager] ⚠️ Upload succeeded but DB update failed for: ' . $file_info['path'] );
@@ -574,6 +576,14 @@ class SyncManager {
 					DiluxOneOffloadDB::increment_error( $file_info['path'], $error_msg );
 					Logger::error( '[DiluxOne Offload SyncManager] Failed: ' . $file_info['path'] . ' - ' . $error_msg );
 				}
+			}
+
+			// An upload that went through is a working connection: a pause
+			// recorded before (a key that has since been fixed) ends here, as
+			// it does for an upload through the stream wrapper, instead of
+			// waiting for the next check of the connection.
+			if ( $round_uploaded > 0 && 'unhealthy' === ( ConfigManager::get_connection_health()['status'] ?? '' ) ) {
+				ConfigManager::record_connection_success();
 			}
 
 			// Check time limit

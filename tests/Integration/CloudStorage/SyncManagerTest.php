@@ -177,6 +177,37 @@ class SyncManagerTest extends IntegrationTestCase {
         $this->assertSame('one', $this->client->blobs['uploads/2026/09/batch-1.jpg']);
     }
 
+    public function test_an_upload_that_goes_through_ends_a_recorded_pause(): void {
+        // A key that failed earlier paused uploads; it has since been fixed,
+        // and the sync's uploads go through: the pause ends with them, not
+        // five minutes later at the next check of the connection.
+        for ($i = 0; $i < 3; $i++) {
+            ConfigManager::record_connection_failure('403', 'HTTP 403 AuthenticationFailed', 'health_check');
+        }
+        $this->assertSame('unhealthy', ConfigManager::get_connection_health()['status']);
+        $this->fixture('2026/09/recover.jpg', 'fine now');
+        $sm = $this->scanAndStart();
+
+        $sm->process_batch(30.0);
+
+        $health = ConfigManager::get_connection_health();
+        $this->assertSame('healthy', $health['status']);
+        $this->assertSame(0, (int) $health['consecutive_failures']);
+    }
+
+    public function test_a_round_where_every_upload_fails_keeps_the_pause(): void {
+        for ($i = 0; $i < 3; $i++) {
+            ConfigManager::record_connection_failure('403', 'HTTP 403 AuthenticationFailed', 'health_check');
+        }
+        $this->fixture('2026/09/still-refused.jpg', 'nope');
+        $this->client->upload_status = 403;
+        $sm = $this->scanAndStart();
+
+        $sm->process_batch(30.0);
+
+        $this->assertSame('unhealthy', ConfigManager::get_connection_health()['status']);
+    }
+
     public function test_a_rejected_upload_is_counted_and_not_marked_synced(): void {
         $this->fixture('2026/09/reject.jpg', 'nope');
         $this->client->upload_status = 403;
