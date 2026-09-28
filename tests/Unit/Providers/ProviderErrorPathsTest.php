@@ -241,7 +241,8 @@ class ProviderErrorPathsTest extends TestCase {
 		} catch ( \Exception $e ) {
 			$this->assertStringContainsString( 'after 3 attempts', $e->getMessage() );
 		}
-		$this->assertCount( 3, $GLOBALS['_test_wp_http_log'] );
+		// Three listings, each request tried three times; a timeout is tried once.
+		$this->assertCount( 'timeout' === $code ? 3 : 9, $GLOBALS['_test_wp_http_log'] );
 		$this->assertNotSame( $code, ConfigManager::get_connection_health()['error_code'], 'retryable errors are not recorded as final' );
 	}
 

@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class S3CompatibleProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
+	use TransientRetry;
 
 	/**
 	 * Bytes per part of a multipart upload, and the largest file sent in a
@@ -200,7 +201,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * One signed request through the WordPress HTTP API.
+	 * One signed request through the WordPress HTTP API, sent again on a
+	 * transient error (TransientRetry). The signature stays valid for the
+	 * retries: it is minutes old at most.
 	 *
 	 * @param string               $method  HTTP method.
 	 * @param string               $url     Request URL.
@@ -220,7 +223,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		if ( '' !== $body ) {
 			$args['body'] = $body;
 		}
-		return wp_remote_request( $url, $args + $extra );
+		return $this->send_with_retry( $url, $args + $extra );
 	}
 
 	// ── Errors ──────────────────────────────────────────────
@@ -361,9 +364,10 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			return self::failed( $this->failure_line( $status, (string) wp_remote_retrieve_body( $put ) ) );
 		}
 
-		$get      = wp_remote_get(
+		$get      = $this->send_with_retry(
 			$this->public_url . '/' . $this->object_path( $key ),
 			array(
+				'method'      => 'GET',
 				'timeout'     => 30,
 				'redirection' => 0,
 			)
