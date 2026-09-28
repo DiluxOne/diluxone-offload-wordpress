@@ -1,7 +1,7 @@
 import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
 import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -142,6 +142,37 @@ test.describe.serial( 'single site journey', () => {
 		expect( ( await listKeys( run, 'uploads/' ) ).length ).toBeGreaterThan( 0 );
 		await ui.resetSync( page );
 		expect( pluginState( site ) ).toBe( 'configured' );
+	} );
+
+	test( 'what a reset sync left in the container is announced, and emptied only under this site\'s folder', async ( { page } ) => {
+		// The cancelled sync left objects under uploads/ and the reset forgot
+		// them: to the plugin they are somebody else's now. One object outside
+		// uploads/ proves the emptying never reaches past this site's folder.
+		const outside = `e2e-keep/${ run.runId }.txt`;
+		await putObject( run, outside, 'not the plugin\'s' );
+		try {
+			const left = ( await listKeys( run, 'uploads/' ) ).length;
+			expect( left ).toBeGreaterThan( 0 );
+			await ui.goTab( page, base, 'sync' );
+			expect( await ui.targetFound( page ) ).toBe( left );
+			await expect( page.locator( '#start-sync-btn' ) ).toBeDisabled();
+
+			expect( await ui.emptyTarget( page, `${ run.container }-not-it` ) ).toMatch( /not the name/ );
+			expect( ( await listKeys( run, 'uploads/' ) ).length, 'a wrong name deletes nothing' ).toBe( left );
+
+			await page.locator( '#diluxone-offload-target-confirm' ).fill( run.container );
+			await page.locator( '#diluxone-offload-target-empty-go' ).click();
+			await expect( page.locator( '#diluxone-offload-target-status' ) ).toHaveText( new RegExp( `Done: ${ left } deleted` ), { timeout: 120_000 } );
+			await expect( page.locator( '#start-sync-btn' ) ).toBeEnabled();
+			expect( await listKeys( run, 'uploads/' ) ).toEqual( [] );
+			expect( await blobExists( run, outside ), 'nothing outside uploads/ was touched' ).toBe( true );
+
+			// Emptied, the next visit finds nothing and holds nothing.
+			await ui.goTab( page, base, 'sync' );
+			expect( await ui.passTargetCheck( page ) ).toBe( 'clear' );
+		} finally {
+			await deleteObject( run, outside );
+		}
 	} );
 
 	test( 'a key that stops working fails the sync visibly, and Retry finishes it once fixed', async ( { page } ) => {

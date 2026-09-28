@@ -854,6 +854,19 @@ class Admin {
 						'dev_mode_offloading_enabled_without_sync' => __( 'DEV MODE: Offloading enabled without sync!', 'diluxone-offload' ),
 						'dev_mode_disconnect_without_downloading_files' => __( 'DEV MODE: Disconnect without downloading files? This assumes local already has all files.', 'diluxone-offload' ),
 						'dev_mode_offloading_disabled_without_sync' => __( 'DEV MODE: Offloading disabled without sync!', 'diluxone-offload' ),
+						/* translators: 1: number of files, 2: their total size, 3: the folder (e.g. uploads/), 4: the container or bucket */
+						'target_found_one'                 => __( '%1$s file (%2$s) already sits under %3$s in %4$s, where this site\'s media goes.', 'diluxone-offload' ),
+						/* translators: 1: number of files, 2: their total size, 3: the folder (e.g. uploads/), 4: the container or bucket */
+						'target_found_many'                => __( '%1$s files (%2$s) already sit under %3$s in %4$s, where this site\'s media goes.', 'diluxone-offload' ),
+						/* translators: %s: error message */
+						'target_list_failed'               => __( 'What the container or bucket holds could not be checked (%s). The sync can still start; it reports what fails.', 'diluxone-offload' ),
+						/* translators: %s: number of files left */
+						'target_emptying'                  => __( 'Deleting… %s left.', 'diluxone-offload' ),
+						/* translators: %s: number of files deleted */
+						'target_emptied'                   => __( 'Done: %s deleted. The folder is empty; start the sync when you are ready.', 'diluxone-offload' ),
+						/* translators: 1: number of files deleted, 2: number that could not be, 3: the first error */
+						'target_empty_failed'              => __( '%1$s deleted, %2$s could not be (%3$s). Nothing else was touched; try again, or continue with what is left.', 'diluxone-offload' ),
+						'target_request_failed'            => __( 'The request failed. Nothing more was deleted; try again.', 'diluxone-offload' ),
 					),
 					'data' => array(
 						'current_state' => $template_data['current_state'] ?? null,
@@ -982,11 +995,10 @@ class Admin {
 
 				$current_state_cp = ConfigManager::get_state();
 
-				$template_data['current_state'] = $current_state_cp;
-				$template_data['is_configured'] = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
-				$template_data['health']        = ConfigManager::get_connection_health();
-				// Delete Provider is offered before offloading is active (disconnect first via Sync & Offloading › Disconnect).
-				$template_data['can_delete_provider'] = in_array( $current_state_cp, array( 'configured', 'syncing', 'synced' ), true );
+				$template_data['current_state']       = $current_state_cp;
+				$template_data['is_configured']       = ! in_array( $current_state_cp, array( 'not_configured', '' ), true );
+				$template_data['health']              = ConfigManager::get_connection_health();
+				$template_data['can_delete_provider'] = self::can_delete_provider( $current_state_cp );
 				$template_data['timestamps']          = ConfigManager::get_timestamps();
 				$template_data['screen_urls']         = self::screen_urls();
 				break;
@@ -2242,6 +2254,20 @@ class Admin {
 	}
 
 	/**
+	 * Whether the provider may be deleted in this state: only before
+	 * offloading is active, while every file still has its local copy
+	 * (disconnect first via Sync & Offloading › Disconnect). Deleting it
+	 * empties the tracking table, and an empty table is what lets the next
+	 * provider's container be emptied, so the cloud must not be the only copy.
+	 *
+	 * @param string $state Plugin state.
+	 * @return bool
+	 */
+	public static function can_delete_provider( string $state ): bool {
+		return in_array( $state, array( 'configured', 'syncing', 'synced' ), true );
+	}
+
+	/**
 	 * AJAX handler to remove provider configuration
 	 */
 	public static function ajax_remove_provider(): void {
@@ -2251,6 +2277,10 @@ class Admin {
 		// Check permissions
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions', 'diluxone-offload' ) ) );
+		}
+
+		if ( ! self::can_delete_provider( ConfigManager::get_state() ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'The provider can be deleted only before offloading is active; disconnect first.', 'diluxone-offload' ) ) );
 		}
 
 		try {

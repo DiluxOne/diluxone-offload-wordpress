@@ -374,4 +374,39 @@ class MultisiteTest extends IntegrationTestCase {
         $this->assertSame(1, (int) ($pending['files'] ?? 0));
         $this->assertSame(0, (int) DiluxOneOffloadDB::get_stats()['total_files'], 'and nothing landed in the main site\'s table');
     }
+
+    // ── A target that already holds files ───────────────────
+
+    public function test_the_main_site_inspects_uploads_without_the_other_sites(): void {
+        $client = $this->useFakeClient();
+        $client->blobs = [
+            'uploads/2025/01/main.jpg'     => str_repeat('m', 10),
+            'uploads/sites/7/2025/a.jpg'   => str_repeat('s', 99),
+        ];
+        $this->configureCurrentSite();
+        $found = (new SyncManager())->inspect_target();
+        $this->assertSame(['files' => 1, 'bytes' => 10], $found, 'another site\'s folder is not the main site\'s');
+    }
+
+    public function test_a_site_empties_its_own_folder_and_nothing_of_the_network(): void {
+        $client = $this->useFakeClient();
+        $client->blobs = [
+            'uploads/2025/01/main.jpg' => 'm',
+            'uploads/sites/7/old.jpg'  => 'x',
+        ];
+        $site = $this->createSite('ms-target-' . uniqid());
+        switch_to_blog($site);
+        $mine = 'uploads/sites/' . $site . '/2025/01/old.jpg';
+        $client->blobs[$mine] = 'o';
+        $this->configureCurrentSite();
+        $this->assertSame(1, (new SyncManager())->inspect_target()['files']);
+        $client->page_size = 1; // Page through the other sites' objects too.
+        $result = (new SyncManager())->empty_target(8.0);
+        restore_current_blog();
+        $this->assertSame(1, $result['deleted']);
+        $this->assertTrue($result['done']);
+        $this->assertArrayNotHasKey($mine, $client->blobs);
+        $this->assertArrayHasKey('uploads/2025/01/main.jpg', $client->blobs, 'the main site keeps its files');
+        $this->assertArrayHasKey('uploads/sites/7/old.jpg', $client->blobs, 'and so does every other site');
+    }
 }

@@ -124,6 +124,15 @@ export async function blobMd5( run: RealRun, key: string ): Promise< string > {
 	return run.s3 ? s3.objectMd5( run.s3, run.container, key ) : azure.blobMd5( run, key );
 }
 
+/** Put an object there as someone else would have: a bucket reused from another install. */
+export async function putObject( run: RealRun, key: string, body: string ): Promise< void > {
+	return run.s3 ? s3.putObject( run.s3, run.container, key, body ) : azure.putBlob( run, key, body );
+}
+
+export async function deleteObject( run: RealRun, key: string ): Promise< void > {
+	return run.s3 ? s3.deleteObject( run.s3, run.container, key ) : azure.deleteBlob( run, key );
+}
+
 export const fileMd5 = azure.fileMd5;
 
 // ── What the screens ask and show ───────────────────────
