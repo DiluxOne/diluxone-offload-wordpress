@@ -8,8 +8,9 @@ name: Release
 # merged. While
 # the newest changelog entry of readme.txt starts with the line `Unreleased.`
 # the version is not ready and nothing waits; once a pull request removed
-# that line, the job waits for approval in the environment `wordpress-org`,
-# then stamps, deploys, tags and creates the release. A tag X.Y.Z an
+# that line (and set the version markers to the version it releases), the
+# job waits for approval in the environment `wordpress-org`, then checks that
+# the markers say that version, deploys, tags and creates the release. A tag X.Y.Z an
 # administrator pushes by hand goes through the same job and must be that
 # computed version. Release tags are permanent: a failed deploy is fixed and
 # re-run, never re-tagged. See docs/release.md.
@@ -43,7 +44,7 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@244696d12727c4a415898ce1af79399ecaed43de # v2.2.0
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@bc17c89fcf6999dcab1a9df00527156e81091367 # v2.4.0 (DiluxOne/.github#12)
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
