@@ -2115,15 +2115,135 @@ jQuery(document).ready(function($) {
 		});
 	});
 
-	// Auto-start sync if coming from cloud-provider tab CTA
+	// ========================================================================
+	// Before the first sync: what the container or bucket already holds
+	// ========================================================================
+	// The callout exists only on the first Start Sync. The script lists this
+	// site's prefix (diluxone_offload_inspect_target); when something is
+	// there, Start Sync waits until the owner continues with it, empties it
+	// (typing the name) or goes to use another one. Resolves true when the
+	// sync may start right away.
+	var targetChecked = $.Deferred();
+	var $target = $('#diluxone-offload-target');
+
+	function targetText(pattern, values) {
+		var i = 0;
+		return pattern.replace(/%(\d)\$s|%s/g, function(m, n) {
+			return String(values[n ? parseInt(n, 10) - 1 : i++]);
+		});
+	}
+
+	function targetStatus(text) {
+		$('#diluxone-offload-target-status').text(text);
+	}
+
+	function releaseStart() {
+		$('#start-sync-btn').prop('disabled', false);
+	}
+
+	if ($target.length) {
+		var i18n = DiluxOneOffloadSync.i18n;
+		$('#start-sync-btn').prop('disabled', true);
+		$.post(ajaxurl, { action: 'diluxone_offload_inspect_target', nonce: diluxOneOffloadAdmin.nonce })
+			.done(function(response) {
+				if (!response.success) {
+					$target.prop('hidden', false).find('.diluxone-offload-target-actions, .description').not('#diluxone-offload-target-status').prop('hidden', true);
+					targetStatus(targetText(i18n.target_list_failed, [response.data || '']));
+					releaseStart();
+					targetChecked.resolve(false);
+					return;
+				}
+				var d = response.data;
+				if (!d.files) {
+					releaseStart();
+					targetChecked.resolve(true);
+					return;
+				}
+				$('#diluxone-offload-target-found').text(targetText(d.files === 1 ? i18n.target_found_one : i18n.target_found_many, [d.files, d.size, d.prefix, d.target]));
+				$target.prop('hidden', false);
+				targetChecked.resolve(false);
+			})
+			.fail(function() {
+				targetStatus(targetText(i18n.target_list_failed, ['HTTP']));
+				$target.prop('hidden', false);
+				releaseStart();
+				targetChecked.resolve(false);
+			});
+
+		$('#diluxone-offload-target-continue').on('click', function() {
+			$target.prop('hidden', true);
+			releaseStart();
+		});
+
+		$('#diluxone-offload-target-empty-open').on('click', function() {
+			$('#diluxone-offload-target-empty').prop('hidden', false);
+			$('#diluxone-offload-target-confirm').trigger('focus');
+		});
+
+		$('#diluxone-offload-target-confirm').on('input', function() {
+			$('#diluxone-offload-target-empty-go').prop('disabled', $(this).val() === '');
+		});
+
+		$('#diluxone-offload-target-empty-go').on('click', function() {
+			var $go = $(this);
+			var typed = $('#diluxone-offload-target-confirm').val();
+			var deleted = 0;
+			$go.prop('disabled', true);
+			$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', true);
+
+			(function round() {
+				$.post(ajaxurl, { action: 'diluxone_offload_empty_target', nonce: diluxOneOffloadAdmin.nonce, confirm: typed })
+					.done(function(response) {
+						if (!response.success) {
+							targetStatus(response.data || i18n.target_request_failed);
+							$go.prop('disabled', false);
+							$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', false);
+							return;
+						}
+						var r = response.data;
+						deleted += r.deleted;
+						if (r.failed > 0) {
+							targetStatus(targetText(i18n.target_empty_failed, [deleted, r.failed, (r.errors && r.errors[0]) || '']));
+							$go.prop('disabled', false);
+							$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', false);
+							return;
+						}
+						if (r.remaining > 0) {
+							targetStatus(targetText(i18n.target_emptying, [r.remaining]));
+							round();
+							return;
+						}
+						$('#diluxone-offload-target-found').text('');
+						$target.find('.diluxone-offload-target-actions, .description, #diluxone-offload-target-empty').not('#diluxone-offload-target-status').prop('hidden', true);
+						targetStatus(targetText(i18n.target_emptied, [deleted]));
+						releaseStart();
+					})
+					.fail(function() {
+						targetStatus(i18n.target_request_failed);
+						$go.prop('disabled', false);
+						$('#diluxone-offload-target-continue, #diluxone-offload-target-empty-open').prop('disabled', false);
+					});
+			})();
+		});
+	} else {
+		targetChecked.resolve(true);
+	}
+
+	// Auto-start sync if coming from cloud-provider tab CTA, once the target
+	// check said nothing is in the way; otherwise the owner decides first.
 	var urlParams = new URLSearchParams(window.location.search);
-	if (urlParams.get('auto-start') === '1' && $('#start-sync-btn').length && !$('#start-sync-btn').prop('disabled')) {
+	if (urlParams.get('auto-start') === '1' && $('#start-sync-btn').length) {
 		// Clean URL to prevent re-trigger on refresh
 		var cleanUrl = DiluxOneOffloadSync.data.urls.sync;
 		window.history.replaceState({}, '', cleanUrl);
-		// Trigger sync start after UI is ready
-		setTimeout(function() {
-			$('#start-sync-btn').trigger('click');
-		}, 500);
+		targetChecked.done(function(clear) {
+			if (!clear || $('#start-sync-btn').prop('disabled')) {
+				return;
+			}
+			// Trigger sync start after UI is ready
+			setTimeout(function() {
+				$('#start-sync-btn').trigger('click');
+			}, 500);
+		});
 	}
 });

@@ -854,6 +854,19 @@ class Admin {
 						'dev_mode_offloading_enabled_without_sync' => __( 'DEV MODE: Offloading enabled without sync!', 'diluxone-offload' ),
 						'dev_mode_disconnect_without_downloading_files' => __( 'DEV MODE: Disconnect without downloading files? This assumes local already has all files.', 'diluxone-offload' ),
 						'dev_mode_offloading_disabled_without_sync' => __( 'DEV MODE: Offloading disabled without sync!', 'diluxone-offload' ),
+						/* translators: 1: number of files, 2: their total size, 3: the folder (e.g. uploads/), 4: the container or bucket */
+						'target_found_one'                 => __( '%1$s file (%2$s) already sits under %3$s in %4$s, where this site\'s media goes.', 'diluxone-offload' ),
+						/* translators: 1: number of files, 2: their total size, 3: the folder (e.g. uploads/), 4: the container or bucket */
+						'target_found_many'                => __( '%1$s files (%2$s) already sit under %3$s in %4$s, where this site\'s media goes.', 'diluxone-offload' ),
+						/* translators: %s: error message */
+						'target_list_failed'               => __( 'What the container or bucket holds could not be checked (%s). The sync can still start; it reports what fails.', 'diluxone-offload' ),
+						/* translators: %s: number of files left */
+						'target_emptying'                  => __( 'Deleting… %s left.', 'diluxone-offload' ),
+						/* translators: %s: number of files deleted */
+						'target_emptied'                   => __( 'Done: %s deleted. The folder is empty; start the sync when you are ready.', 'diluxone-offload' ),
+						/* translators: 1: number of files deleted, 2: number that could not be, 3: the first error */
+						'target_empty_failed'              => __( '%1$s deleted, %2$s could not be (%3$s). Nothing else was touched; try again, or continue with what is left.', 'diluxone-offload' ),
+						'target_request_failed'            => __( 'The request failed. Nothing more was deleted; try again.', 'diluxone-offload' ),
 					),
 					'data' => array(
 						'current_state' => $template_data['current_state'] ?? null,

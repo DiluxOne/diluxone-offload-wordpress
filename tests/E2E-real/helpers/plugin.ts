@@ -94,11 +94,49 @@ export async function saveProvider( page: Page ): Promise< void > {
 }
 
 /**
+ * Before the first sync the Sync tab checks what the container or bucket
+ * already holds under this site's folder, and holds Start Sync while it
+ * looks. Wait for the verdict; when files are there, continue with them (the
+ * journeys that are not about this check keep going as they did).
+ */
+export async function passTargetCheck( page: Page ): Promise< 'clear' | 'continued' | 'none' > {
+	const callout = page.locator( '#diluxone-offload-target' );
+	if ( ! ( await callout.count() ) ) return 'none';
+	const start = page.locator( '#start-sync-btn' );
+	const found = page.locator( '#diluxone-offload-target-continue' );
+	await expect( start.and( page.locator( ':enabled' ) ).or( found.and( page.locator( ':visible' ) ) ).first() ).toBeVisible( { timeout: 60_000 } );
+	if ( await found.isVisible() ) {
+		await found.click();
+		await expect( start ).toBeEnabled();
+		return 'continued';
+	}
+	return 'clear';
+}
+
+/** What the callout says it found: the number of files. */
+export async function targetFound( page: Page ): Promise< number > {
+	const text = page.locator( '#diluxone-offload-target-found' );
+	await expect( text ).toHaveText( /\d+ files? \(/, { timeout: 60_000 } );
+	return Number( ( await text.innerText() ).match( /(\d[\d,.]*) files?/ )?.[ 1 ].replace( /\D/g, '' ) );
+}
+
+/** Empty this site's folder from the callout, typing `name`; resolves with the status line it ends on. */
+export async function emptyTarget( page: Page, name: string ): Promise< string > {
+	await page.locator( '#diluxone-offload-target-empty-open' ).click();
+	await page.locator( '#diluxone-offload-target-confirm' ).fill( name );
+	await page.locator( '#diluxone-offload-target-empty-go' ).click();
+	const status = page.locator( '#diluxone-offload-target-status' );
+	await expect( status ).toHaveText( /Done:|not the name|could not be|failed/, { timeout: LONG } );
+	return status.innerText();
+}
+
+/**
  * Start (or continue) the sync from the Sync tab and wait for the completion
  * summary. Returns 'success' | 'errors' | 'failed' by which button the modal
  * ends with.
  */
 export async function runSyncToCompletion( page: Page, mode: 'scratch' | 'continue' = 'scratch' ): Promise< 'success' | 'errors' | 'failed' > {
+	await passTargetCheck( page );
 	await page.locator( '#start-sync-btn' ).click();
 	await expect( page.locator( '#sync-modal' ) ).toBeVisible();
 	await confirmSyncOptions( page, mode );
@@ -184,6 +222,7 @@ async function slowBatchesAfterTheFirst( page: Page, action: string ): Promise< 
 /** Start a sync and cancel it from the progress modal as soon as one file has been processed. */
 export async function startSyncAndCancel( page: Page ): Promise< void > {
 	await slowBatchesAfterTheFirst( page, 'diluxone_offload_process_batch' );
+	await passTargetCheck( page );
 	await page.locator( '#start-sync-btn' ).click();
 	await expect( page.locator( '#scratch-upload-btn' ) ).toBeVisible( { timeout: 60_000 } );
 	await page.locator( '#scratch-upload-btn' ).click();

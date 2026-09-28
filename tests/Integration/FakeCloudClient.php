@@ -32,6 +32,12 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var string|null When set, verify_upload_response() refuses every upload with this line. */
     public ?string $upload_verdict = null;
 
+    /** @var string|null When set, list_files() throws with this message. */
+    public ?string $list_error = null;
+
+    /** @var string[] Remote paths delete_file() refuses (HTTP 403). */
+    public array $undeletable = [];
+
     /** @var int Download handles handed out (one per attempted download). */
     public int $downloads = 0;
 
@@ -85,6 +91,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
 
     public function delete_file(string $remote_path): array {
         $key = ltrim($remote_path, '/');
+        if (in_array($key, $this->undeletable, true)) {
+            return ['success' => false, 'error' => 'HTTP 403 fake refusal'];
+        }
         unset($this->blobs[$key]);
         $this->deleted[] = $key;
         return ['success' => true, 'error' => ''];
@@ -100,6 +109,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
     }
 
     public function list_files(string $remote_path = ''): array {
+        if (null !== $this->list_error) {
+            throw new \Exception($this->list_error);
+        }
         $out = [];
         foreach ($this->blobs as $path => $content) {
             if ($remote_path === '' || strpos($path, ltrim($remote_path, '/')) === 0) {

@@ -1503,6 +1503,95 @@ class SyncManager {
 	}
 
 	/**
+	 * Whether the target has not been touched by this site yet: a provider is
+	 * configured, no sync has run and the tracking table is empty. Only then
+	 * is what sits under this site's prefix somebody else's (an earlier
+	 * install, a staging copy), and only then may it be inspected or emptied.
+	 *
+	 * @return bool
+	 */
+	public static function target_untouched(): bool {
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+		return PluginState::CONFIGURED === ConfigManager::get_state()
+			&& 0 === (int) ( DiluxOneOffloadDB::get_stats()['total_files'] ?? 0 );
+	}
+
+	/**
+	 * The name of the container or bucket the provider writes to, the one the
+	 * owner types to confirm emptying it.
+	 *
+	 * @return string '' when no provider is configured.
+	 */
+	public static function target_name(): string {
+		$pc = ConfigManager::get_config()['provider_config'] ?? array();
+		return (string) ( $pc['bucket'] ?? $pc['container_name'] ?? '' );
+	}
+
+	/**
+	 * What already sits under this site's prefix in the container or bucket:
+	 * how many objects and how many bytes. Only this site's objects count
+	 * (the main site of a network leaves out `uploads/sites/`).
+	 *
+	 * @return array{files: int, bytes: int}
+	 * @throws \Exception When the listing fails (the caller reports it).
+	 */
+	public function inspect_target(): array {
+		if ( ! $this->cloud_client ) {
+			throw new \Exception( 'Cloud client not configured' );
+		}
+		$files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
+		$bytes = 0;
+		foreach ( $files as $file ) {
+			$bytes += (int) ( $file['size'] ?? 0 );
+		}
+		return array(
+			'files' => count( $files ),
+			'bytes' => $bytes,
+		);
+	}
+
+	/**
+	 * Delete what sits under this site's prefix, for as long as the time
+	 * budget lasts; the browser asks again until nothing is left. Nothing
+	 * outside the prefix is touched: other sites of a network, other folders.
+	 *
+	 * @param float $time_limit Seconds this request may spend deleting.
+	 * @return array{deleted: int, failed: int, remaining: int, errors: string[]}
+	 * @throws \Exception When the listing fails.
+	 */
+	public function empty_target( float $time_limit ): array {
+		if ( ! $this->cloud_client ) {
+			throw new \Exception( 'Cloud client not configured' );
+		}
+		$start   = microtime( true );
+		$files   = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
+		$deleted = 0;
+		$failed  = 0;
+		$errors  = array();
+		foreach ( $files as $file ) {
+			$result = $this->cloud_client->delete_file( (string) $file['path'] );
+			if ( ! empty( $result['success'] ) ) {
+				++$deleted;
+			} else {
+				++$failed;
+				if ( count( $errors ) < 5 ) {
+					$errors[] = (string) $file['path'] . ': ' . (string) ( $result['error'] ?? 'unknown error' );
+				}
+			}
+			if ( microtime( true ) - $start >= $time_limit ) {
+				break;
+			}
+		}
+		Logger::info( '[DiluxOne Offload SyncManager] Emptying the target: ' . $deleted . ' deleted, ' . $failed . ' failed, ' . ( count( $files ) - $deleted ) . ' left.' );
+		return array(
+			'deleted'   => $deleted,
+			'failed'    => $failed,
+			'remaining' => count( $files ) - $deleted,
+			'errors'    => $errors,
+		);
+	}
+
+	/**
 	 * Process one batch of the reverse sync (cloud → local).
 	 *
 	 * This is "Disconnect from Cloud": the site's own attachments are copied

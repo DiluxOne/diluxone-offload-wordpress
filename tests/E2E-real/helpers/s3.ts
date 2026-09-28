@@ -7,6 +7,8 @@ import {
 	DeleteObjectsCommand,
 	HeadObjectCommand,
 	GetObjectCommand,
+	PutObjectCommand,
+	DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { createHash } from 'node:crypto';
 
@@ -145,4 +147,13 @@ export async function objectMd5( target: S3Target, bucket: string, key: string )
 	const object = await client( target ).send( new GetObjectCommand( { Bucket: bucket, Key: key } ) );
 	const bytes = await ( object.Body as { transformToByteArray(): Promise< Uint8Array > } ).transformToByteArray();
 	return createHash( 'md5' ).update( bytes ).digest( 'hex' );
+}
+
+/** An object put there by someone else: what a reused bucket already holds. */
+export async function putObject( target: S3Target, bucket: string, key: string, body: string ): Promise< void > {
+	await client( target ).send( new PutObjectCommand( { Bucket: bucket, Key: key, Body: body } ) );
+}
+
+export async function deleteObject( target: S3Target, bucket: string, key: string ): Promise< void > {
+	await client( target ).send( new DeleteObjectCommand( { Bucket: bucket, Key: key } ) );
 }
