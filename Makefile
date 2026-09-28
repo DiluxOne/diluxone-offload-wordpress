@@ -134,7 +134,8 @@ DIST_DIR := build/diluxone-offload
 # A build that is not a release carries the version that is coming,
 # <next>-dev.<N>: <next> from the type labels of what merged since the last
 # tag (the organisation's next-version.py), N the commits since it. The
-# working tree is never touched; main stays at the last released version.
+# working tree is never touched; main's markers say the last released
+# version, or the one being released once its release pull request merged.
 # STAMP=0 leaves the copy as the tree is (Plugin Check runs that way, like
 # CI) and needs neither the script nor the network. The stamp uses GNU sed
 # (Linux, WSL); on macOS install gnu-sed or build with STAMP=0.

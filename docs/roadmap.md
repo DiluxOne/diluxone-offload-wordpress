@@ -12,13 +12,13 @@ What DiluxOne Offload does, what is paid, what comes next and what it will not d
 
 ## Paid, outside the plugin
 
-- **DiluxOne hosted sync service** (in preparation, monthly fee): <https://diluxone.com/plugins-wordpress/dilux-offload/>. The plugin does not need it and nothing in the plugin is unlocked by it; until 4.0.0 connects it as one more provider, the plugin never contacts it. A report that something "does not work" because it needs this service is not a bug: it is this line.
+- **DiluxOne hosted sync service** (in preparation, monthly fee): <https://diluxone.com/plugins-wordpress/dilux-offload/>. The plugin does not need it and nothing in the plugin is unlocked by it; until 5.0.0 connects it as one more provider, the plugin never contacts it. A report that something "does not work" because it needs this service is not a bug: it is this line.
 
 ## Next: one thing per version
 
-Each version does one big thing, ships on its own and is usable without the next one. `main` stays publishable between steps; a fix found on the way ships as a patch of the current version without waiting. The plan 2.0.0 was built from is [`plans/2.0.0.md`](plans/2.0.0.md); each later version gets its plan before its code.
+Each version does one big thing, ships on its own and is usable without the next one. Numbering follows the DiluxOne policy ([`release.md`](release.md#versions)): the minors below improve what exists, and each major is a new capability (none of them breaks anything; if one ever has to, it is announced in a minor first). `main` stays publishable between steps; a fix found on the way ships as a patch of the current version without waiting. The plan 2.0.0 was built from is [`plans/2.0.0.md`](plans/2.0.0.md); each later version gets its plan before its code.
 
-### 2.0.0: S3-compatible storage (ready, September 2026)
+### 2.0.0: S3-compatible storage (released 28 September 2026)
 
 1. **Tests for the settings' effects.** The suites check what Maximum File Size, Transfer Timeout, Force HTTPS and debug logging do, not only that they are saved. The timeout governs every upload request; downloads wait at least 300 seconds, or the setting when it is higher.
 2. **The admin, remodelled.** One menu with a screen per submenu (Overview, Cloud Provider, Sync & Offloading, Settings, Status) and tabs only where a screen has a second level; a column on the right with the state of this site; honest figures on an offloaded site; a Connection Health table with "Check now"; buttons with their icon and label aligned; the provider's actions as buttons on Cloud Provider › Connection.
@@ -27,7 +27,6 @@ Each version does one big thing, ships on its own and is usable without the next
 ### 2.1.0: safer targets, and the look
 
 - Before the first sync, the plugin lists the container or bucket it is about to use; if it already holds files it says how many and how much, and offers to empty it (confirmed by typing its name) or to pick another. Nothing is deleted without that confirmation.
-- **Disconnect** brings back only the files this site put in the cloud, never whatever else sits under `uploads/` in the same container or bucket.
 - The rest of the look and feel pass: the modals and big buttons on WordPress' own button styles and sizes across every screen.
 
 ### 2.2.0: speed and more services
@@ -37,19 +36,19 @@ Each version does one big thing, ships on its own and is usable without the next
 
 ### 2.3.0: the options around the provider
 
-Small settings the remodelled screens have room for: a browser-caching header on upload (`Cache-Control`, one week by default, new uploads only), path prefixes skipped by the initial sync, an e-mail to the administrator when the connection fails three times and when it recovers, a section and a test in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool).
+Small settings the remodelled screens have room for: a browser-caching header on upload (`Cache-Control`, configurable and off-able, one week by default, new uploads only), path prefixes skipped by the initial sync, an e-mail to the administrator when the connection fails three times and when it recovers, a section and a test in Tools › Site Health, storage class (Amazon S3, Cloudflare R2) and access tier (Azure, Hot or Cool) for new uploads, changeable at any time, offering only the classes that serve media at once (never an archive tier).
 
 ### 3.0.0: migrating between providers
 
 More than one provider saved (tested, one of them active), and **Migrate to…**: every file copied from the active provider to another, with the same progress window as the sync (cancel, resume, verified byte for byte); offloading cannot be switched while it runs; when the copy is complete the other provider becomes the active one, and the old one keeps its files until they are deleted by hand. A permanent mirror to a second provider (a backup queue) is not part of it.
 
-### 4.0.0: DiluxOne Storage
-
-The DiluxOne subscription storage as one more provider next to Azure and the S3 family, when its API exists. Azure and S3 stay complete and free; nothing in the plugin is unlocked by the subscription, and the service is disclosed under External services like every other.
-
-### 5.0.0: Google Cloud Storage, native
+### 4.0.0: Google Cloud Storage, native
 
 Service-account JSON and the JSON API, the way Google users expect to authenticate. Google works through the S3-compatible provider (HMAC keys) from 2.0.0.
+
+### 5.0.0: DiluxOne Storage
+
+The DiluxOne subscription storage as one more provider next to Azure and the S3 family, when its API exists. Azure and S3 stay complete and free; nothing in the plugin is unlocked by the subscription, and the service is disclosed under External services like every other.
 
 ### 6.0.0: Filenames
 

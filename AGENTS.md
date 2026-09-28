@@ -67,21 +67,28 @@ What you must do, and never do, in a change:
 - **The version is computed, never typed.** The `type:*` label the review
   sets on each merged pull request gives the next number (`breaking` →
   major, `feat` → minor, `fix`/`perf` → patch); a maintainer's `version:*`
-  label wins. `main` keeps the last released version in its three markers.
+  label wins, and `version:major` is how a big new capability becomes a
+  major ([`docs/release.md`](docs/release.md#versions)). A breaking change
+  ships only in a major. The three version markers say the last version
+  released, or, from its release pull request on, the one being released;
+  CI holds every pull request to that.
 - **Write the changelog in the same pull request.** A change a user notices
   adds one bullet under the newest `= X.Y.Z =` entry of `readme.txt`, below
   its first line `Unreleased.`, written for users.
 - **The line `Unreleased.` is the release switch.** While it is there, every
   push to `main` ends green as **Not ready** and nothing waits for approval.
   The pull request that removes it is the maintainer's decision to release
-  and contains nothing else. Never remove it as part of another change.
+  and contains nothing else but the version markers set to that version
+  (`scripts/release-markers.sh prepare` in DiluxOne/.github). Never remove
+  it as part of another change.
 - **Every push to `main` publishes a development build**, the shipped tree
   stamped `<next>-dev.<N>`, as the one **Development build** pre-release in
   Releases (tag `dev`, replaced each time, never "Latest"). That is how a
   change is tried before a release; `make dist` builds the same locally.
   Never create, move or delete the tag `dev` by hand: the pipeline owns it.
 - **Publishing is a deployment a maintainer approves** in the `wordpress-org`
-  environment; the job then stamps, deploys, tags and creates the release.
+  environment; the job then checks the markers, deploys, tags and creates
+  the release.
   No agent does any of that by hand. An administrator may still push a tag
   `X.Y.Z`; it only types the version and goes through the same job, which
   refuses anything but the computed, ready version.
@@ -94,10 +101,10 @@ What you must do, and never do, in a change:
   the plugin to every WordPress site; release tags are permanent
   ([`docs/release.md`](docs/release.md)).
 - **Never** bump the version markers, and never remove the `Unreleased.`
-  line of the newest changelog entry unless the maintainer asked for that
-  release. `main` keeps the last released version; the next one is computed
-  from the `type:*` labels of what merged and stamped by the release job and
-  by development builds ([`docs/release.md`](docs/release.md)).
+  line of the newest changelog entry, unless the maintainer asked for that
+  release: then both go in one pull request of their own. The next version
+  is computed from the `type:*` labels of what merged; development builds
+  stamp their own copies ([`docs/release.md`](docs/release.md)).
 - **Never** commit secrets: no `.env*`, no storage keys, no SVN password. The
   real-storage suite reads its key from the environment or a git-ignored
   `.env.e2e`.
