@@ -51,7 +51,8 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make dist` | Build `build/diluxone-offload/`, what wordpress.org receives, stamped with the development version (`<next>-dev.<N>`, see [`release.md`](release.md#development-builds)) and the commit it was built from; the same build every push to `main` publishes as the **Development build** pre-release. `STAMP=0` leaves the tree's own version. |
 | `make plugin-check` | wordpress.org's Plugin Check on the built dist. |
 | `make review-local` | The pull request's conventions, risk floor and Claude review, before the pull request exists (`REVIEW_ARGS="--body-file pr.md"`, `--title`, `--no-claude`). Clones [DiluxOne/.github](https://github.com/DiluxOne/.github) into `build/.dx-central`; `REVIEW_CENTRAL=<path>` uses your own checkout. |
-| `make pre-pr` | `make check`, the integration suite, Plugin Check and `make review-local`, in that order. |
+| `make docs-check` | What CI's docs job checks: relative links in every Markdown file resolve (lychee, the version CI runs) and no retired product name is back. |
+| `make pre-pr` | One after the other: `make check`, `make test-unit-min` (PHP 7.4), `make docs-check`, the integration suite, the end-to-end suite, Plugin Check and `make review-local`. Needs `make env` and `make env-multisite`. |
 | `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, stamped like `make dist`, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
 | `make release` | `make check` plus a version-alignment dry-run; fails if the PHP `Version:` header and the `readme.txt` `Stable tag:` would not match at tag time. |
 | `make clean` | Wipe caches and build artefacts. |

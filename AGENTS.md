@@ -26,9 +26,11 @@ so it is reviewed on GitHub once. Every push to an open pull request is a
 paid review and a round of waiting.
 
 1. **Set up once.** You need Docker, Node.js (for `npx`), GNU make and git,
-   and the Claude Code CLI for step 6; no PHP on the host. `make install` puts the dev tools in `vendor/`, `make env`
-   starts WordPress at http://localhost:8888 (admin / password) with the
-   plugin mounted, `make env-multisite` turns the tests site into a network.
+   and the Claude Code CLI for step 6; no PHP on the host. Then run
+   `make install` (the dev tools, in `vendor/`), `make env` (WordPress at
+   http://localhost:8888, admin / password, with the plugin mounted; a
+   second site at :8889 for the tests) and `make env-multisite` (turns that
+   second site into a network). After a restart, `make env` again.
 2. **Branch from `main`:** `<type>/<kebab-case>` (see the rules below).
 3. **Make the change** with its tests at every layer it touches (unit,
    integration, end-to-end, and the real-storage suites when storage
@@ -44,14 +46,18 @@ paid review and a round of waiting.
    ```bash
    make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
    ```
-   It runs `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests),
-   the integration suite, wordpress.org's Plugin Check and the local review:
-   the same conventions, risk floor and Claude review the pull request will
-   get, from the organisation's shared scripts
+   One after the other, it runs what a pull request is checked on:
+   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the unit
+   tests again on PHP 7.4, the minimum (`make test-unit-min`), the docs
+   check (`make docs-check`: links resolve, no retired product name), the
+   integration suite, the end-to-end suite, wordpress.org's Plugin Check,
+   and the local review: the same conventions, risk floor and Claude review
+   the pull request will get, from the organisation's shared scripts
    ([DiluxOne/.github](https://github.com/DiluxOne/.github)), on your own
-   Claude account. `make review-local` runs the last step alone. When the
-   change touches a screen or a flow, run `make test-e2e` too (and
-   `make screenshots` when a listing screen changes); when it touches
+   Claude account. Any step can run alone (`make review-local` is the last
+   one). Only two things stay on GitHub: the unit tests on PHP 8.0 to 8.5
+   and the real-storage suites. Run `make screenshots` when a listing screen
+   changes; when the change touches
    storage, the real-storage journeys against a local S3 server need no
    keys: `make s3-up && make test-real REAL_PROVIDER=s3` (`s3-up` adds one
    line to `/etc/hosts` the first time, with sudo).
