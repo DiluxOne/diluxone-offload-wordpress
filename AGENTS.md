@@ -54,8 +54,11 @@ paid review and a round of waiting.
    and the local review: the same conventions, risk floor and Claude review
    the pull request will get, from the organisation's shared scripts
    ([DiluxOne/.github](https://github.com/DiluxOne/.github)), on your own
-   Claude account. Any step can run alone (`make review-local` is the last
-   one). Only two things stay on GitHub: the unit tests on PHP 8.0 to 8.5
+   Claude account (it uses that account's quota, like any Claude Code
+   session). Any step can run alone (`make review-local` is the last one).
+   A change to docs only (Markdown, `docs/`, no code) needs just
+   `make docs-check` and `make review-local`: on GitHub such a pull request
+   skips the slow suites too. Only two things stay on GitHub: the unit tests on PHP 8.0 to 8.5
    and the real-storage suites. Run `make screenshots` when a listing screen
    changes; when the change touches
    storage, the real-storage journeys against a local S3 server need no
