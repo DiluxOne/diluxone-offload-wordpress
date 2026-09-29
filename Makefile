@@ -351,6 +351,7 @@ LYCHEE_IMAGE ?= lycheeverse/lychee:0.24.2
 docs-check: ## Relative links in every Markdown file resolve, and no retired product name is back (what CI's docs job checks).
 	docker run --rm -v "$(CURDIR)":/input -w /input $(LYCHEE_IMAGE) --offline --no-progress --exclude-path node_modules --exclude-path vendor --exclude-path build './**/*.md' './.github/**/*.md'
 	@retired=$$(sed -n "s/.*retired-names: '\(.*\)'.*/\1/p" .github/workflows/pull-request.yml | head -1); \
+	[ -n "$$retired" ] || { echo "No retired-names: line in .github/workflows/pull-request.yml to check against."; exit 1; }; \
 	if git grep -nIiE "$$retired" -- . | grep -vE '^[^:]+:[0-9]+:\s*retired-names:'; then echo "A retired product name is back (see above)."; exit 1; fi; \
 	echo "No retired product names."
 

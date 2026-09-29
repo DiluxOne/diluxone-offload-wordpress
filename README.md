@@ -47,6 +47,7 @@ git clone https://github.com/DiluxOne/diluxone-offload-wordpress.git
 cd diluxone-offload-wordpress
 make install    # dev tools into vendor/ (Docker and Node.js; no PHP needed on your machine)
 make env        # WordPress at http://localhost:8888, admin / password
+make env-multisite  # the tests site as a network, for the multisite tests
 # make the change, commit, write the description in build/pr.md, then:
 make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
 ```
