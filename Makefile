@@ -348,7 +348,7 @@ pre-pr: ## Everything a pull request is checked on that runs without a cloud acc
 	$(MAKE) test-integration
 	$(MAKE) plugin-check
 	$(MAKE) review-local
-	@echo "✔ Ready for a pull request."
+	@echo "✔ Checks passed; the review above says whether the branch is ready for a pull request."
 
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up

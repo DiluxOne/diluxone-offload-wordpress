@@ -1,9 +1,11 @@
 # AGENTS.md
 
 Instructions for any coding agent working in this repository (Claude Code,
-Codex, Cursor, …). Humans: the same rules live in
-[`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/ai.md`](docs/ai.md);
-this file is the short version an agent must follow without exception.
+Codex, Cursor, …), and for the person it works with. If someone just cloned
+this repository and asked you to read this file: start with "Your workflow"
+below and follow it step by step. Humans: the same rules live in
+[`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/ai.md`](docs/ai.md); this file
+is the short version an agent must follow without exception.
 
 ## What this is
 
@@ -15,6 +17,59 @@ and review priorities: [`docs/architecture.md`](docs/architecture.md).
 The repository is `diluxone-offload-wordpress`; the slug and text domain are
 `diluxone-offload`. Before touching a path or a workflow, check which of the
 two it needs ([`docs/development.md`](docs/development.md#the-repository-name-is-not-the-plugin-slug)).
+
+## Your workflow
+
+Everything a pull request is checked on can run on this machine, and it runs
+here first: a pull request is opened only when the branch is already clean,
+so it is reviewed on GitHub once. Every push to an open pull request is a
+paid review and a round of waiting.
+
+1. **Set up once.** You need Docker, Node.js (for `npx`), GNU make and git,
+   and the Claude Code CLI for step 6; no PHP on the host. `make install` puts the dev tools in `vendor/`, `make env`
+   starts WordPress at http://localhost:8888 (admin / password) with the
+   plugin mounted, `make env-multisite` turns the tests site into a network.
+2. **Branch from `main`:** `<type>/<kebab-case>` (see the rules below).
+3. **Make the change** with its tests at every layer it touches (unit,
+   integration, end-to-end, and the real-storage suites when storage
+   behaviour changes), the docs that describe it, and, when a user notices
+   it, one bullet under the newest `= X.Y.Z =` entry of `readme.txt`, below
+   its `Unreleased.` line.
+4. **Commit** with Conventional Commit headers of at most 100 characters.
+5. **Write the pull request description** in a file, say `build/pr.md`
+   (git-ignored), with the template's sections
+   ([`.github/pull_request_template.md`](.github/pull_request_template.md)):
+   📝 What changes and 💡 Why are required.
+6. **Run everything:**
+   ```bash
+   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
+   ```
+   It runs `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests),
+   the integration suite, wordpress.org's Plugin Check and the local review:
+   the same conventions, risk floor and Claude review the pull request will
+   get, from the organisation's shared scripts
+   ([DiluxOne/.github](https://github.com/DiluxOne/.github)), on your own
+   Claude account. `make review-local` runs the last step alone. When the
+   change touches a screen or a flow, run `make test-e2e` too (and
+   `make screenshots` when a listing screen changes); when it touches
+   storage, the real-storage journeys against a local S3 server need no
+   keys: `make s3-up && make test-real REAL_PROVIDER=s3` (`s3-up` adds one
+   line to `/etc/hosts` the first time, with sudo).
+7. **Fix what it found.** The review writes `.git/dx-review/findings.md`: a
+   list with the file and line of each finding. Fix every blocker and major
+   (and the minors that are cheap), commit, and run step 6 again: the next
+   run reviews only what changed and says which findings are fixed. Repeat
+   until it says **Ready for a pull request**.
+8. **Only then push and open the pull request**, with that title and that
+   description, and only when the person you work for says so. On GitHub the
+   same review runs again, the end-to-end suite and the real-storage suites
+   run too (they need the repository's keys; forks get them after the merge).
+   If the review there leaves findings, fix them all locally, run step 6, and
+   push once.
+
+What cannot run here without keys: the real-storage suites against Azure,
+R2, Google and Backblaze B2. A maintainer with the keys runs them with
+`make test-real` ([`docs/testing-and-quality.md`](docs/testing-and-quality.md)).
 
 ## How work reaches `main`
 
@@ -38,18 +93,7 @@ workflow from `DiluxOne/.github`); a PR that breaks one cannot merge.
   `🤖 AI-generated · <model> (Anthropic)` (`AI-assisted` when a person wrote
   it with your help). Never "Generated with …": CI rejects it.
 
-## Before you push
-
-```bash
-make check               # PHPCS, PHPStan level 8, Psalm taint, unit tests
-make test-integration    # needs make env
-make plugin-check        # wordpress.org's Plugin Check on the built dist
-make review-local REVIEW_ARGS="--body-file pr.md"   # the pull request's review, before it exists
-```
-
-`make pre-pr` runs the four in order. Push, open a pull request or re-run a
-workflow only when the maintainer asks: every push to an open pull request
-is a paid review, so the branch arrives with the local review clean.
+## Tests and checks
 
 A change carries its tests at every layer it touches, in the same pull
 request: unit, integration, end-to-end without a cloud account, the
