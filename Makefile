@@ -342,13 +342,29 @@ review-local: ## The pull request's review before it exists: conventions, risk f
 	fi
 	bash "$(REVIEW_CENTRAL)/scripts/local-review.sh" $(REVIEW_ARGS)
 
+# The docs job of the conventions workflow, the same checks locally: relative
+# links resolve (lychee, the version lychee-action runs in CI) and no retired
+# product name comes back (the regex the workflow passes, read from it).
+LYCHEE_IMAGE ?= lycheeverse/lychee:0.24.2
+
+.PHONY: docs-check
+docs-check: ## Relative links in every Markdown file resolve, and no retired product name is back (what CI's docs job checks).
+	docker run --rm -v "$(CURDIR)":/input -w /input $(LYCHEE_IMAGE) --offline --no-progress --exclude-path node_modules --exclude-path vendor --exclude-path build './**/*.md' './.github/**/*.md'
+	@retired=$$(sed -n "s/.*retired-names: '\(.*\)'.*/\1/p" .github/workflows/pull-request.yml | head -1); \
+	[ -n "$$retired" ] || { echo "No retired-names: line in .github/workflows/pull-request.yml to check against."; exit 1; }; \
+	if git grep -nIiE "$$retired" -- . | grep -vE '^[^:]+:[0-9]+:\s*retired-names:'; then echo "A retired product name is back (see above)."; exit 1; fi; \
+	echo "No retired product names."
+
 .PHONY: pre-pr
-pre-pr: ## Everything a pull request is checked on that runs without a cloud account, one after the other, then the local review (needs `make env`).
+pre-pr: ## Everything a pull request is checked on that runs without a cloud account, one after the other, then the local review (needs `make env` and `make env-multisite`).
 	$(MAKE) check
+	$(MAKE) test-unit-min
+	$(MAKE) docs-check
 	$(MAKE) test-integration
+	$(MAKE) test-e2e
 	$(MAKE) plugin-check
 	$(MAKE) review-local
-	@echo "✔ Ready for a pull request."
+	@echo "✔ Checks passed; the review above says whether the branch is ready for a pull request."
 
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up
