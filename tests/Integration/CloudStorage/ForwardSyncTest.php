@@ -237,6 +237,62 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame($cap, $r['uploaded_this_batch'], 'one round uploads exactly batch_size files');
     }
 
+    /** How much one round may take grows with the parallelism, never under the 12 MB it always had. */
+    public function test_a_round_takes_five_megabytes_per_parallel_slot(): void {
+        $sm = new SyncManager();
+        foreach ([3 => 15, 5 => 25, 20 => 100, 40 => 200] as $level => $mb) {
+            $sm->set_parallel_uploads($level);
+            $this->assertSame($mb * 1024 * 1024, $sm->round_bytes(), "parallelism $level");
+        }
+    }
+
+    /**
+     * What made a sync start slow: largest first, 12 MB a round, so a library
+     * that starts with videos uploaded one of them per round while the other
+     * slots waited. Now the first round holds a large file and small ones,
+     * one per slot.
+     */
+    public function test_a_library_that_starts_with_large_files_fills_every_slot_in_the_first_round(): void {
+        global $wpdb;
+        $this->configure(['allowed_file_types' => 'mix']);
+        for ($i = 0; $i < 3; $i++) {
+            $this->fixture("mix/video{$i}.mix", 'v');
+        }
+        for ($i = 0; $i < 8; $i++) {
+            $this->fixture("mix/thumb{$i}.mix", 't');
+        }
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        // The tracking table says what a file weighs; make the videos 20 MB.
+        $wpdb->query($wpdb->prepare('UPDATE ' . DB::get_table_name() . ' SET size = %d WHERE file LIKE %s', 20 * 1024 * 1024, '%/video%'));
+
+        $r = $sm->process_batch(0.0);
+        $this->assertSame(5, $r['uploaded_this_batch'], 'one video and four small files: every one of the 5 slots busy');
+        $synced = $wpdb->get_col('SELECT file FROM ' . DB::get_table_name() . ' WHERE synced = 1');
+        $this->assertCount(1, array_filter($synced, fn($f) => strpos($f, '/video') !== false), 'a 25 MB round holds one 20 MB video');
+    }
+
+    /** A round larger than the pool: every file goes through the slots, a missing one fails alone. */
+    public function test_a_round_larger_than_the_pool_uploads_every_file_and_fails_only_the_missing_one(): void {
+        global $wpdb;
+        $this->configure(['allowed_file_types' => 'pool']);
+        for ($i = 0; $i < 12; $i++) {
+            $this->fixture("pool/f{$i}.pool", str_repeat('p', 10 + $i));
+        }
+        $sm = new SyncManager();
+        $sm->set_parallel_uploads(3);
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        unlink($this->base . '/pool/f5.pool');
+
+        $r = $sm->process_batch(0.0);
+        $this->assertSame(11, $r['uploaded_this_batch']);
+        $failed = $wpdb->get_results('SELECT file, error_message FROM ' . DB::get_table_name() . ' WHERE synced = 0', ARRAY_A);
+        $this->assertCount(1, $failed);
+        $this->assertStringEndsWith('/pool/f5.pool', $failed[0]['file']);
+        $this->assertStringContainsString('File not found', (string) $failed[0]['error_message']);
+    }
+
     public function missingBasedir(array $dirs): array {
         $dirs['basedir'] = '/nonexistent/diluxone-offload-uploads';
         $dirs['path']    = $dirs['basedir'] . '/2026/09';

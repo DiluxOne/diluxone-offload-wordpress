@@ -474,13 +474,19 @@ class DiluxOneOffloadDB {
 	}
 
 	/**
-	 * Get pending files for upload
+	 * The pending files of the next upload round: the largest first, up to
+	 * $max_bytes (at least one, however large), and then, when that leaves
+	 * fewer than $min_files, the smallest pending files until it does, so
+	 * that a library that starts with videos does not upload them one at a
+	 * time while the other parallel slots wait (the small ones cost the
+	 * round almost nothing).
 	 *
-	 * @param int      $limit Max number of files
-	 * @param int|null $max_bytes Max total bytes (for batching)
+	 * @param int      $limit     Max number of files.
+	 * @param int|null $max_bytes Max total bytes of the largest-first part.
+	 * @param int      $min_files Fill the round with the smallest files up to this many.
 	 * @return array<int, array<string, mixed>> Files to upload
 	 */
-	public static function get_pending_files( $limit = 1000, $max_bytes = null ) {
+	public static function get_pending_files( $limit = 1000, $max_bytes = null, $min_files = 0 ) {
 		global $wpdb;
 
 		$files = $wpdb->get_results(
@@ -497,25 +503,51 @@ class DiluxOneOffloadDB {
 			ARRAY_A
 		);
 
-		// If max_bytes specified, filter by cumulative size
-		if ( $max_bytes && ! empty( $files ) ) {
-			$batch      = array();
-			$total_size = 0;
+		if ( ! $max_bytes || empty( $files ) ) {
+			return $files;
+		}
 
-			foreach ( $files as $file ) {
-				// Always include at least 1 file even if it exceeds max_bytes
-				if ( count( $batch ) > 0 && ( $total_size + $file['size'] ) > $max_bytes ) {
-					break;
-				}
-
-				$batch[]     = $file;
-				$total_size += $file['size'];
+		$batch      = array();
+		$total_size = 0;
+		foreach ( $files as $file ) {
+			// Always include at least 1 file even if it exceeds max_bytes.
+			if ( count( $batch ) > 0 && ( $total_size + $file['size'] ) > $max_bytes ) {
+				break;
 			}
+			$batch[]     = $file;
+			$total_size += $file['size'];
+		}
 
+		$wanted = min( (int) $min_files, (int) $limit );
+		if ( count( $batch ) >= $wanted ) {
 			return $batch;
 		}
 
-		return $files;
+		$smallest = $wpdb->get_results(
+			$wpdb->prepare(
+				'
+            SELECT file, size, transferred, errors, upload_id
+            FROM ' . self::get_table_name() . '
+            WHERE synced = 0 AND errors < 3
+            ORDER BY errors ASC, size ASC, file ASC
+            LIMIT %d
+        ',
+				$wanted
+			),
+			ARRAY_A
+		);
+		$taken    = array_flip( array_column( $batch, 'file' ) );
+		foreach ( (array) $smallest as $file ) {
+			if ( count( $batch ) >= $wanted ) {
+				break;
+			}
+			if ( ! isset( $taken[ $file['file'] ] ) ) {
+				$batch[]                = $file;
+				$taken[ $file['file'] ] = true;
+			}
+		}
+
+		return $batch;
 	}
 
 	/**

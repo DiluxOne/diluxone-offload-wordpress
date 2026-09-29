@@ -135,6 +135,20 @@ class SyncManager {
 	private $chunked_threshold = 10485760;
 
 	/**
+	 * The bytes one upload round may take, largest files first: 5 MB per
+	 * parallel slot, never under the 12 MB a round always had (Balanced 25 MB,
+	 * Fast 100 MB, Intensive 200 MB). A fixed 12 MB sent a library that starts
+	 * with large files up one file per round, whatever the parallelism. The
+	 * time budget per request (batch_seconds()) does not change: it is checked
+	 * between rounds, and the uploads stream, so the bytes cost no memory.
+	 *
+	 * @return int
+	 */
+	public function round_bytes(): int {
+		return max( 12 * 1024 * 1024, $this->parallel_uploads * 5 * 1024 * 1024 );
+	}
+
+	/**
 	 * Set parallel uploads level (concurrency)
 	 * ⭐ OPTIMIZED: Increased max from 12 to 40, batch_size adjusts dynamically
 	 *
@@ -457,7 +471,7 @@ class SyncManager {
 
 		$start_time          = microtime( true );
 		$uploaded_this_batch = 0;
-		$max_batch_size      = 12 * 1024 * 1024; // 12 MB per batch
+		$max_batch_size      = $this->round_bytes();
 
 		// Check if sync is active
 		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
@@ -492,8 +506,9 @@ class SyncManager {
 
 		// Process files until time limit or no more files
 		while ( true ) {
-			// Get pending files from DB (up to 1000 files or 12MB)
-			$files = DiluxOneOffloadDB::get_pending_files( 1000, $max_batch_size );
+			// The largest pending files up to the round's bytes, then small
+			// ones until every parallel slot has a file.
+			$files = DiluxOneOffloadDB::get_pending_files( 1000, $max_batch_size, $this->parallel_uploads );
 
 			if ( empty( $files ) ) {
 				// ⭐ FIX: Don't auto-complete here, let JavaScript handle it
@@ -908,26 +923,101 @@ class SyncManager {
 	}
 
 	/**
-	 * Sync multiple files in parallel using cURL Multi
-	 *
-	 * PERFORMANCE BOOST: 10x faster than sequential uploads
+	 * Upload a round's files as a pool: as many transfers in flight as the
+	 * parallelism allows, and the next file starts the moment one finishes,
+	 * instead of in waves that each wait for their slowest file.
 	 *
 	 * @param array<int, array<string, mixed>> $batch Array of file_info arrays
-	 * @return array<int, array<string, mixed>> Array of per-file result envelopes
+	 * @return array<int, array<string, mixed>> Per-file result envelopes, keyed like $batch
 	 */
 	private function sync_files_parallel( $batch ) {
-		$results    = array();
-		$chunk_size = max( 1, $this->parallel_uploads );
-		$chunks     = array_chunk( $batch, $chunk_size );
+		$slots   = max( 1, $this->parallel_uploads );
+		$queue   = array_keys( $batch );
+		$active  = array(); // handle id => [index, handle, file handle, on_failure]
+		$results = array();
+		$mh      = curl_multi_init();
 
-		foreach ( $chunks as $chunk ) {
-			$chunk_results = $this->upload_chunk_parallel( $chunk );
-			$results       = array_merge( $results, $chunk_results );
-		}
+		do {
+			// Fill every free slot.
+			$free = $slots - count( $active );
+			while ( $free > 0 && ! empty( $queue ) ) {
+				$i           = array_shift( $queue );
+				$handle_data = $this->prepare_upload_handle( $batch[ $i ] );
+				if ( empty( $handle_data['success'] ) ) {
+					$results[ $i ] = array(
+						'success' => false,
+						'error'   => $handle_data['error'] ?? 'Unknown error',
+					);
+					continue;
+				}
+				curl_multi_add_handle( $mh, $handle_data['handle'] );
+				$active[ $this->handle_id( $handle_data['handle'] ) ] = array( $i, $handle_data['handle'], $handle_data['file_handle'] ?? null, $handle_data['on_failure'] ?? null );
+				--$free;
+			}
+			if ( empty( $active ) ) {
+				break;
+			}
 
+			$running = null;
+			curl_multi_exec( $mh, $running );
+			curl_multi_select( $mh, 1.0 );
+
+			// Inside a multi stack curl_error() stays empty: the transport's
+			// verdict comes only through curl_multi_info_read().
+			$info = curl_multi_info_read( $mh );
+			while ( false !== $info ) {
+				$id = $this->handle_id( $info['handle'] );
+				if ( isset( $active[ $id ] ) ) {
+					list( $i, $ch, $file_handle, $on_failure ) = $active[ $id ];
+					$transport                                 = 0 === (int) $info['result'] ? '' : curl_strerror( (int) $info['result'] );
+					$results[ $i ]                             = $this->upload_result( $ch, $batch[ $i ], $transport, $on_failure );
+					curl_multi_remove_handle( $mh, $ch );
+					if ( is_resource( $file_handle ) ) {
+						fclose( $file_handle );
+					}
+					unset( $active[ $id ] );
+				}
+				$info = curl_multi_info_read( $mh );
+			}
+		} while ( ! empty( $active ) || ! empty( $queue ) );
+
+		curl_multi_close( $mh );
+		ksort( $results );
 		return $results;
 	}
 
+	/**
+	 * The result of one finished transfer, from the provider's reading of its
+	 * status and body; a failed transfer runs what the provider asked for
+	 * (an unfinished multipart upload is aborted, so its parts are not billed).
+	 *
+	 * @param resource             $ch         The finished handle (PHPStan reads the PHP 7.4 stubs; PHP 8 hands a CurlHandle, which the curl functions accept).
+	 * @param array<string, mixed> $file_info  The file it carried.
+	 * @param string               $transport  cURL's error, '' when none.
+	 * @param callable|null        $on_failure What to run when it failed.
+	 * @return array<string, mixed>
+	 */
+	private function upload_result( $ch, array $file_info, string $transport, $on_failure ): array {
+		$response_code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$verdict       = $this->cloud_client->verify_upload_response( $response_code, (string) curl_multi_getcontent( $ch ) );
+
+		if ( null === $verdict ) {
+			$this->debug_log( sprintf( '✓ UPLOADED: %s (%.2f KB) [HTTP %d]', $file_info['path'], $file_info['size'] / 1024, $response_code ) );
+			return array( 'success' => true );
+		}
+
+		// The provider says what went wrong, from the status and the error
+		// code of the body only: on a 403 the full body also carries the
+		// request's signature, which has no place in a log line or the table.
+		if ( is_callable( $on_failure ) ) {
+			call_user_func( $on_failure );
+		}
+		$this->debug_log( sprintf( '✗ FAILED: %s - Error: %s [HTTP %d]', $file_info['path'], '' !== $transport ? $transport : $verdict, $response_code ) );
+		return array(
+			'success' => false,
+			'error'   => '' !== $transport ? $transport : $verdict,
+		);
+	}
 
 	/**
 	 * Run a curl_multi stack to completion and collect each transfer's error.
@@ -961,119 +1051,6 @@ class SyncManager {
 	 */
 	private function handle_id( $ch ): string {
 		return is_object( $ch ) ? (string) spl_object_id( $ch ) : (string) (int) $ch;
-	}
-
-	/**
-	 * Upload a chunk of files in parallel using cURL Multi
-	 * OPTIMIZED: Properly manages file handles for streaming
-	 *
-	 * @param array<int, array<string, mixed>> $files Array of file_info arrays (max $parallel_uploads files)
-	 * @return array<int, array<string, mixed>> Array of results
-	 */
-	private function upload_chunk_parallel( $files ) {
-		$mh           = curl_multi_init();
-		$handles      = array();
-		$file_handles = array(); // Track file handles for cleanup
-		$on_failure   = array(); // What a provider wants done when a transfer fails
-		$results      = array();
-
-		// Prepare all cURL handles
-		foreach ( $files as $i => $file_info ) {
-			$handle_data = $this->prepare_upload_handle( $file_info );
-
-			if ( $handle_data['success'] ) {
-				$handles[ $i ]      = $handle_data['handle'];
-				$file_handles[ $i ] = $handle_data['file_handle']; // Store file handle
-				$on_failure[ $i ]   = $handle_data['on_failure'] ?? null;
-				curl_multi_add_handle( $mh, $handle_data['handle'] );
-			} else {
-				// Failed to prepare handle
-				$results[ $i ] = array(
-					'success' => false,
-					'error'   => $handle_data['error'],
-				);
-			}
-		}
-
-		// Execute all handles in parallel
-		$transport = $this->run_multi( $mh );
-
-		// Collect results and cleanup
-		foreach ( $handles as $i => $ch ) {
-			$response_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-			$response_body = curl_multi_getcontent( $ch );
-			$error         = $transport[ $this->handle_id( $ch ) ] ?? curl_error( $ch );
-			$file_info     = $files[ $i ];
-
-			$verdict = $this->cloud_client->verify_upload_response( (int) $response_code, (string) $response_body );
-
-			if ( null === $verdict ) {
-				$results[ $i ] = array( 'success' => true );
-
-				// ⭐ DEBUG: Log upload result
-				$this->debug_log(
-					sprintf(
-						'✓ UPLOADED: %s (%.2f KB) [HTTP %d]',
-						$file_info['path'],
-						$file_info['size'] / 1024,
-						$response_code
-					)
-				);
-			} else {
-				// The provider says what went wrong, from the status and the
-				// error code of the body only: on a 403 the full body also
-				// carries the request's signature, which has no place in a log
-				// line or the tracking table.
-				$error_details = '' !== $error ? $error : $verdict;
-
-				// A multipart upload whose commit failed leaves its parts
-				// stored (and billed) until the provider is told to drop them.
-				if ( is_callable( $on_failure[ $i ] ?? null ) ) {
-					call_user_func( $on_failure[ $i ] );
-				}
-
-				$results[ $i ] = array(
-					'success' => false,
-					'error'   => $error_details,
-				);
-
-				// ⭐ DEBUG: Log failed upload with error details
-				$this->debug_log(
-					sprintf(
-						'✗ FAILED: %s - Error: %s [HTTP %d]',
-						$file_info['path'],
-						$error ? $error : 'Unknown error',
-						$response_code
-					)
-				);
-			}
-
-			curl_multi_remove_handle( $mh, $ch );
-			// CRITICAL: Close file handle to free resources
-			if ( isset( $file_handles[ $i ] ) && is_resource( $file_handles[ $i ] ) ) {
-				fclose( $file_handles[ $i ] );
-			}
-		}
-
-		curl_multi_close( $mh );
-
-		// Fill missing results (for files that failed to prepare)
-		foreach ( $files as $i => $file_info ) {
-			if ( ! isset( $results[ $i ] ) ) {
-				$results[ $i ] = array(
-					'success' => false,
-					'error'   => 'Unknown error',
-				);
-			}
-		}
-
-		// Results land in completion order, and the caller merges chunks by
-		// position: put them back in the order of the files they belong to,
-		// or a file that failed to open is credited with its neighbour's
-		// upload.
-		ksort( $results );
-
-		return $results;
 	}
 
 	/**
@@ -1638,7 +1615,7 @@ class SyncManager {
 
 		$start_time            = microtime( true );
 		$downloaded_this_batch = 0;
-		$max_batch_size        = 12 * 1024 * 1024; // 12 MB (same as normal sync)
+		$max_batch_size        = 12 * 1024 * 1024; // 12 MB a round (the upload side sizes its rounds by the parallelism: round_bytes())
 
 		$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
 
