@@ -141,4 +141,4 @@ make check     # the fast gates: lint + stan + psalm + unit tests
 make release   # make check + version-alignment dry-run
 ```
 
-`make check` is the pre-push habit; it does not replace CI. Integration, E2E, i18n and Plugin Check have their own targets, and the real-storage suite needs credentials. `make release` is what the maintainer runs on `main` before approving a release (see [`release.md`](release.md)); there is no release-prep pull request.
+`make pre-pr` is the pre-pull-request habit: `make check`, the integration suite, Plugin Check and the local review (`make review-local`: the conventions, the risk floor and the Claude review CI will run, on the same brief, from [DiluxOne/.github](https://github.com/DiluxOne/.github)'s `scripts/local-review.sh`). It does not replace CI. E2E and i18n have their own targets, and the real-storage suite needs credentials. `make release` is what the maintainer runs on `main` before approving a release (see [`release.md`](release.md)).

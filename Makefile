@@ -325,6 +325,31 @@ coverage: coverage-unit coverage-integration ## Unit + integration coverage merg
 check: lint stan psalm test ## Run the fast quality gates (lint, stan, psalm, unit tests).
 	@echo "✔ All checks passed."
 
+# The organisation's local review (DiluxOne/.github, scripts/local-review.sh):
+# the pull request's conventions, risk floor and Claude review, run before the
+# pull request exists. The script is the organisation's own, trusted at the
+# moving tag REVIEW_CENTRAL_REF (v2, what CI calls too); it is cloned into
+# build/.dx-central and refreshed on every run. REVIEW_CENTRAL=<path> uses a
+# checkout of your own instead, to try a change to the review itself.
+REVIEW_CENTRAL     ?= build/.dx-central
+REVIEW_CENTRAL_REF ?= v2
+
+.PHONY: review-local
+review-local: ## The pull request's review before it exists: conventions, risk floor, Claude review (REVIEW_ARGS="--body-file pr.md", "--title …", "--no-claude").
+	@if [ "$(REVIEW_CENTRAL)" = build/.dx-central ]; then \
+	  [ -d build/.dx-central/.git ] || git clone -q --depth 1 --branch $(REVIEW_CENTRAL_REF) https://github.com/DiluxOne/.github build/.dx-central; \
+	  git -C build/.dx-central fetch -q --depth 1 origin $(REVIEW_CENTRAL_REF) && git -C build/.dx-central checkout -q FETCH_HEAD; \
+	fi
+	bash "$(REVIEW_CENTRAL)/scripts/local-review.sh" $(REVIEW_ARGS)
+
+.PHONY: pre-pr
+pre-pr: ## Everything a pull request is checked on that runs without a cloud account, one after the other, then the local review (needs `make env`).
+	$(MAKE) check
+	$(MAKE) test-integration
+	$(MAKE) plugin-check
+	$(MAKE) review-local
+	@echo "✔ Ready for a pull request."
+
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up
 env: env-up ## Alias of env-up.

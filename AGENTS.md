@@ -44,7 +44,12 @@ workflow from `DiluxOne/.github`); a PR that breaks one cannot merge.
 make check               # PHPCS, PHPStan level 8, Psalm taint, unit tests
 make test-integration    # needs make env
 make plugin-check        # wordpress.org's Plugin Check on the built dist
+make review-local REVIEW_ARGS="--body-file pr.md"   # the pull request's review, before it exists
 ```
+
+`make pre-pr` runs the four in order. Push, open a pull request or re-run a
+workflow only when the maintainer asks: every push to an open pull request
+is a paid review, so the branch arrives with the local review clean.
 
 A change carries its tests at every layer it touches, in the same pull
 request: unit, integration, end-to-end without a cloud account, the
