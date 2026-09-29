@@ -139,8 +139,9 @@ class SyncManager {
 	 * parallel slot, never under the 12 MB a round always had (Balanced 25 MB,
 	 * Fast 100 MB, Intensive 200 MB). A fixed 12 MB sent a library that starts
 	 * with large files up one file per round, whatever the parallelism. The
-	 * time budget per request (batch_seconds()) does not change: it is checked
-	 * between rounds, and the uploads stream, so the bytes cost no memory.
+	 * time budget per request (batch_seconds()) is checked between rounds, so
+	 * a request can now run for one larger round; the uploads stream, so the
+	 * bytes cost no memory.
 	 *
 	 * @return int
 	 */

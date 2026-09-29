@@ -478,12 +478,13 @@ class DiluxOneOffloadDB {
 	 * $max_bytes (at least one, however large), and then, when that leaves
 	 * fewer than $min_files, the smallest pending files until it does, so
 	 * that a library that starts with videos does not upload them one at a
-	 * time while the other parallel slots wait (the small ones cost the
-	 * round almost nothing).
+	 * time while the other parallel slots wait. Only files of one slot's
+	 * share of the round or less fill it ($max_bytes / $min_files): a library
+	 * of large files alone keeps its rounds to $max_bytes.
 	 *
 	 * @param int      $limit     Max number of files.
 	 * @param int|null $max_bytes Max total bytes of the largest-first part.
-	 * @param int      $min_files Fill the round with the smallest files up to this many.
+	 * @param int      $min_files Fill the round with small files up to this many.
 	 * @return array<int, array<string, mixed>> Files to upload
 	 */
 	public static function get_pending_files( $limit = 1000, $max_bytes = null, $min_files = 0 ) {
@@ -528,10 +529,11 @@ class DiluxOneOffloadDB {
 				'
             SELECT file, size, transferred, errors, upload_id
             FROM ' . self::get_table_name() . '
-            WHERE synced = 0 AND errors < 3
+            WHERE synced = 0 AND errors < 3 AND size <= %d
             ORDER BY errors ASC, size ASC, file ASC
             LIMIT %d
         ',
+				intdiv( (int) $max_bytes, $wanted ),
 				$wanted
 			),
 			ARRAY_A
