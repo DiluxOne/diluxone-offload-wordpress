@@ -363,7 +363,8 @@ class Plugin {
 	 * Seconds one sync or disconnect request keeps transferring before it
 	 * answers the browser, which then asks for the next batch: 8 by default,
 	 * short enough for a responsive progress bar and far from any
-	 * max_execution_time. A round already started always finishes.
+	 * max_execution_time. Past it no new transfer starts; the ones in flight
+	 * finish.
 	 *
 	 * @return float
 	 */

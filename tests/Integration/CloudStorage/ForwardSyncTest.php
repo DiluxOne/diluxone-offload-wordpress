@@ -220,21 +220,47 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertFalse($sm->resume_sync());
     }
 
+    /** With more slots than batch_size, a request past its budget starts batch_size files: the round never held more. */
     public function test_batches_are_capped_by_the_batch_size(): void {
         $this->configure(['allowed_file_types' => 'cap']);
-        $sm  = new SyncManager();
+        for ($i = 0; $i < 6; $i++) {
+            $this->fixture("cap/f{$i}.cap", 'c');
+        }
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
         $capProp = new \ReflectionProperty($sm, 'batch_size');
         if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
         	$capProp->setAccessible( true );
         }
-        $cap = $capProp->getValue($sm);
-        for ($i = 0; $i <= $cap; $i++) {
-            $this->fixture("cap/f{$i}.cap", 'c');
-        }
-        $this->assertTrue($sm->start_sync()['success']);
+        $capProp->setValue($sm, 2);
+
         $r = $sm->process_batch(0.0);
         $this->assertSame('processing', $r['status']);
-        $this->assertSame($cap, $r['uploaded_this_batch'], 'one round uploads exactly batch_size files');
+        $this->assertSame(2, $r['uploaded_this_batch'], 'one round uploads exactly batch_size files');
+    }
+
+    /**
+     * A round of up to 200 MB must not make a request outlive its budget:
+     * past it the pool starts no new file, and only the files that started
+     * are charged an attempt, so a request killed mid-transfer does not
+     * retire the whole round after three tries.
+     */
+    public function test_a_request_past_its_budget_starts_no_new_file_and_charges_only_those_that_started(): void {
+        global $wpdb;
+        $this->configure(['allowed_file_types' => 'bud']);
+        for ($i = 0; $i < 12; $i++) {
+            $this->fixture("bud/f{$i}.bud", 'b');
+        }
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+
+        $r = $sm->process_batch(0.0);
+        $this->assertSame('processing', $r['status']);
+        $this->assertSame(3, $r['uploaded_this_batch'], 'the first slots fill, so the request uploads something, and nothing else starts');
+        $untouched = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . DB::get_table_name() . ' WHERE synced = 0 AND errors = 0');
+        $this->assertSame(9, $untouched, 'the files that never started are pending with no attempt charged');
     }
 
     /** How much one round may take grows with the parallelism, never under the 12 MB it always had. */
@@ -285,8 +311,8 @@ class ForwardSyncTest extends IntegrationTestCase {
         $sm->set_parallel_uploads(3);
         unlink($this->base . '/pool/f5.pool');
 
-        $r = $sm->process_batch(0.0);
-        $this->assertSame(11, $r['uploaded_this_batch']);
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(11, (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . DB::get_table_name() . ' WHERE synced = 1'));
         $failed = $wpdb->get_results('SELECT file, error_message FROM ' . DB::get_table_name() . ' WHERE synced = 0', ARRAY_A);
         $this->assertCount(1, $failed);
         $this->assertStringEndsWith('/pool/f5.pool', $failed[0]['file']);

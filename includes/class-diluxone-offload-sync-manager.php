@@ -139,9 +139,9 @@ class SyncManager {
 	 * parallel slot, never under the 12 MB a round always had (Balanced 25 MB,
 	 * Fast 100 MB, Intensive 200 MB). A fixed 12 MB sent a library that starts
 	 * with large files up one file per round, whatever the parallelism. The
-	 * time budget per request (batch_seconds()) is checked between rounds, so
-	 * a request can now run for one larger round; the uploads stream, so the
-	 * bytes cost no memory.
+	 * pool starts no new file once the request's time budget
+	 * (batch_seconds()) is spent, so a larger round does not make a request
+	 * longer; the uploads stream, so the bytes cost no memory.
 	 *
 	 * @return int
 	 */
@@ -557,11 +557,6 @@ class SyncManager {
 				}
 			}
 
-			// ⭐ Increment error count BEFORE upload (in case of timeout)
-			foreach ( $batch_to_upload as $file_info ) {
-				DiluxOneOffloadDB::increment_error( $file_info['path'] );
-			}
-
 			// ⭐ DEBUG: Log batch start
 			$this->debug_log(
 				sprintf(
@@ -572,7 +567,7 @@ class SyncManager {
 			);
 
 			// Upload batch
-			$results = $this->sync_files_parallel( $batch_to_upload );
+			$results = $this->sync_files_parallel( $batch_to_upload, $start_time + $time_limit );
 
 			// Update DB based on results
 			$round_uploaded = 0;
@@ -926,23 +921,32 @@ class SyncManager {
 	/**
 	 * Upload a round's files as a pool: as many transfers in flight as the
 	 * parallelism allows, and the next file starts the moment one finishes,
-	 * instead of in waves that each wait for their slowest file.
+	 * instead of in waves that each wait for their slowest file. Past the
+	 * deadline the first slots still fill, so every request uploads
+	 * something, but no other file starts: the ones left stay pending for the
+	 * next request, untouched. A file's attempt is counted as it starts, so a
+	 * request killed mid-transfer (max_execution_time, a proxy) charges only
+	 * the files in flight, and three such kills retire only them.
 	 *
-	 * @param array<int, array<string, mixed>> $batch Array of file_info arrays
-	 * @return array<int, array<string, mixed>> Per-file result envelopes, keyed like $batch
+	 * @param array<int, array<string, mixed>> $batch    Array of file_info arrays
+	 * @param float                            $deadline microtime() after which no new file starts.
+	 * @return array<int, array<string, mixed>> Per-file result envelopes, keyed like $batch, for the files that started
 	 */
-	private function sync_files_parallel( $batch ) {
+	private function sync_files_parallel( $batch, float $deadline ) {
 		$slots   = max( 1, $this->parallel_uploads );
 		$queue   = array_keys( $batch );
 		$active  = array(); // handle id => [index, handle, file handle, on_failure]
 		$results = array();
 		$mh      = curl_multi_init();
+		$first   = true;
 
 		do {
-			// Fill every free slot.
-			$free = $slots - count( $active );
+			// Fill every free slot, while there is time to start one.
+			$free = $first || microtime( true ) < $deadline ? $slots - count( $active ) : 0;
 			while ( $free > 0 && ! empty( $queue ) ) {
-				$i           = array_shift( $queue );
+				$i = array_shift( $queue );
+				// Counted before the upload, in case the request dies during it.
+				DiluxOneOffloadDB::increment_error( $batch[ $i ]['path'] );
 				$handle_data = $this->prepare_upload_handle( $batch[ $i ] );
 				if ( empty( $handle_data['success'] ) ) {
 					$results[ $i ] = array(
@@ -955,6 +959,7 @@ class SyncManager {
 				$active[ $this->handle_id( $handle_data['handle'] ) ] = array( $i, $handle_data['handle'], $handle_data['file_handle'] ?? null, $handle_data['on_failure'] ?? null );
 				--$free;
 			}
+			$first = false;
 			if ( empty( $active ) ) {
 				break;
 			}
