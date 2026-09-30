@@ -927,7 +927,7 @@ class SyncManager {
 	 * the chunk threshold is started (begin_chunked_upload()) and its parts
 	 * join the pool as transfers of their own, ahead of the next files, then
 	 * its commit once every part landed; a part that meets a temporary error
-	 * (a 5xx, a dropped connection) is sent again, up to three times, and a
+	 * (a 5xx, a dropped connection) is tried up to three times in all, and a
 	 * part that fails for good fails its file and drops the upload.
 	 *
 	 * Past the deadline the first slots still fill, so every request uploads
