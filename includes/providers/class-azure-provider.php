@@ -1225,7 +1225,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				'error'   => 'File not found: ' . $local_path,
 			);
 		}
-		$resume = null !== $resume_upload_id && 1 === preg_match( '/^[0-9a-f]{8}$/', $resume_upload_id );
+		$resume = null !== $resume_upload_id && 1 === preg_match( '/^[0-9a-f]{6}$/', $resume_upload_id );
 		$upload = new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE, $resume ? (string) $resume_upload_id : self::new_nonce() );
 		if ( $resume ) {
 			foreach ( $this->uncommitted_blocks( $upload->remotePath(), $upload->uploadId() ) as $part => $block_size ) {
@@ -1269,11 +1269,14 @@ class AzureProvider implements CloudStorageClientInterface {
 		}
 		$blocks = array();
 		foreach ( $xml->UncommittedBlocks->Block as $block ) {
-			// This upload's ids are its nonce and the zero-based index in six
-			// digits; any other block is not its own and is left out.
+			// This upload's ids are its nonce and the zero-based index, three
+			// bytes each; any other block is not its own and is left out.
 			$name = base64_decode( (string) $block->Name, true );
-			if ( false !== $name && 1 === preg_match( '/^' . preg_quote( $nonce, '/' ) . '(\d{6})$/', $name, $m ) ) {
-				$blocks[ (int) $m[1] + 1 ] = (int) $block->Size;
+			if ( false !== $name && 6 === strlen( $name ) && hex2bin( $nonce ) === substr( $name, 0, 3 ) ) {
+				$index = unpack( 'N', "\0" . substr( $name, 3 ) );
+				$part  = (int) ( is_array( $index ) ? $index[1] : 0 ) + 1;
+
+				$blocks[ $part ] = (int) $block->Size;
 			}
 		}
 		return $blocks;
@@ -1421,27 +1424,34 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * A block's id: base64 of the upload's nonce and the zero-based index in
-	 * six digits. Every id has the same length, as Azure requires of a blob's
-	 * blocks, and the nonce tells this upload's blocks from any other left
-	 * uncommitted on the same blob (an earlier content of the file, another
-	 * writer), which a resumed upload must never commit.
+	 * A block's id: base64 of six bytes, the upload's three-byte nonce and
+	 * the zero-based index in three bytes. The nonce tells this upload's
+	 * blocks from any other left uncommitted on the same blob (an earlier
+	 * content of the file, another writer), which a resumed upload must
+	 * never commit. Every id is eight characters, the length of the ids
+	 * 2.0.0 used (six ASCII digits): Azure refuses a block whose id length
+	 * differs from the blob's uncommitted blocks (InvalidBlobOrBlock), so a
+	 * blob an older upload left blocks on still takes this one's.
 	 *
-	 * @param string $nonce The upload's nonce (new_nonce()).
+	 * @param string $nonce The upload's nonce, six hex characters (new_nonce()).
 	 * @param int    $part  Part number, from 1.
 	 * @return string
 	 */
 	private static function block_id( string $nonce, int $part ): string {
-		return base64_encode( $nonce . str_pad( (string) ( $part - 1 ), 6, '0', STR_PAD_LEFT ) );
+		return base64_encode( (string) hex2bin( $nonce ) . substr( pack( 'N', $part - 1 ), 1 ) );
 	}
 
 	/**
-	 * A new upload's nonce: eight hex characters.
+	 * A new upload's nonce, six hex characters; never three ASCII digits, so
+	 * no id of it reads as one of 2.0.0's.
 	 *
 	 * @return string
 	 */
 	private static function new_nonce(): string {
-		return bin2hex( random_bytes( 4 ) );
+		do {
+			$bytes = random_bytes( 3 );
+		} while ( ctype_digit( $bytes ) );
+		return bin2hex( $bytes );
 	}
 
 	/**

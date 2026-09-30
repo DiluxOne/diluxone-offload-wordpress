@@ -191,15 +191,15 @@ class ProviderErrorPathsTest extends TestCase {
 
 		$r = $p->prepare_part_handle( $upload, 2 );
 		$this->assertTrue( $r['success'] );
-		$this->assertMatchesRegularExpression( '/^[0-9a-f]{8}$/', $upload->uploadId(), 'a new upload is named by a nonce' );
-		$this->assertStringContainsString( '/media/uploads/big%20file.bin?comp=block&blockid=' . rawurlencode( base64_encode( $upload->uploadId() . '000001' ) ), curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
+		$this->assertMatchesRegularExpression( '/^[0-9a-f]{6}$/', $upload->uploadId(), 'a new upload is named by a nonce' );
+		$this->assertStringContainsString( '/media/uploads/big%20file.bin?comp=block&blockid=' . rawurlencode( base64_encode( hex2bin( $upload->uploadId() ) . "\0\0\1" ) ), curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
 		curl_setopt( $r['handle'], CURLOPT_HEADER, true );
 		$answer = (string) curl_exec( $r['handle'] );
 		fclose( $r['file_handle'] );
 		$this->assertStringContainsString( md5( 'the-last-block' ), $answer, 'the server received the last block and nothing else' );
 
 		$this->assertNull( $p->finish_part( $upload, 2, 201, '' ) );
-		$this->assertSame( base64_encode( $upload->uploadId() . '000001' ), $upload->tag( 2 ) );
+		$this->assertSame( base64_encode( hex2bin( $upload->uploadId() ) . "\0\0\1" ), $upload->tag( 2 ) );
 		$this->assertNull( $upload->tags(), 'the commit waits for block 1' );
 		unlink( $file );
 	}
@@ -213,28 +213,28 @@ class ProviderErrorPathsTest extends TestCase {
 	public function test_azure_an_upload_is_taken_up_from_the_uncommitted_blocks(): void {
 		$block = fn( string $name, int $size ) => '<Block><Name>' . $name . '</Name><Size>' . $size . '</Size></Block>';
 		$xml   = '<?xml version="1.0" encoding="utf-8"?><BlockList><CommittedBlocks /><UncommittedBlocks>'
-			. $block( base64_encode( 'a1b2c3d4000000' ), 4194304 )
-			. $block( base64_encode( 'a1b2c3d4000001' ), 12 )      // Cut short: sent again.
-			. $block( base64_encode( 'ffffffff000002' ), 1048576 ) // Another upload's: never committed.
-			. $block( base64_encode( '000002' ), 1048576 )         // Not a block of this plugin.
+			. $block( base64_encode( "\xa1\xb2\xc3\0\0\0" ), 4194304 )
+			. $block( base64_encode( "\xa1\xb2\xc3\0\0\1" ), 12 )      // Cut short: sent again.
+			. $block( base64_encode( "\xff\xff\xff\0\0\2" ), 1048576 ) // Another upload's: never committed.
+			. $block( base64_encode( '000002' ), 1048576 )           // 2.0.0's format: not this upload's.
 			. '</UncommittedBlocks></BlockList>';
 		$GLOBALS['_test_wp_http'] = fn() => self::raw( 200, $xml );
 		$file = $this->tmp( 9 * 1024 * 1024 );
 
-		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big file.bin' ), 'a1b2c3d4' )['upload'];
+		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big file.bin' ), 'a1b2c3' )['upload'];
 		unlink( $file );
 
 		$this->assertCount( 1, $GLOBALS['_test_wp_http_log'] );
 		$this->assertStringContainsString( '/media/uploads/big%20file.bin?blocklisttype=uncommitted&comp=blocklist', $GLOBALS['_test_wp_http_log'][0]['url'] );
 		$this->assertArrayHasKey( 'Authorization', $GLOBALS['_test_wp_http_log'][0]['args']['headers'] );
-		$this->assertSame( 'a1b2c3d4', $upload->uploadId() );
+		$this->assertSame( 'a1b2c3', $upload->uploadId() );
 		$this->assertSame( array( 2, 3 ), $upload->missingParts() );
 	}
 
 	public function test_azure_a_blob_with_no_blocks_to_take_up_starts_over(): void {
 		$GLOBALS['_test_wp_http'] = fn() => self::raw( 404, '<?xml version="1.0"?><Error><Code>BlobNotFound</Code></Error>' );
 		$file   = $this->tmp( 5 * 1024 * 1024 );
-		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin' ), 'a1b2c3d4' )['upload'];
+		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin' ), 'a1b2c3' )['upload'];
 		unlink( $file );
 		$this->assertSame( array( 1, 2 ), $upload->missingParts() );
 	}
@@ -245,7 +245,7 @@ class ProviderErrorPathsTest extends TestCase {
 		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin' ), '' )['upload'];
 		unlink( $file );
 		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'] );
-		$this->assertMatchesRegularExpression( '/^[0-9a-f]{8}$/', $upload->uploadId() );
+		$this->assertMatchesRegularExpression( '/^[0-9a-f]{6}$/', $upload->uploadId() );
 		$this->assertSame( array( 1, 2 ), $upload->missingParts() );
 	}
 

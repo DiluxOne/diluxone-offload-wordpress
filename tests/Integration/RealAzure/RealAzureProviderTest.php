@@ -184,6 +184,34 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $this->assertSame([1, 2], self::$provider->begin_chunked_upload($file, $new->uploadId())['upload']->missingParts(), "the old block 1 is not the new upload's");
     }
 
+    /**
+     * A blob a 2.0.0 upload left uncommitted blocks on (ids of six ASCII
+     * digits): Azure refuses a block whose id has another length, so this
+     * version's ids keep that length, and its upload goes through.
+     */
+    public function test_a_blob_with_blocks_an_older_version_left_still_takes_an_upload(): void {
+        $remote = 'uploads/2026/09/left-by-2-0-0.mp4';
+        $date   = gmdate('D, d M Y H:i:s T');
+        $block  = base64_encode('000000');
+        $body   = 'an old block';
+        $sts    = "PUT\n\n\n" . strlen($body) . "\n\napplication/octet-stream\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/" . self::$account . '/' . self::$container . "/{$remote}\nblockid:{$block}\ncomp:block";
+        $r      = wp_remote_request('https://' . self::$account . '.blob.core.windows.net/' . self::$container . "/{$remote}?comp=block&blockid=" . rawurlencode($block), [
+            'method'  => 'PUT',
+            'timeout' => 60,
+            'body'    => $body,
+            'headers' => ['x-ms-date' => $date, 'x-ms-version' => '2020-04-08', 'Content-Type' => 'application/octet-stream', 'Authorization' => 'SharedKey ' . self::$account . ':' . base64_encode(hash_hmac('sha256', $sts, base64_decode(self::$key), true))],
+        ]);
+        $this->assertSame(201, wp_remote_retrieve_response_code($r), 'the old-format block is on the blob');
+
+        $local  = $this->tempFile(5 * 1048576, 'mp4');
+        $upload = self::$provider->begin_chunked_upload(['local_path' => $local, 'remote_path' => $remote])['upload'];
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+        $this->assertSame(5 * 1048576, (int) self::$provider->get_file_info($remote)['size']);
+    }
+
     public function test_the_block_boundary_on_both_sides(): void {
         foreach ([4194303, 4194304, 4194305] as $bytes) {
             $local  = $this->tempFile($bytes, 'bin');
