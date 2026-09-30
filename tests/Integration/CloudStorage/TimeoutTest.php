@@ -84,15 +84,20 @@ class TimeoutTest extends IntegrationTestCase {
         return $p;
     }
 
+    /** Seconds on the monotonic clock: the wall clock can step back (WSL2 resyncs it) and shave a second off a wait. */
+    private static function now(): float {
+        return hrtime(true) / 1e9;
+    }
+
     private function assertGaveUpAtTheSetting(float $started): void {
-        $elapsed = microtime(true) - $started;
+        $elapsed = self::now() - $started;
         $this->assertGreaterThanOrEqual(self::TIMEOUT - 1, $elapsed, 'gave up before the setting allowed');
         $this->assertLessThan(self::DELAY, $elapsed, 'waited for the server instead of giving up at the setting');
     }
 
     public function test_a_live_upload_gives_up_at_the_setting_and_the_health_says_why(): void {
         CloudStreamWrapper::register();
-        $started = microtime(true);
+        $started = self::now();
         $key = CloudStreamWrapper::key_prefix() . '/2026/09/slow.txt';
         @file_put_contents('diluxoneoffload://' . $key, 'bytes that never arrive');
         $this->assertGaveUpAtTheSetting($started);
@@ -122,7 +127,7 @@ class TimeoutTest extends IntegrationTestCase {
         $sm = new SyncManager();
         $this->assertTrue($sm->start_sync()['success'], 'a pending row makes start_sync a continuation');
 
-        $started = microtime(true);
+        $started = self::now();
         $r       = $sm->process_batch(0.0);
         $this->assertGaveUpAtTheSetting($started);
 

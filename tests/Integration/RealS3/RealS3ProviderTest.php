@@ -4,6 +4,7 @@ namespace Tests\Integration\RealS3;
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\Providers\AwsSignatureV4;
 use DiluxOneOffload\Providers\S3CompatibleProvider;
+use Tests\Integration\SendsParts;
 
 /**
  * The S3-compatible provider against a real S3 server: real SigV4
@@ -19,6 +20,9 @@ use DiluxOneOffload\Providers\S3CompatibleProvider;
  * its own and deletes what it wrote.
  */
 class RealS3ProviderTest extends IntegrationTestCase {
+
+    use SendsParts;
+
 
     /** @var array<string, string> */
     private static array $settings = [];
@@ -159,6 +163,71 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $down = $this->tempFile(0);
         $this->assertTrue(self::$provider->download_file($key, $down)['success']);
         $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** The sync's path: parts as handles, an upload taken up with ListParts where it was left, the commit. */
+    public function test_a_large_file_is_taken_up_where_it_was_left_and_assembled_byte_for_byte(): void {
+        $local = $this->tempFile(11 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => $this->key('resumed.mp4')];
+        $first = self::$provider->begin_chunked_upload($file);
+        $this->assertTrue($first['success'], $first['error'] ?? '');
+        $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
+
+        // A later request, through what the sync keeps (an upload name longer
+        // than the row allows, as R2's are, is kept in an option by its
+        // SHA-1): part 1 is there.
+        \DiluxOneOffload\DiluxOneOffloadDB::remember_upload('/not-a-row', $first['upload'], 1700000000);
+        $token  = $first['upload']->resumeToken(1700000000);
+        $again  = self::$provider->begin_chunked_upload($file, \DiluxOneOffload\DiluxOneOffloadDB::resumable_upload_name($token, 11 * 1048576, 1700000000));
+        $upload = $again['upload'];
+        $this->assertSame($first['upload']->uploadId(), $upload->uploadId());
+        $this->assertSame([2, 3], $upload->missingParts());
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+
+        $down = $this->tempFile(0);
+        $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
+        $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /**
+     * An upload named only by its SHA-1 is found by ListMultipartUploads: the
+     * fallback when the long name the sync keeps in an option is gone.
+     * Cloudflare R2 did not return the upload this way in CI (30 September
+     * 2026), so the sync does not count on it there.
+     */
+    public function test_an_upload_named_by_its_sha1_is_found_among_the_unfinished_uploads(): void {
+        if ('r2' === (self::$settings['preset'] ?? '')) {
+            $this->markTestSkipped('R2 did not list the upload by its key; the sync keeps long names in an option instead.');
+        }
+        $file  = ['local_path' => $this->tempFile(6 * 1048576, 'mp4'), 'remote_path' => $this->key('by-sha1.mp4')];
+        $first = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $first, 1));
+
+        $again = self::$provider->begin_chunked_upload($file, '#' . sha1($first->uploadId()))['upload'];
+        $this->assertSame($first->uploadId(), $again->uploadId());
+        $this->assertSame([2], $again->missingParts());
+        self::$provider->abort_chunked_upload(new \DiluxOneOffload\DTOs\ChunkedUpload($file['local_path'], $file['remote_path'], 1, 1, '#' . sha1($first->uploadId())));
+        $fresh = self::$provider->begin_chunked_upload($file, $first->uploadId())['upload'];
+        $this->assertNotSame($first->uploadId(), $fresh->uploadId(), 'the abort found it too');
+        self::$provider->abort_chunked_upload($fresh);
+    }
+
+    /** An aborted upload is one the service no longer knows: taking it up starts a new one. */
+    public function test_an_aborted_upload_cannot_be_taken_up_and_starts_over(): void {
+        $local = $this->tempFile(6 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => $this->key('aborted.mp4')];
+        $first = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $first, 1));
+        self::$provider->abort_chunked_upload($first);
+
+        $again = self::$provider->begin_chunked_upload($file, $first->uploadId())['upload'];
+        $this->assertNotSame($first->uploadId(), $again->uploadId());
+        $this->assertSame([1, 2], $again->missingParts());
+        self::$provider->abort_chunked_upload($again);
+        $this->assertFalse(self::$provider->file_exists($file['remote_path']));
     }
 
     public function test_the_part_boundary_on_both_sides(): void {

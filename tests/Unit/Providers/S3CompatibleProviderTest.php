@@ -511,23 +511,171 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertNull( $r['file_handle'] );
 	}
 
-	public function test_the_chunked_handle_sends_the_parts_now_and_leaves_the_commit(): void {
+	public function test_a_chunked_upload_starts_the_multipart_upload_and_sends_nothing_else(): void {
 		$f = $this->tmp( 11 * 1048576 );
-		$this->answer(
-			fn( string $method ) => 'POST' === $method
-				? self::reply( 200, '<InitiateMultipartUploadResult><UploadId>C1</UploadId></InitiateMultipartUploadResult>' )
-				: self::reply( 200, '', array( 'ETag' => '"p"' ) )
-		);
+		$this->answer( fn() => self::reply( 200, '<InitiateMultipartUploadResult><UploadId>C1</UploadId></InitiateMultipartUploadResult>' ) );
 
-		$r = $this->provider->prepare_chunked_upload_handle( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) );
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) );
 		unlink( $f );
 
 		$this->assertTrue( $r['success'], (string) ( $r['error'] ?? '' ) );
-		$this->assertSame( array( 'POST', 'PUT', 'PUT', 'PUT' ), array_column( $this->requests(), 'method' ), 'create and three parts; the commit is the handle' );
+		$this->assertSame( array( 'POST' ), array_column( $this->requests(), 'method' ), 'only the create: the parts go through the sync' );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploads=', $this->requests()[0]['url'] );
+		$this->assertSame( 'C1', $r['upload']->uploadId() );
+		$this->assertSame( 3, $r['upload']->partCount(), '5 MiB parts' );
+	}
+
+	/** Taking up an upload: ListParts, every page, tags the parts of the right size; nothing is created. */
+	public function test_a_chunked_upload_is_taken_up_from_the_parts_the_service_lists(): void {
+		$f     = $this->tmp( 11 * 1048576 );
+		$part  = fn( int $n, int $size ) => '<Part><PartNumber>' . $n . '</PartNumber><ETag>"e' . $n . '"</ETag><Size>' . $size . '</Size></Part>';
+		$pages = array(
+			'<ListPartsResult>' . $part( 1, 5242880 ) . '<IsTruncated>true</IsTruncated><NextPartNumberMarker>1</NextPartNumberMarker></ListPartsResult>',
+			// Part 2 landed short (a transfer cut off): it is sent again, not committed.
+			'<ListPartsResult>' . $part( 2, 1000 ) . $part( 3, 1048576 ) . '<IsTruncated>false</IsTruncated></ListPartsResult>',
+		);
+		$this->answer(
+			function () use ( &$pages ) {
+				return self::reply( 200, (string) array_shift( $pages ) );
+			}
+		);
+
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), 'U1' );
+		unlink( $f );
+
+		$this->assertTrue( $r['success'] );
+		$this->assertSame( array( 'GET', 'GET' ), array_column( $this->requests(), 'method' ) );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=U1', $this->requests()[0]['url'] );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=U1&part-number-marker=1', $this->requests()[1]['url'] );
+		$this->assertSame( 'U1', $r['upload']->uploadId() );
+		$this->assertSame( array( 2 ), $r['upload']->missingParts() );
+		$this->assertSame( '"e3"', $r['upload']->tag( 3 ) );
+	}
+
+	/** A name kept as its SHA-1 is found among the key's unfinished uploads, then taken up; so is its abort. */
+	public function test_an_upload_kept_as_its_sha1_is_found_by_listing_the_unfinished_uploads(): void {
+		$long  = str_repeat( 'Z', 300 );
+		$f     = $this->tmp( 11 * 1048576 );
+		$list  = '<ListMultipartUploadsResult>'
+			. '<Upload><Key>uploads/big.mov.bak</Key><UploadId>OTHER</UploadId></Upload>'
+			. '<Upload><Key>uploads/big.mov</Key><UploadId>' . $long . '</UploadId></Upload>'
+			. '<IsTruncated>false</IsTruncated></ListMultipartUploadsResult>';
+		$this->answer(
+			fn( string $method, string $url ) => false !== strpos( $url, '?uploads=' )
+				? self::reply( 200, $list )
+				: self::reply( 200, '<ListPartsResult><IsTruncated>false</IsTruncated></ListPartsResult>' )
+		);
+
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), '#' . sha1( $long ) );
+		unlink( $f );
+		$this->assertSame( $long, $r['upload']->uploadId() );
+		$this->assertSame( 'https://s3.example.com/media/?uploads=&prefix=uploads%2Fbig.mov', $this->requests()[0]['url'] );
+		$this->assertStringStartsWith( 'https://s3.example.com/media/uploads/big.mov?uploadId=ZZZ', $this->requests()[1]['url'] );
+
+		$this->answer( fn( string $method ) => 'GET' === $method ? self::reply( 200, $list ) : self::reply( 204 ) );
+		$this->provider->abort_chunked_upload( new \DiluxOneOffload\DTOs\ChunkedUpload( '/f', 'uploads/big.mov', 1, 1, '#' . sha1( $long ) ) );
+		$abort = array_slice( $this->requests(), -1 )[0];
+		$this->assertSame( 'DELETE', $abort['method'] );
+		$this->assertStringEndsWith( '?uploadId=' . $long, $abort['url'] );
+	}
+
+	/**
+	 * When the service cannot be asked (a 5xx after its retries, an
+	 * unfinished uploads listing that fails), no new upload starts: the old
+	 * one would be left behind, billed. The file fails this round and keeps
+	 * its token.
+	 */
+	public function test_an_upload_that_cannot_be_asked_for_starts_nothing(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer( fn() => self::reply( 503, self::error( 'SlowDown', 'Reduce your request rate' ) ) );
+		foreach ( array( 'U1', '#' . sha1( 'U1' ) ) as $name ) {
+			$GLOBALS['_test_wp_http_log'] = array();
+			$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), $name );
+			$this->assertFalse( $r['success'], $name );
+			$this->assertStringContainsString( 'taken up next time', $r['error'] );
+			$this->assertNotContains( 'POST', array_column( $this->requests(), 'method' ), 'no new upload: ' . $name );
+		}
+		unlink( $f );
+	}
+
+	/** An upload the service no longer knows (aborted, expired) is replaced by a new one. */
+	public function test_an_upload_the_service_forgot_starts_over(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer(
+			fn( string $method ) => 'GET' === $method
+				? self::reply( 404, self::error( 'NoSuchUpload', 'The specified upload does not exist.' ) )
+				: self::reply( 200, '<InitiateMultipartUploadResult><UploadId>NEW</UploadId></InitiateMultipartUploadResult>' )
+		);
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), 'OLD' );
+		unlink( $f );
+		$this->assertSame( array( 'GET', 'POST' ), array_column( $this->requests(), 'method' ) );
+		$this->assertSame( 'NEW', $r['upload']->uploadId() );
+		$this->assertSame( array( 1, 2, 3 ), $r['upload']->missingParts() );
+	}
+
+	public function test_a_chunked_upload_that_cannot_start_says_why(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer( fn() => self::reply( 403, self::error( 'AccessDenied', 'Access Denied' ) ) );
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) );
+		unlink( $f );
+		$this->assertFalse( $r['success'] );
+		$this->assertStringContainsString( 'AccessDenied', $r['error'] );
+		$this->assertFalse( $this->provider->begin_chunked_upload( array( 'local_path' => '/nope/x', 'remote_path' => 'x' ) )['success'] );
+	}
+
+	/**
+	 * A part is a streamed PUT of exactly its bytes, with their Content-MD5,
+	 * and the ETag of the answer becomes its tag. Run against the local
+	 * server, whose ETag is the MD5 of what it received.
+	 */
+	public function test_a_part_handle_streams_that_part_and_records_its_etag(): void {
+		$server = new \Tests\Integration\LocalBlobServer( 8778 );
+		try {
+			$f = (string) tempnam( sys_get_temp_dir(), 's3u' );
+			file_put_contents( $f, random_bytes( 5242880 ) . 'the second part' );
+			$this->answer( fn() => self::reply( 200, '<InitiateMultipartUploadResult><UploadId>U 1</UploadId></InitiateMultipartUploadResult>' ) );
+			$p      = self::make( array( 'endpoint' => $server->base_url, 'bucket' => 'status-200' ) ); // The server answers what the path asks.
+			$upload = $p->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) )['upload'];
+
+			$r = $p->prepare_part_handle( $upload, 2 );
+			$this->assertTrue( $r['success'], (string) ( $r['error'] ?? '' ) );
+			$this->assertStringEndsWith( '/status-200/uploads/big.mov?partNumber=2&uploadId=U%201', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
+			$body   = (string) curl_exec( $r['handle'] );
+			$status = (int) curl_getinfo( $r['handle'], CURLINFO_HTTP_CODE );
+			fclose( $r['file_handle'] );
+
+			$this->assertNull( $p->finish_part( $upload, 2, $status, $body ) );
+			$this->assertSame( '"' . md5( 'the second part' ) . '"', $upload->tag( 2 ), 'the server received the second part and nothing else' );
+			unlink( $f );
+		} finally {
+			$server->stop();
+		}
+	}
+
+	public function test_a_part_without_an_etag_or_with_an_error_fails(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer( fn() => self::reply( 200, '<InitiateMultipartUploadResult><UploadId>C1</UploadId></InitiateMultipartUploadResult>' ) );
+		$upload = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) )['upload'];
+		unlink( $f );
+		$this->assertStringContainsString( 'part 1', (string) $this->provider->finish_part( $upload, 1, 200, '' ), 'a 200 with no ETag cannot be committed' );
+		$this->assertStringContainsString( 'SlowDown', (string) $this->provider->finish_part( $upload, 2, 503, self::error( 'SlowDown', 'Reduce your request rate' ) ) );
+	}
+
+	public function test_the_commit_lists_every_etag_and_its_failure_aborts_the_upload(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer( fn() => self::reply( 200, '<InitiateMultipartUploadResult><UploadId>C1</UploadId></InitiateMultipartUploadResult>' ) );
+		$upload = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ) )['upload'];
+		unlink( $f );
+		$this->assertFalse( $this->provider->prepare_commit_handle( $upload )['success'], 'no commit while a part is missing' );
+
+		foreach ( array( 1, 2, 3 ) as $n ) {
+			$upload->recordTag( $n, '"e' . $n . '"' );
+		}
+		$r = $this->provider->prepare_commit_handle( $upload );
+		$this->assertTrue( $r['success'] );
 		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=C1', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
 
 		// If the sync's commit fails, the provider drops the parts it sent.
-		$this->assertIsCallable( $r['on_failure'] );
 		$this->answer( fn() => self::reply( 204 ) );
 		( $r['on_failure'] )();
 		$abort = array_slice( $this->requests(), -1 )[0];

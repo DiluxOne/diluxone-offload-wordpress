@@ -201,6 +201,27 @@ class DiluxOneOffloadDBTest extends IntegrationTestCase {
         $this->assertNotContains('/2024/01/test-file-1.jpg', $paths);
     }
 
+    public function test_a_round_is_filled_with_the_smallest_files_up_to_the_slots(): void {
+        DiluxOneOffloadDB::add_file('/big-a.mp4', 20 * 1024 * 1024);
+        DiluxOneOffloadDB::add_file('/big-b.mp4', 19 * 1024 * 1024);
+        foreach ([300, 100, 200, 400, 500] as $size) {
+            DiluxOneOffloadDB::add_file("/small-$size.jpg", $size);
+        }
+        $files = array_column(DiluxOneOffloadDB::get_pending_files(1000, 12 * 1024 * 1024, 4), 'file');
+        $this->assertSame(['/big-a.mp4', '/small-100.jpg', '/small-200.jpg', '/small-300.jpg'], $files, 'the largest that fits, then the smallest, no file twice');
+        $this->assertSame(['/big-a.mp4'], array_column(DiluxOneOffloadDB::get_pending_files(1000, 12 * 1024 * 1024), 'file'), 'without a slot count, as before');
+        $this->assertCount(6, DiluxOneOffloadDB::get_pending_files(1000, 12 * 1024 * 1024, 50), 'never more than there is, and the second large file never fills');
+    }
+
+    public function test_only_small_files_fill_a_round(): void {
+        foreach (['a', 'b', 'c', 'd'] as $n) {
+            DiluxOneOffloadDB::add_file("/video-$n.mp4", 30 * 1024 * 1024);
+        }
+        DiluxOneOffloadDB::add_file('/thumb.jpg', 2048);
+        $files = array_column(DiluxOneOffloadDB::get_pending_files(1000, 25 * 1024 * 1024, 5), 'file');
+        $this->assertSame(['/video-a.mp4', '/thumb.jpg'], $files, 'a library of large files keeps to one large file a round; the thumbnail, one slot\'s share or less, fills it');
+    }
+
     public function test_get_pending_files_respects_limit(): void {
         $this->addTestFiles(10, 1024);
 

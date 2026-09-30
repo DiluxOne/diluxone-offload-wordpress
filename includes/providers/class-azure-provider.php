@@ -5,14 +5,14 @@
  * Talks to the Azure Blob REST API with a shared-key signature.
  *
  * cURL is confined to the parallel/streaming transfer path. No request is
- * executed here: prepare_batch_upload_handle(), prepare_chunked_upload_handle()
- * and prepare_download_handle() only build the handles that SyncManager then
+ * executed here: prepare_batch_upload_handle(), prepare_part_handle(),
+ * prepare_commit_handle() and prepare_download_handle() only build the handles that SyncManager then
  * runs through curl_multi_*, so many files move at once and multi-GB bodies
  * stream from a file handle instead of being buffered in PHP memory. The WP
  * HTTP API has no equivalent: it offers no streamed request body and no
  * parallel transport. Everything else — auth, metadata, existence checks,
  * checksums, delete, copy, single-file upload and download, and each block of
- * a chunked upload — goes through wp_remote_*.
+ * a file the stream wrapper writes — goes through wp_remote_*.
  *
  * The fopen/fread/fclose/file_get_contents calls operate on the local temp
  * files feeding those transfers, with one exception: prepare_download_handle()
@@ -40,6 +40,7 @@ use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
 use DiluxOneOffload\Logger;
 use DiluxOneOffload\MimeHelper;
 use DiluxOneOffload\DTOs\AzureConfig;
+use DiluxOneOffload\DTOs\ChunkedUpload;
 use DiluxOneOffload\DTOs\ConnectionResult;
 use DiluxOneOffload\DTOs\UploadResult;
 use DiluxOneOffload\DTOs\OperationResult;
@@ -58,6 +59,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
 	use TransientRetry;
+	use PartUpload;
 
 	/**
 	 * Bytes per block, and the largest file sent in a single Put Blob request.
@@ -428,6 +430,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$block_ids   = array();
 		$block_index = 0;
+		$nonce       = self::new_nonce();
 		$bytes_read  = 0;
 
 		while ( ! feof( $fp ) ) {
@@ -445,7 +448,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				break;
 			}
 
-			$block_id    = base64_encode( str_pad( (string) $block_index, 6, '0', STR_PAD_LEFT ) );
+			$block_id    = self::block_id( $nonce, $block_index + 1 );
 			$block_ids[] = $block_id;
 
 			$date           = gmdate( 'D, d M Y H:i:s T' );
@@ -1203,179 +1206,252 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * Prepare chunked upload handle for large files (>10MB)
-	 * Provider-specific implementation for Azure Block Blob API
+	 * A large file goes up as 4 MiB blocks, each a Put Block the sync sends
+	 * through its pool, then one Put Block List. Azure needs no call to
+	 * start: the upload's name is a nonce its block ids carry. To take up an
+	 * unfinished upload, the uncommitted block list says which of its blocks
+	 * Azure holds; blocks with another nonce are not this upload's.
 	 *
-	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
+	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id The nonce of the upload to take up, or null to start over.
+	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
+	 */
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
+		$local_path = (string) $file_info['local_path'];
+		$size       = is_file( $local_path ) ? (int) filesize( $local_path ) : 0;
+		if ( $size <= 0 ) {
+			return array(
+				'success' => false,
+				'error'   => 'File not found: ' . $local_path,
+			);
+		}
+		$resume = null !== $resume_upload_id && 1 === preg_match( '/^[0-9a-f]{6}$/', $resume_upload_id );
+		$upload = new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE, $resume ? (string) $resume_upload_id : self::new_nonce() );
+		if ( $resume ) {
+			foreach ( $this->uncommitted_blocks( $upload->remotePath(), $upload->uploadId() ) as $part => $block_size ) {
+				if ( $part <= $upload->partCount() && $block_size === $upload->length( $part ) ) {
+					$upload->recordTag( $part, self::block_id( $upload->uploadId(), $part ) );
+				}
+			}
+		}
+		return array(
+			'success' => true,
+			'upload'  => $upload,
+		);
+	}
+
+	/**
+	 * The blocks of one upload Azure holds for a blob and nobody committed
+	 * yet, by part number, with their sizes. Nothing when there are none,
+	 * when the blob does not exist or when Azure cannot be asked: the upload
+	 * starts over.
+	 *
+	 * @param string $remote_path Blob path.
+	 * @param string $nonce       The upload's nonce.
+	 * @return array<int, int>
+	 */
+	private function uncommitted_blocks( string $remote_path, string $nonce ): array {
+		$url      = "{$this->endpoint}/{$this->container_name}/" . $this->object_path( $remote_path ) . '?blocklisttype=uncommitted&comp=blocklist';
+		$response = $this->send_with_retry(
+			$url,
+			array(
+				'method'  => 'GET',
+				'headers' => $this->get_auth_headers( 'GET', $url ),
+				'timeout' => 30,
+			)
+		);
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return array();
+		}
+		$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+		if ( null === $xml || ! isset( $xml->UncommittedBlocks->Block ) ) {
+			return array();
+		}
+		$blocks = array();
+		foreach ( $xml->UncommittedBlocks->Block as $block ) {
+			// This upload's ids are its nonce and the zero-based index, three
+			// bytes each; any other block is not its own and is left out.
+			$name = base64_decode( (string) $block->Name, true );
+			if ( false !== $name && 6 === strlen( $name ) && hex2bin( $nonce ) === substr( $name, 0, 3 ) ) {
+				$index = unpack( 'N', "\0" . substr( $name, 3 ) );
+				$part  = (int) ( is_array( $index ) ? $index[1] : 0 ) + 1;
+
+				$blocks[ $part ] = (int) $block->Size;
+			}
+		}
+		return $blocks;
+	}
+
+	/**
+	 * One Put Block, its body streamed from the file.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 * @param int           $part   Part number, from 1.
 	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
 	 */
-	public function prepare_chunked_upload_handle( array $file_info ): array {
-		$local_path  = $file_info['local_path'];
-		$remote_path = $file_info['remote_path'];
+	public function prepare_part_handle( ChunkedUpload $upload, int $part ): array {
+		$encoded_path   = $this->object_path( $upload->remotePath() );
+		$block_id       = self::block_id( $upload->uploadId(), $part );
+		$content_length = $upload->length( $part );
+		$date           = gmdate( 'D, d M Y H:i:s T' );
 
-		try {
-			// Build Azure URL with proper encoding for spaces and special characters
-			// HTTPS is always enforced (Azure requirement)
-			$endpoint    = $this->endpoint;
-			$remote_path = ltrim( $remote_path, '/' );
+		// Query parameters in alphabetical order and the Content-Type stated,
+		// as upload_file_in_blocks() signs them.
+		$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\nblockid:{$block_id}\ncomp:block";
+		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-			// Percent-encode each segment; the signature is over the same encoded path.
-			$path_parts    = explode( '/', $remote_path );
-			$encoded_parts = array_map( 'rawurlencode', $path_parts );
-			$encoded_path  = implode( '/', $encoded_parts );
-
-			$file_size  = filesize( $local_path );
-			$chunk_size = 4194304; // 4MB chunks
-			$block_ids  = array();
-
-			// Upload chunks
-			$fp = fopen( $local_path, 'rb' );
-			if ( ! $fp ) {
-				return array(
-					'success'     => false,
-					'error'       => 'Failed to open file for chunked upload',
-					'file_handle' => null,
-				);
-			}
-
-			$block_index = 0;
-			$bytes_read  = 0;
-			while ( ! feof( $fp ) ) {
-				$chunk = fread( $fp, $chunk_size );
-
-				// A read error is not the end of the file: stopping here and
-				// committing would publish a truncated blob as a success.
-				if ( $chunk === false ) {
-					fclose( $fp );
-					return array(
-						'success'     => false,
-						'error'       => "Failed to read block {$block_index} of {$local_path}",
-						'file_handle' => null,
-					);
-				}
-
-				if ( strlen( $chunk ) === 0 ) {
-					break;
-				}
-
-				// Generate unique block ID (base64 encoded, must be same length)
-				$block_id    = base64_encode( str_pad( (string) $block_index, 6, '0', STR_PAD_LEFT ) );
-				$block_ids[] = $block_id;
-
-				// Upload block
-				$url            = "{$endpoint}/{$this->container_name}/{$encoded_path}?comp=block&blockid=" . rawurlencode( $block_id );
-				$date           = gmdate( 'D, d M Y H:i:s T' );
-				$content_length = strlen( $chunk );
-
-				// query parameters in alphabetical order, and the Content-Type
-				// stated explicitly — the WordPress HTTP API otherwise sends
-				// application/x-www-form-urlencoded and Azure answers 403. See
-				// upload_file_in_blocks() for the same two rules.
-				$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\nblockid:{$block_id}\ncomp:block";
-				$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
-
-				$block_response = $this->send_with_retry(
-					$url,
-					array(
-						'method'  => 'PUT',
-						'headers' => array(
-							'Authorization'  => 'SharedKey ' . $this->storage_account . ':' . $signature,
-							'Content-Type'   => self::BLOCK_CONTENT_TYPE,
-							'Content-Length' => (string) $content_length,
-							'x-ms-date'      => $date,
-							'x-ms-version'   => '2020-04-08',
-						),
-						'body'    => $chunk,
-						'timeout' => $this->transfer_timeout,
-					)
-				);
-
-				$transport_error = is_wp_error( $block_response ) ? $block_response->get_error_message() : '';
-				$http_code       = is_wp_error( $block_response ) ? 0 : wp_remote_retrieve_response_code( $block_response );
-				$response        = is_wp_error( $block_response ) ? '' : wp_remote_retrieve_body( $block_response );
-				if ( $http_code !== 201 ) {
-					fclose( $fp );
-					$error_msg = "Failed to upload block {$block_index}: HTTP {$http_code}";
-					if ( ! empty( $transport_error ) ) {
-						$error_msg .= " - {$transport_error}";
-					}
-					$error_msg .= $this->describe_error_body( (string) $response );
-					Logger::info( '[DiluxOne Offload AzureProvider] Chunked upload error: ' . $error_msg );
-					return array(
-						'success'     => false,
-						'error'       => $error_msg,
-						'file_handle' => null,
-					);
-				}
-
-				$bytes_read += $content_length;
-				++$block_index;
-			}
-
-			fclose( $fp );
-
-			// The blocks Azure is about to assemble have to add up to the file.
-			if ( $bytes_read !== $file_size ) {
-				return array(
-					'success'     => false,
-					'error'       => "Read {$bytes_read} of {$file_size} bytes from {$local_path}",
-					'file_handle' => null,
-				);
-			}
-
-			// Commit blocks with Put Block List
-			$url  = "{$endpoint}/{$this->container_name}/{$encoded_path}?comp=blocklist";
-			$date = gmdate( 'D, d M Y H:i:s T' );
-
-			// Build XML block list
-			$block_list_xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
-			foreach ( $block_ids as $block_id ) {
-				$block_list_xml .= '<Latest>' . $block_id . '</Latest>';
-			}
-			$block_list_xml .= '</BlockList>';
-
-			$content_length = strlen( $block_list_xml );
-			$content_type   = MimeHelper::get_mime_type( $remote_path );
-
-			$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\ncomp:blocklist";
-			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
-
-			$ch = curl_init();
-			curl_setopt_array(
-				$ch,
-				array(
-					CURLOPT_URL            => $url,
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_CUSTOMREQUEST  => 'PUT',
-					CURLOPT_POSTFIELDS     => $block_list_xml,
-					CURLOPT_HTTPHEADER     => array(
-						'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
-						'Content-Type: application/xml',
-						'Content-Length: ' . $content_length,
-						'x-ms-blob-content-type: ' . $content_type,
-						'x-ms-date: ' . $date,
-						'x-ms-version: 2020-04-08',
-					),
-					CURLOPT_TIMEOUT        => $this->transfer_timeout,
-					CURLOPT_CONNECTTIMEOUT => 30,
-				)
-			);
-
-			// For compatibility with parallel upload, return a dummy handle
-			// Chunked upload is already complete at this point
-			return array(
-				'success'     => true,
-				'handle'      => $ch,
-				'file_handle' => null, // No file handle needed, upload is synchronous
-			);
-
-		} catch ( \Exception $e ) {
+		$ch = curl_init();
+		curl_setopt_array(
+			$ch,
+			array(
+				CURLOPT_URL            => "{$this->endpoint}/{$this->container_name}/{$encoded_path}?comp=block&blockid=" . rawurlencode( $block_id ),
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_CUSTOMREQUEST  => 'PUT',
+				CURLOPT_HTTPHEADER     => array(
+					'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
+					'Content-Type: ' . self::BLOCK_CONTENT_TYPE,
+					'Content-Length: ' . $content_length,
+					'x-ms-date: ' . $date,
+					'x-ms-version: 2020-04-08',
+				),
+				CURLOPT_TIMEOUT        => $this->transfer_timeout,
+				CURLOPT_CONNECTTIMEOUT => 30,
+			)
+		);
+		$file_handle = self::stream_part( $ch, $upload, $part );
+		if ( null === $file_handle ) {
 			return array(
 				'success'     => false,
-				'error'       => 'Chunked upload exception: ' . $e->getMessage(),
+				'error'       => "Failed to read block {$part} of " . $upload->localPath(),
+				'handle'      => null,
 				'file_handle' => null,
 			);
 		}
+
+		return array(
+			'success'     => true,
+			'handle'      => $ch,
+			'file_handle' => $file_handle,
+		);
+	}
+
+	/**
+	 * A block landed when Azure answers 201; its id is its tag.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 * @param int           $part   Part number.
+	 * @param int           $status HTTP status.
+	 * @param string        $body   Response body.
+	 * @return string|null
+	 */
+	public function finish_part( ChunkedUpload $upload, int $part, int $status, string $body ): ?string {
+		if ( 201 !== $status ) {
+			return "Failed to upload block {$part}: HTTP {$status}" . $this->describe_error_body( $body );
+		}
+		$upload->recordTag( $part, self::block_id( $upload->uploadId(), $part ) );
+		return null;
+	}
+
+	/**
+	 * Put Block List: the blocks, in order, become the blob.
+	 *
+	 * @param ChunkedUpload $upload The upload, every part tagged.
+	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => null, 'on_failure' => callable]
+	 */
+	public function prepare_commit_handle( ChunkedUpload $upload ): array {
+		$tags = $upload->tags();
+		if ( null === $tags ) {
+			return array(
+				'success'     => false,
+				'error'       => 'A block of ' . $upload->localPath() . ' was not uploaded',
+				'handle'      => null,
+				'file_handle' => null,
+			);
+		}
+
+		$encoded_path   = $this->object_path( $upload->remotePath() );
+		$block_list_xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
+		foreach ( $tags as $block_id ) {
+			$block_list_xml .= '<Latest>' . $block_id . '</Latest>';
+		}
+		$block_list_xml .= '</BlockList>';
+
+		$date           = gmdate( 'D, d M Y H:i:s T' );
+		$content_length = strlen( $block_list_xml );
+		$content_type   = MimeHelper::get_mime_type( $upload->remotePath() );
+
+		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\ncomp:blocklist";
+		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
+
+		$ch = curl_init();
+		curl_setopt_array(
+			$ch,
+			array(
+				CURLOPT_URL            => "{$this->endpoint}/{$this->container_name}/{$encoded_path}?comp=blocklist",
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_CUSTOMREQUEST  => 'PUT',
+				CURLOPT_POSTFIELDS     => $block_list_xml,
+				CURLOPT_HTTPHEADER     => array(
+					'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
+					'Content-Type: application/xml',
+					'Content-Length: ' . $content_length,
+					'x-ms-blob-content-type: ' . $content_type,
+					'x-ms-date: ' . $date,
+					'x-ms-version: 2020-04-08',
+				),
+				CURLOPT_TIMEOUT        => $this->transfer_timeout,
+				CURLOPT_CONNECTTIMEOUT => 30,
+			)
+		);
+
+		return array(
+			'success'     => true,
+			'handle'      => $ch,
+			'file_handle' => null,
+			'on_failure'  => function () use ( $upload ): void {
+				$this->abort_chunked_upload( $upload );
+			},
+		);
+	}
+
+	/**
+	 * Nothing to call: Azure discards blocks nobody committed after a week,
+	 * and they never show as a blob.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 */
+	public function abort_chunked_upload( ChunkedUpload $upload ): void {
+	}
+
+	/**
+	 * A block's id: base64 of six bytes, the upload's three-byte nonce and
+	 * the zero-based index in three bytes. The nonce tells this upload's
+	 * blocks from any other left uncommitted on the same blob (an earlier
+	 * content of the file, another writer), which a resumed upload must
+	 * never commit. Every id is eight characters, the length of the ids
+	 * 2.0.0 used (six ASCII digits): Azure refuses a block whose id length
+	 * differs from the blob's uncommitted blocks (InvalidBlobOrBlock), so a
+	 * blob an older upload left blocks on still takes this one's.
+	 *
+	 * @param string $nonce The upload's nonce, six hex characters (new_nonce()).
+	 * @param int    $part  Part number, from 1.
+	 * @return string
+	 */
+	private static function block_id( string $nonce, int $part ): string {
+		return base64_encode( (string) hex2bin( $nonce ) . substr( pack( 'N', $part - 1 ), 1 ) );
+	}
+
+	/**
+	 * A new upload's nonce, six hex characters; never three ASCII digits, so
+	 * no id of it reads as one of 2.0.0's.
+	 *
+	 * @return string
+	 */
+	private static function new_nonce(): string {
+		do {
+			$bytes = random_bytes( 3 );
+		} while ( ctype_digit( $bytes ) );
+		return bin2hex( $bytes );
 	}
 
 	/**

@@ -363,7 +363,9 @@ class Plugin {
 	 * Seconds one sync or disconnect request keeps transferring before it
 	 * answers the browser, which then asks for the next batch: 8 by default,
 	 * short enough for a responsive progress bar and far from any
-	 * max_execution_time. A round already started always finishes.
+	 * max_execution_time. Past it a sync starts no new file (the transfers in
+	 * flight, and the parts of a file already started, finish), and a
+	 * disconnect finishes the round of at most 12 MB it is downloading.
 	 *
 	 * @return float
 	 */
@@ -1052,17 +1054,9 @@ class Plugin {
 		}
 
 		try {
-			global $wpdb;
-			$table_name = DiluxOneOffloadDB::get_table_name();
-
-			// Delete ALL files with synced=0 (all failed files, regardless of error count)
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), no user input
-			$result = $wpdb->query(
-				"
-                DELETE FROM $table_name
-                WHERE synced = 0 AND deleted = 0
-            "
-			);
+			// Every file with synced=0 (all failed files, regardless of error
+			// count), with the uploads they left half sent.
+			$result = DiluxOneOffloadDB::discard_unsynced_files();
 
 			if ( $result !== false ) {
 				Logger::info( '[DiluxOne Offload Plugin] Discarded ' . $result . ' failed files from database' );

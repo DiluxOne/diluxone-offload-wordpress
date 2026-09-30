@@ -55,6 +55,7 @@ function diluxone_offload_autoloader( string $class_name ): void {
 		'Providers\\AzureProvider'                => 'includes/providers/class-azure-provider.php',
 		'Providers\\StorageStats'                 => 'includes/providers/trait-storage-stats.php',
 		'Providers\\TransientRetry'               => 'includes/providers/trait-transient-retry.php',
+		'Providers\\PartUpload'                   => 'includes/providers/trait-part-upload.php',
 		'Providers\\S3CompatibleProvider'         => 'includes/providers/class-s3-compatible-provider.php',
 		'Providers\\S3Presets'                    => 'includes/providers/class-s3-presets.php',
 		'Providers\\AwsSignatureV4'               => 'includes/providers/class-aws-signature-v4.php',
@@ -72,6 +73,7 @@ function diluxone_offload_autoloader( string $class_name ): void {
 		'DTOs\\ProviderConfig'                    => 'includes/DTOs/ProviderConfig.php',
 		'DTOs\\PluginSettings'                    => 'includes/DTOs/PluginSettings.php',
 		'DTOs\\SyncFilter'                        => 'includes/DTOs/SyncFilter.php',
+		'DTOs\\ChunkedUpload'                     => 'includes/DTOs/ChunkedUpload.php',
 
 		// Enums
 		'Enums\\SyncStatus'                       => 'includes/Enums/SyncStatus.php',

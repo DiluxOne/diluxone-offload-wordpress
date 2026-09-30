@@ -22,6 +22,8 @@
 
 namespace DiluxOneOffload;
 
+use DiluxOneOffload\DTOs\ChunkedUpload;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -133,7 +135,7 @@ class DiluxOneOffloadDB {
             `deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = file deleted locally but exists in cloud',
             `errors` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Error counter for retries',
             `error_message` TEXT NULL DEFAULT NULL COMMENT 'Last error message',
-            `upload_id` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Azure Block Blob upload ID for resuming',
+            `upload_id` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Unfinished chunked upload to take up (ChunkedUpload::resumeToken)',
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (`file`),
@@ -337,6 +339,8 @@ class DiluxOneOffloadDB {
 	public static function mark_synced( $file_path ) {
 		global $wpdb;
 
+		self::drop_long_name( $wpdb->get_var( $wpdb->prepare( 'SELECT upload_id FROM ' . self::get_table_name() . ' WHERE file = %s', $file_path ) ) );
+
 		$result = $wpdb->update(
 			self::get_table_name(),
 			array(
@@ -455,10 +459,100 @@ class DiluxOneOffloadDB {
 	}
 
 	/**
-	 * Set upload_id for multipart upload tracking
+	 * Where an upload name too long for the `upload_id` column is kept, by
+	 * its SHA-1 (the `#` form the column holds): Cloudflare R2's run past 250
+	 * characters. One option per site, not autoloaded.
+	 */
+	const LONG_UPLOAD_NAMES_OPTION = 'diluxone_offload_upload_names';
+
+	/**
+	 * Keep what a later request needs to take up a large file's unfinished
+	 * upload: the row's token, and the upload's full name when the token
+	 * carries only its SHA-1.
 	 *
-	 * @param string $file_path
-	 * @param string $upload_id
+	 * @param string        $file_path Row's file.
+	 * @param ChunkedUpload $upload    The upload.
+	 * @param int           $mtime     The file's modification time.
+	 */
+	public static function remember_upload( string $file_path, ChunkedUpload $upload, int $mtime ): void {
+		$token = $upload->resumeToken( $mtime );
+		$name  = ChunkedUpload::uploadIdOf( $token );
+		if ( null !== $name && '#' === substr( $name, 0, 1 ) ) {
+			$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+
+			$names[ substr( $name, 1 ) ] = $upload->uploadId();
+			update_option( self::LONG_UPLOAD_NAMES_OPTION, $names, false );
+		}
+		self::set_upload_id( $file_path, $token );
+	}
+
+	/**
+	 * Forget a row's unfinished upload (it finished, failed or was set aside).
+	 *
+	 * @param string $file_path Row's file.
+	 */
+	public static function forget_upload( string $file_path ): void {
+		global $wpdb;
+
+		$token = $wpdb->get_var( $wpdb->prepare( 'SELECT upload_id FROM ' . self::get_table_name() . ' WHERE file = %s', $file_path ) );
+		self::drop_long_name( is_string( $token ) ? $token : null );
+		self::set_upload_id( $file_path, null );
+	}
+
+	/**
+	 * The full name of the upload a token keeps: itself, or the long name
+	 * kept for its `#` form (still the `#` form when it is not kept, for
+	 * the provider to look up); null when the token is none.
+	 *
+	 * @param string|null $token A row's token.
+	 * @return string|null
+	 */
+	public static function upload_name_of( ?string $token ): ?string {
+		$name = ChunkedUpload::uploadIdOf( $token );
+		if ( null === $name || '#' !== substr( $name, 0, 1 ) ) {
+			return $name;
+		}
+		$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+		$full  = $names[ substr( $name, 1 ) ] ?? null;
+		return is_string( $full ) ? $full : $name;
+	}
+
+	/**
+	 * The name of the upload to take up for a file as it is now, or null to
+	 * start over (ChunkedUpload::resumableUploadId(), with long names found).
+	 *
+	 * @param string|null $token A row's token.
+	 * @param int         $size  The file's size now.
+	 * @param int         $mtime The file's modification time now.
+	 * @return string|null
+	 */
+	public static function resumable_upload_name( ?string $token, int $size, int $mtime ): ?string {
+		return null === ChunkedUpload::resumableUploadId( $token, $size, $mtime ) ? null : self::upload_name_of( $token );
+	}
+
+	/**
+	 * Drop the long name a token's `#` form points at, if it is kept.
+	 *
+	 * @param string|null $token A row's token.
+	 */
+	private static function drop_long_name( ?string $token ): void {
+		$name = ChunkedUpload::uploadIdOf( $token );
+		if ( null === $name || '#' !== substr( $name, 0, 1 ) ) {
+			return;
+		}
+		$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+		if ( isset( $names[ substr( $name, 1 ) ] ) ) {
+			unset( $names[ substr( $name, 1 ) ] );
+			update_option( self::LONG_UPLOAD_NAMES_OPTION, $names, false );
+		}
+	}
+
+	/**
+	 * Keep, or forget with null, a row's token as it is (remember_upload()
+	 * and forget_upload() are what the sync calls).
+	 *
+	 * @param string      $file_path
+	 * @param string|null $upload_id
 	 * @return int|false
 	 */
 	public static function set_upload_id( $file_path, $upload_id ) {
@@ -474,13 +568,40 @@ class DiluxOneOffloadDB {
 	}
 
 	/**
-	 * Get pending files for upload
+	 * Hand back the attempt counted when a file started, for a large file a
+	 * request left half sent on purpose (its time was up): the next request
+	 * takes it up, and a file that needs many requests is not retired as
+	 * failed for it.
 	 *
-	 * @param int      $limit Max number of files
-	 * @param int|null $max_bytes Max total bytes (for batching)
+	 * @param string $file_path
+	 * @return int|false
+	 */
+	public static function refund_attempt( $file_path ) {
+		global $wpdb;
+
+		return $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::get_table_name() . ' SET errors = GREATEST( errors - 1, 0 ) WHERE file = %s',
+				$file_path
+			)
+		);
+	}
+
+	/**
+	 * The pending files of the next upload round: the largest first, up to
+	 * $max_bytes (at least one, however large), and then, when that leaves
+	 * fewer than $min_files, the smallest pending files until it does, so
+	 * that a library that starts with videos does not upload them one at a
+	 * time while the other parallel slots wait. Only files of one slot's
+	 * share of the round or less fill it ($max_bytes / $min_files): a library
+	 * of large files alone keeps its rounds to $max_bytes.
+	 *
+	 * @param int      $limit     Max number of files.
+	 * @param int|null $max_bytes Max total bytes of the largest-first part.
+	 * @param int      $min_files Fill the round with small files up to this many.
 	 * @return array<int, array<string, mixed>> Files to upload
 	 */
-	public static function get_pending_files( $limit = 1000, $max_bytes = null ) {
+	public static function get_pending_files( $limit = 1000, $max_bytes = null, $min_files = 0 ) {
 		global $wpdb;
 
 		$files = $wpdb->get_results(
@@ -497,25 +618,52 @@ class DiluxOneOffloadDB {
 			ARRAY_A
 		);
 
-		// If max_bytes specified, filter by cumulative size
-		if ( $max_bytes && ! empty( $files ) ) {
-			$batch      = array();
-			$total_size = 0;
+		if ( ! $max_bytes || empty( $files ) ) {
+			return $files;
+		}
 
-			foreach ( $files as $file ) {
-				// Always include at least 1 file even if it exceeds max_bytes
-				if ( count( $batch ) > 0 && ( $total_size + $file['size'] ) > $max_bytes ) {
-					break;
-				}
-
-				$batch[]     = $file;
-				$total_size += $file['size'];
+		$batch      = array();
+		$total_size = 0;
+		foreach ( $files as $file ) {
+			// Always include at least 1 file even if it exceeds max_bytes.
+			if ( count( $batch ) > 0 && ( $total_size + $file['size'] ) > $max_bytes ) {
+				break;
 			}
+			$batch[]     = $file;
+			$total_size += $file['size'];
+		}
 
+		$wanted = min( (int) $min_files, (int) $limit );
+		if ( count( $batch ) >= $wanted ) {
 			return $batch;
 		}
 
-		return $files;
+		$smallest = $wpdb->get_results(
+			$wpdb->prepare(
+				'
+            SELECT file, size, transferred, errors, upload_id
+            FROM ' . self::get_table_name() . '
+            WHERE synced = 0 AND errors < 3 AND size <= %d
+            ORDER BY errors ASC, size ASC, file ASC
+            LIMIT %d
+        ',
+				intdiv( (int) $max_bytes, $wanted ),
+				$wanted
+			),
+			ARRAY_A
+		);
+		$taken    = array_flip( array_column( $batch, 'file' ) );
+		foreach ( (array) $smallest as $file ) {
+			if ( count( $batch ) >= $wanted ) {
+				break;
+			}
+			if ( ! isset( $taken[ $file['file'] ] ) ) {
+				$batch[]                = $file;
+				$taken[ $file['file'] ] = true;
+			}
+		}
+
+		return $batch;
 	}
 
 	/**
@@ -748,6 +896,8 @@ class DiluxOneOffloadDB {
 	public static function clear_table(): bool {
 		global $wpdb;
 
+		self::abandon_unfinished_uploads();
+		delete_option( self::LONG_UPLOAD_NAMES_OPTION );
 		$result = $wpdb->query( 'TRUNCATE TABLE ' . self::get_table_name() );
 
 		if ( $result !== false ) {
@@ -755,6 +905,48 @@ class DiluxOneOffloadDB {
 		}
 
 		return $result !== false;
+	}
+
+	/**
+	 * Drop the chunked uploads rows still name before the rows go, so an S3
+	 * multipart upload nobody can take up any more is not kept and billed
+	 * (Azure discards uncommitted blocks on its own). Best effort: a provider
+	 * that cannot be reached leaves them to the bucket's lifecycle rule.
+	 *
+	 * @param bool $unsynced_only Only the rows of files not uploaded (the ones Discard failed files removes).
+	 */
+	private static function abandon_unfinished_uploads( bool $unsynced_only = false ): void {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( 'SELECT file, size, upload_id FROM ' . self::get_table_name() . " WHERE upload_id IS NOT NULL AND upload_id <> ''" . ( $unsynced_only ? ' AND synced = 0 AND deleted = 0' : '' ), ARRAY_A );
+		if ( empty( $rows ) ) {
+			return;
+		}
+		$client = ConfigManager::get_cloud_client();
+		if ( null === $client ) {
+			return;
+		}
+		$basedir = wp_upload_dir()['basedir'];
+		foreach ( $rows as $row ) {
+			$upload_id = self::upload_name_of( (string) $row['upload_id'] );
+			if ( null !== $upload_id && (int) $row['size'] > 0 ) {
+				$client->abort_chunked_upload( new ChunkedUpload( $basedir . $row['file'], self::key_from_path( (string) $row['file'] ), (int) $row['size'], (int) $row['size'], $upload_id ) );
+			}
+			self::drop_long_name( (string) $row['upload_id'] );
+		}
+	}
+
+	/**
+	 * Remove every file the sync has not uploaded (Discard failed files), and
+	 * drop the uploads those rows left half sent first.
+	 *
+	 * @return int|false Rows removed.
+	 */
+	public static function discard_unsynced_files() {
+		global $wpdb;
+
+		self::abandon_unfinished_uploads( true );
+		return $wpdb->query( 'DELETE FROM ' . self::get_table_name() . ' WHERE synced = 0 AND deleted = 0' );
 	}
 
 	/**

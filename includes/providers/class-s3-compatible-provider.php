@@ -10,7 +10,7 @@
  * the fields the user saved; nothing here knows a service by name.
  *
  * As in AzureProvider, cURL is confined to the handles SyncManager runs
- * through curl_multi_* (batch upload, the commit of a multipart upload, a
+ * through curl_multi_* (batch upload, each part and the commit of a multipart upload, a
  * download to disk), which stream a file from or to disk; every other
  * request goes through wp_remote_*. The fopen/fread/fclose calls work on the
  * local files feeding those transfers, and prepare_download_handle() opens
@@ -41,6 +41,7 @@ use DiluxOneOffload\ConfigManager;
 use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
 use DiluxOneOffload\Logger;
 use DiluxOneOffload\MimeHelper;
+use DiluxOneOffload\DTOs\ChunkedUpload;
 use DiluxOneOffload\DTOs\ConnectionResult;
 use DiluxOneOffload\DTOs\FileInfo;
 use DiluxOneOffload\DTOs\OperationResult;
@@ -57,6 +58,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
 	use TransientRetry;
+	use PartUpload;
 
 	/**
 	 * Bytes per part of a multipart upload, and the largest file sent in a
@@ -475,17 +477,12 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @return array{upload_id: string, etags: string[]}|string
 	 */
 	private function upload_parts( string $local_path, string $key, string $content_type, int $size ) {
-		$url    = $this->request_url( $key );
-		$create = $this->request( 'POST', $url . '?uploads=', array( 'Content-Type' => $content_type ) + $this->acl_headers() );
-		if ( is_wp_error( $create ) ) {
-			return 'Upload failed to start: ' . $create->get_error_message();
+		$url       = $this->request_url( $key );
+		$upload_id = $this->create_multipart( $key, $content_type );
+		if ( ! is_array( $upload_id ) ) {
+			return $upload_id;
 		}
-		$status = (int) wp_remote_retrieve_response_code( $create );
-		$xml    = self::parse_xml( (string) wp_remote_retrieve_body( $create ) );
-		if ( 200 !== $status || null === $xml || ! isset( $xml->UploadId ) ) {
-			return 'Upload failed to start: ' . $this->failure_line( $status, (string) wp_remote_retrieve_body( $create ) );
-		}
-		$upload_id = (string) $xml->UploadId;
+		$upload_id = $upload_id[0];
 
 		$fp = fopen( $local_path, 'rb' );
 		if ( ! $fp ) {
@@ -545,6 +542,26 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			'upload_id' => $upload_id,
 			'etags'     => $etags,
 		);
+	}
+
+	/**
+	 * CreateMultipartUpload: the UploadId every part and the commit name.
+	 *
+	 * @param string $key          Object key.
+	 * @param string $content_type Type stored on the object.
+	 * @return array{0: string}|string The UploadId, or the error line.
+	 */
+	private function create_multipart( string $key, string $content_type ) {
+		$create = $this->request( 'POST', $this->request_url( $key ) . '?uploads=', array( 'Content-Type' => $content_type ) + $this->acl_headers() );
+		if ( is_wp_error( $create ) ) {
+			return 'Upload failed to start: ' . $create->get_error_message();
+		}
+		$status = (int) wp_remote_retrieve_response_code( $create );
+		$xml    = self::parse_xml( (string) wp_remote_retrieve_body( $create ) );
+		if ( 200 !== $status || null === $xml || ! isset( $xml->UploadId ) ) {
+			return 'Upload failed to start: ' . $this->failure_line( $status, (string) wp_remote_retrieve_body( $create ) );
+		}
+		return array( (string) $xml->UploadId );
 	}
 
 	/**
@@ -940,30 +957,183 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * A large file: the multipart upload is started and every part sent
-	 * here, synchronously; the handle returned is the commit, which the
-	 * sync runs under curl_multi like Azure's block-list commit.
+	 * A large file: the multipart upload is started here; its parts and its
+	 * commit go through the sync's pool. An unfinished one is taken up with
+	 * ListParts; a new one starts only when the service says it does not
+	 * know that upload. When it cannot be asked (a 5xx, a timeout), nothing
+	 * starts: the file fails this round and its row keeps the token, so the
+	 * upload is taken up later instead of being left behind, billed.
 	 *
-	 * @param array<string, mixed> $file_info ['local_path' => string, 'remote_path' => string]
-	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => null]
+	 * @param array<string, mixed> $file_info        ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id The UploadId to take up (or its `#` form), or null for a new upload.
+	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
-	public function prepare_chunked_upload_handle( array $file_info ): array {
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
 		$local_path = (string) $file_info['local_path'];
 		$key        = ltrim( (string) $file_info['remote_path'], '/' );
 
-		$size = is_file( $local_path ) ? filesize( $local_path ) : false;
-		if ( false === $size ) {
+		$size = is_file( $local_path ) ? (int) filesize( $local_path ) : 0;
+		if ( $size <= 0 ) {
 			return self::no_handle( 'File not found: ' . $local_path );
 		}
 
-		$parts = $this->upload_parts( $local_path, $key, MimeHelper::get_mime_type( $key ), $size );
-		if ( is_string( $parts ) ) {
-			Logger::info( '[DiluxOne Offload S3CompatibleProvider] Chunked upload error: ' . $parts );
-			return self::no_handle( $parts );
+		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
+			$upload_id = $this->resolve_upload_id( $key, $resume_upload_id );
+			$landed    = null === $upload_id || false === $upload_id ? $upload_id : $this->list_parts( $key, $upload_id );
+			if ( false === $landed || is_string( $landed ) ) {
+				return self::no_handle( 'Could not ask for the unfinished upload of ' . $key . ( is_string( $landed ) ? ': ' . $landed : '' ) . '; it is taken up next time' );
+			}
+			if ( null !== $landed && is_string( $upload_id ) ) {
+				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id );
+				foreach ( $landed as $part => $landed_part ) {
+					if ( $part <= $upload->partCount() && $landed_part['size'] === $upload->length( $part ) ) {
+						$upload->recordTag( $part, $landed_part['etag'] );
+					}
+				}
+				return array(
+					'success' => true,
+					'upload'  => $upload,
+				);
+			}
 		}
 
-		$url     = $this->request_url( $key ) . '?uploadId=' . rawurlencode( $parts['upload_id'] );
-		$body    = self::complete_body( $parts['etags'] );
+		$upload_id = $this->create_multipart( $key, MimeHelper::get_mime_type( $key ) );
+		if ( ! is_array( $upload_id ) ) {
+			Logger::info( '[DiluxOne Offload S3CompatibleProvider] Chunked upload error: ' . $upload_id );
+			return self::no_handle( $upload_id );
+		}
+
+		return array(
+			'success' => true,
+			'upload'  => new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id[0] ),
+		);
+	}
+
+	/**
+	 * ListParts, every page: the parts the service holds for an upload, by
+	 * number, with their ETag and size. Null when the service no longer
+	 * knows the upload (404 NoSuchUpload: aborted or expired); the error line
+	 * when it cannot be asked.
+	 *
+	 * @param string $key       Object key.
+	 * @param string $upload_id The UploadId.
+	 * @return array<int, array{etag: string, size: int}>|string|null
+	 */
+	private function list_parts( string $key, string $upload_id ) {
+		$parts  = array();
+		$marker = 0;
+		for ( $page = 0; $page < 20; $page++ ) { // 1000 parts a page, 10000 at most.
+			$query    = '?uploadId=' . rawurlencode( $upload_id ) . ( $marker > 0 ? '&part-number-marker=' . $marker : '' );
+			$response = $this->request( 'GET', $this->request_url( $key ) . $query );
+			if ( is_wp_error( $response ) ) {
+				return $response->get_error_message();
+			}
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			if ( 404 === $status ) {
+				return null;
+			}
+			$xml = 200 === $status ? self::parse_xml( (string) wp_remote_retrieve_body( $response ) ) : null;
+			if ( null === $xml ) {
+				return $this->failure_line( $status, (string) wp_remote_retrieve_body( $response ) );
+			}
+			foreach ( $xml->Part as $part ) {
+				$parts[ (int) $part->PartNumber ] = array(
+					'etag' => (string) $part->ETag,
+					'size' => (int) $part->Size,
+				);
+			}
+			$marker = (int) $xml->NextPartNumberMarker;
+			if ( 'true' !== strtolower( (string) $xml->IsTruncated ) || $marker <= 0 ) {
+				return $parts;
+			}
+		}
+		return $parts;
+	}
+
+	/**
+	 * One UploadPart, its body streamed from the file, with the Content-MD5
+	 * of exactly those bytes (read once to hash, a part at a time). The
+	 * ETag of the answer is recorded as the part's tag.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 * @param int           $part   Part number, from 1.
+	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
+	 */
+	public function prepare_part_handle( ChunkedUpload $upload, int $part ): array {
+		$md5 = self::part_md5( $upload, $part );
+		if ( null === $md5 ) {
+			return self::no_handle( 'Could not read part ' . $part . ' of: ' . $upload->localPath() );
+		}
+
+		$url     = $this->request_url( $upload->remotePath() ) . '?partNumber=' . $part . '&uploadId=' . rawurlencode( $upload->uploadId() );
+		$headers = $this->signed(
+			'PUT',
+			$url,
+			array(
+				'Content-Type' => 'application/octet-stream',
+				'Content-MD5'  => base64_encode( $md5 ),
+			)
+		);
+
+		$ch = curl_init();
+		curl_setopt_array(
+			$ch,
+			array(
+				CURLOPT_URL            => $url,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_CUSTOMREQUEST  => 'PUT',
+				CURLOPT_HTTPHEADER     => self::curl_headers( $headers ),
+				CURLOPT_HEADERFUNCTION => static function ( $handle, string $line ) use ( $upload, $part ): int {
+					if ( 0 === stripos( $line, 'etag:' ) ) {
+						$upload->recordTag( $part, trim( substr( $line, 5 ) ) );
+					}
+					return strlen( $line );
+				},
+				CURLOPT_TIMEOUT        => $this->transfer_timeout,
+				CURLOPT_CONNECTTIMEOUT => 30,
+			)
+		);
+		$file_handle = self::stream_part( $ch, $upload, $part );
+		if ( null === $file_handle ) {
+			return self::no_handle( 'Could not read part ' . $part . ' of: ' . $upload->localPath() );
+		}
+
+		return array(
+			'success'     => true,
+			'handle'      => $ch,
+			'file_handle' => $file_handle,
+		);
+	}
+
+	/**
+	 * A part landed when the answer is 200 with an ETag.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 * @param int           $part   Part number.
+	 * @param int           $status HTTP status.
+	 * @param string        $body   Response body.
+	 * @return string|null
+	 */
+	public function finish_part( ChunkedUpload $upload, int $part, int $status, string $body ): ?string {
+		if ( 200 !== $status || '' === $upload->tag( $part ) ) {
+			return 'Upload failed on part ' . $part . ': ' . $this->failure_line( $status, $body );
+		}
+		return null;
+	}
+
+	/**
+	 * CompleteMultipartUpload, read like any upload; if it fails, the parts go.
+	 *
+	 * @param ChunkedUpload $upload The upload, every part tagged.
+	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => null, 'on_failure' => callable]
+	 */
+	public function prepare_commit_handle( ChunkedUpload $upload ): array {
+		$tags = $upload->tags();
+		if ( null === $tags ) {
+			return self::no_handle( 'A part of ' . $upload->localPath() . ' was not uploaded' );
+		}
+
+		$url     = $this->request_url( $upload->remotePath() ) . '?uploadId=' . rawurlencode( $upload->uploadId() );
 		$headers = $this->signed( 'POST', $url, array( 'Content-Type' => 'application/xml' ) );
 
 		$ch = curl_init();
@@ -973,24 +1143,89 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 				CURLOPT_URL            => $url,
 				CURLOPT_RETURNTRANSFER => true,
 				CURLOPT_CUSTOMREQUEST  => 'POST',
-				CURLOPT_POSTFIELDS     => $body,
+				CURLOPT_POSTFIELDS     => self::complete_body( $tags ),
 				CURLOPT_HTTPHEADER     => self::curl_headers( $headers ),
 				CURLOPT_TIMEOUT        => $this->transfer_timeout,
 				CURLOPT_CONNECTTIMEOUT => 30,
 			)
 		);
 
-		$object_url = $this->request_url( $key );
-		$upload_id  = $parts['upload_id'];
 		return array(
 			'success'     => true,
 			'handle'      => $ch,
 			'file_handle' => null,
-			// The commit runs under curl_multi; if it fails, the parts go.
-			'on_failure'  => function () use ( $object_url, $upload_id ): void {
-				$this->abort( $object_url, $upload_id );
+			'on_failure'  => function () use ( $upload ): void {
+				$this->abort_chunked_upload( $upload );
 			},
 		);
+	}
+
+	/**
+	 * AbortMultipartUpload, so the parts sent are not kept and billed.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 */
+	public function abort_chunked_upload( ChunkedUpload $upload ): void {
+		$upload_id = $this->resolve_upload_id( $upload->remotePath(), $upload->uploadId() );
+		if ( is_string( $upload_id ) ) {
+			$this->abort( $this->request_url( $upload->remotePath() ), $upload_id );
+		}
+	}
+
+	/**
+	 * The UploadId a token names: itself, or, for the `#` form a name too
+	 * long for the row is kept as, the unfinished upload of the key whose
+	 * UploadId has that SHA-1 (ListMultipartUploads, every page). Null when
+	 * the service holds none, false when it cannot be asked.
+	 *
+	 * @param string $key  Object key.
+	 * @param string $name UploadId, or `#` and its SHA-1.
+	 * @return string|false|null
+	 */
+	private function resolve_upload_id( string $key, string $name ) {
+		if ( '#' !== substr( $name, 0, 1 ) ) {
+			return $name;
+		}
+		$sha1  = substr( $name, 1 );
+		$query = 'uploads=&prefix=' . rawurlencode( $key );
+		for ( $page = 0; $page < 20; $page++ ) {
+			$response = $this->request( 'GET', $this->request_url( '', $query ) );
+			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				return false;
+			}
+			$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+			if ( null === $xml ) {
+				return false;
+			}
+			foreach ( $xml->Upload as $unfinished ) {
+				if ( $key === (string) $unfinished->Key && hash_equals( $sha1, sha1( (string) $unfinished->UploadId ) ) ) {
+					return (string) $unfinished->UploadId;
+				}
+			}
+			if ( 'true' !== strtolower( (string) $xml->IsTruncated ) ) {
+				return null;
+			}
+			$query = 'uploads=&prefix=' . rawurlencode( $key ) . '&key-marker=' . rawurlencode( (string) $xml->NextKeyMarker ) . '&upload-id-marker=' . rawurlencode( (string) $xml->NextUploadIdMarker );
+		}
+		return null;
+	}
+
+	/**
+	 * The raw MD5 of one part's bytes, streamed from the file.
+	 *
+	 * @param ChunkedUpload $upload The upload.
+	 * @param int           $part   Part number.
+	 * @return string|null Null when the file cannot be read there.
+	 */
+	private static function part_md5( ChunkedUpload $upload, int $part ): ?string {
+		$fp = fopen( $upload->localPath(), 'rb' );
+		if ( ! $fp ) {
+			return null;
+		}
+		$ctx  = hash_init( 'md5' );
+		$read = 0 === fseek( $fp, $upload->offset( $part ) ) ? hash_update_stream( $ctx, $fp, $upload->length( $part ) ) : 0;
+		fclose( $fp );
+		return $read === $upload->length( $part ) ? hash_final( $ctx, true ) : null;
 	}
 
 	/**

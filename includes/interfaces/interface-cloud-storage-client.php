@@ -169,17 +169,68 @@ interface CloudStorageClientInterface {
 	public function prepare_batch_upload_handle( array $file_info ): array;
 
 	/**
-	 * Prepare chunked upload handle for large files (>10MB)
-	 * Used by SyncManager for optimized chunked uploads
+	 * Start a large file's upload in parts, for the sync's pool: the sync
+	 * then sends every part through prepare_part_handle() alongside the other
+	 * transfers, reads each answer with finish_part(), and commits with
+	 * prepare_commit_handle() once every part has its tag. Nothing is sent
+	 * here but what names the upload (S3's CreateMultipartUpload; Azure
+	 * needs no call, its upload is named by a nonce its block ids carry).
 	 *
-	 * The result may carry `on_failure`, a callable SyncManager calls when the
-	 * handle's transfer fails (the S3 provider aborts its multipart upload
-	 * there, so the parts already sent are not kept).
+	 * With $resume_upload_id, the upload an earlier request left unfinished
+	 * is taken up: the provider asks the service which parts it holds (S3's
+	 * ListParts, Azure's uncommitted block list) and tags those whose size is
+	 * right, so only the rest is sent. When the service no longer knows the
+	 * upload, a new one starts.
 	 *
-	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
+	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id The name of the unfinished upload to take up (an S3 UploadId, an Azure nonce, or `#` and the SHA-1 of a name too long for the row, which the provider resolves), or null for a new one.
+	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
+	 */
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array;
+
+	/**
+	 * A cURL handle that sends one part, read from the file as it goes (no
+	 * part is held in memory). The provider records the part's tag on the
+	 * upload when the answer carries it in a header.
+	 *
+	 * @param \DiluxOneOffload\DTOs\ChunkedUpload $upload The upload.
+	 * @param int                                 $part   Part number, from 1.
 	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
 	 */
-	public function prepare_chunked_upload_handle( array $file_info ): array;
+	public function prepare_part_handle( \DiluxOneOffload\DTOs\ChunkedUpload $upload, int $part ): array;
+
+	/**
+	 * Read the answer to one part: null when it landed and its tag is on the
+	 * upload, else the error line (the error code of the body at most, never
+	 * the signature).
+	 *
+	 * @param \DiluxOneOffload\DTOs\ChunkedUpload $upload The upload.
+	 * @param int                                 $part   Part number.
+	 * @param int                                 $status HTTP status.
+	 * @param string                              $body   Response body.
+	 * @return string|null
+	 */
+	public function finish_part( \DiluxOneOffload\DTOs\ChunkedUpload $upload, int $part, int $status, string $body ): ?string;
+
+	/**
+	 * The cURL handle that assembles the parts into the object, read like
+	 * any upload through verify_upload_response(). Its `on_failure` drops the
+	 * upload when the commit fails.
+	 *
+	 * @param \DiluxOneOffload\DTOs\ChunkedUpload $upload The upload, every part tagged.
+	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => null, 'on_failure' => callable]
+	 */
+	public function prepare_commit_handle( \DiluxOneOffload\DTOs\ChunkedUpload $upload ): array;
+
+	/**
+	 * Give up an upload whose part failed, so the parts sent are not kept
+	 * (S3 aborts the multipart upload; Azure discards uncommitted blocks on
+	 * its own after a week and needs no call). Its name may be the `#` form
+	 * of a token, as begin_chunked_upload() takes it.
+	 *
+	 * @param \DiluxOneOffload\DTOs\ChunkedUpload $upload The upload.
+	 */
+	public function abort_chunked_upload( \DiluxOneOffload\DTOs\ChunkedUpload $upload ): void;
 
 	/**
 	 * Prepare download handle for parallel downloads

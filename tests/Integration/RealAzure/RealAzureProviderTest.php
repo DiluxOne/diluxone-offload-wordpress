@@ -3,6 +3,7 @@ namespace Tests\Integration\RealAzure;
 
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\Providers\AzureProvider;
+use Tests\Integration\SendsParts;
 
 /**
  * The Azure provider against a real storage account: every request the
@@ -16,6 +17,9 @@ use DiluxOneOffload\Providers\AzureProvider;
  * its own container and deletes it at the end.
  */
 class RealAzureProviderTest extends IntegrationTestCase {
+
+    use SendsParts;
+
 
     private static string $account = '';
     private static string $key = '';
@@ -145,6 +149,67 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $this->assertTrue(self::$provider->download_file($remote, $down)['success']);
         $this->assertLessThan(6 * 1048576, memory_get_usage(true) - $before, 'a 9 MiB download is streamed');
         $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** The sync's path: blocks as handles, an upload taken up from the uncommitted blocks, the block list. */
+    public function test_a_large_file_is_taken_up_where_it_was_left_and_assembled_byte_for_byte(): void {
+        $local = $this->tempFile(9 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => 'uploads/2026/09/resumed.mp4'];
+        $first = self::$provider->begin_chunked_upload($file);
+        $this->assertTrue($first['success'], $first['error'] ?? '');
+        $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
+        $this->assertFalse(self::$provider->file_exists($file['remote_path']), 'an uncommitted block is not a blob');
+
+        // A later request: Azure lists block 1 as uncommitted.
+        $upload = self::$provider->begin_chunked_upload($file, $first['upload']->uploadId())['upload'];
+        $this->assertSame([2, 3], $upload->missingParts());
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+
+        $down = $this->tempFile(0);
+        $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
+        $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** Blocks an earlier upload left on the blob (the file's old content) are never taken up by another one. */
+    public function test_blocks_of_another_upload_are_never_committed(): void {
+        $file = ['local_path' => $this->tempFile(5 * 1048576, 'mp4'), 'remote_path' => 'uploads/2026/09/rewritten.mp4'];
+        $old  = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $old, 1));
+
+        $new = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNotSame($old->uploadId(), $new->uploadId());
+        $this->assertSame([1, 2], self::$provider->begin_chunked_upload($file, $new->uploadId())['upload']->missingParts(), "the old block 1 is not the new upload's");
+    }
+
+    /**
+     * A blob a 2.0.0 upload left uncommitted blocks on (ids of six ASCII
+     * digits): Azure refuses a block whose id has another length, so this
+     * version's ids keep that length, and its upload goes through.
+     */
+    public function test_a_blob_with_blocks_an_older_version_left_still_takes_an_upload(): void {
+        $remote = 'uploads/2026/09/left-by-2-0-0.mp4';
+        $date   = gmdate('D, d M Y H:i:s T');
+        $block  = base64_encode('000000');
+        $body   = 'an old block';
+        $sts    = "PUT\n\n\n" . strlen($body) . "\n\napplication/octet-stream\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/" . self::$account . '/' . self::$container . "/{$remote}\nblockid:{$block}\ncomp:block";
+        $r      = wp_remote_request('https://' . self::$account . '.blob.core.windows.net/' . self::$container . "/{$remote}?comp=block&blockid=" . rawurlencode($block), [
+            'method'  => 'PUT',
+            'timeout' => 60,
+            'body'    => $body,
+            'headers' => ['x-ms-date' => $date, 'x-ms-version' => '2020-04-08', 'Content-Type' => 'application/octet-stream', 'Authorization' => 'SharedKey ' . self::$account . ':' . base64_encode(hash_hmac('sha256', $sts, base64_decode(self::$key), true))],
+        ]);
+        $this->assertSame(201, wp_remote_retrieve_response_code($r), 'the old-format block is on the blob');
+
+        $local  = $this->tempFile(5 * 1048576, 'mp4');
+        $upload = self::$provider->begin_chunked_upload(['local_path' => $local, 'remote_path' => $remote])['upload'];
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+        $this->assertSame(5 * 1048576, (int) self::$provider->get_file_info($remote)['size']);
     }
 
     public function test_the_block_boundary_on_both_sides(): void {
