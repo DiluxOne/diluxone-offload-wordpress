@@ -53,9 +53,11 @@ jobs:
   # The paid review runs only once every deterministic check of this
   # workflow passed: conventions, the static checks and the unit, integration
   # and end-to-end suites. The real-storage suites live in their own
-  # workflows and are not waited for.
+  # workflows and are not waited for. A docs-only change skips the suites
+  # inside the tests workflow; the review runs unless something failed.
   review:
     needs: [conventions, checks, tests]
+    if: ${{ !cancelled() && needs.conventions.result == 'success' && needs.checks.result == 'success' && needs.tests.result != 'failure' }}
     permissions:
       contents: read
       pull-requests: write
