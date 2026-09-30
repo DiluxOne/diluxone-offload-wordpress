@@ -29,7 +29,7 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 <div class="diluxone-offload-settings" id="provider-credentials">
 	<?php if ( ! $is_configured ) : ?>
 		<div class="diluxone-offload-callout">
-			<p style="margin: 0 0 10px 0;">
+			<p>
 				<?php esc_html_e( 'Connect a provider in the Connection tab first. Once one is saved, this is where its key is rotated and where the provider is removed.', 'diluxone-offload' ); ?>
 			</p>
 			<a href="<?php echo esc_url( $screen_urls['connection'] ?? '' ); ?>" class="button button-primary"><?php esc_html_e( 'Go to Connection', 'diluxone-offload' ); ?></a>
@@ -39,7 +39,7 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 		<div class="settings-section" id="update-credentials">
 			<h3><?php esc_html_e( 'Update Cloud Provider Credentials', 'diluxone-offload' ); ?></h3>
 			<div class="diluxone-offload-callout diluxone-offload-callout--warn">
-				<p style="margin: 0;">
+				<p>
 					<strong><?php esc_html_e( 'WARNING:', 'diluxone-offload' ); ?></strong>
 					<?php esc_html_e( 'Updating the access key will temporarily interrupt file operations while testing the new connection. Current uploads/downloads may fail.', 'diluxone-offload' ); ?>
 				</p>
@@ -107,8 +107,8 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 					<span class="dashicons dashicons-admin-links"></span>
 					<?php esc_html_e( 'Test Connection', 'diluxone-offload' ); ?>
 				</button>
-				<div id="new-credentials-result" class="connection-result" style="display: block;"></div>
-				<p class="description" style="margin-top: 8px;">
+				<div id="new-credentials-result" class="connection-result"></div>
+				<p class="description">
 					<?php esc_html_e( 'You must test the connection before saving.', 'diluxone-offload' ); ?>
 				</p>
 			</div>
@@ -143,7 +143,7 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 		</div>
 
 		<!-- Remove Provider Modal -->
-		<div id="remove-provider-modal" class="diluxone-offload-modal" style="display: none;">
+		<div id="remove-provider-modal" class="diluxone-offload-modal" hidden>
 			<div class="diluxone-offload-modal-overlay"></div>
 			<div class="diluxone-offload-modal-content">
 				<h3><?php esc_html_e( 'Delete Cloud Provider Configuration', 'diluxone-offload' ); ?></h3>
@@ -153,9 +153,9 @@ $container_name_val = (string) ( $provider_config['container_name'] ?? '' );
 				<div class="modal-buttons">
 					<button type="button" id="confirm-delete-provider" class="button button-primary">
 						<span class="button-text"><?php esc_html_e( 'Yes, Delete Configuration', 'diluxone-offload' ); ?></span>
-						<span class="spinner" style="display: none; float: none; margin: 0 0 0 8px;"></span>
+						<span class="spinner diluxone-offload-inline-spinner" hidden></span>
 					</button>
-					<button type="button" class="button button-secondary cancel-remove" style="margin-left: 10px;">
+					<button type="button" class="button button-secondary cancel-remove">
 						<?php esc_html_e( 'Cancel', 'diluxone-offload' ); ?>
 					</button>
 				</div>

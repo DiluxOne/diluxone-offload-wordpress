@@ -146,7 +146,7 @@ test.describe.serial( 'wordpress.org listing screenshots', () => {
 		await page.locator( '#start-sync-btn' ).click();
 		await ui.confirmSyncOptions( page, 'scratch' );
 		await expect( page.locator( '#sync-modal-progress' ) ).toBeVisible();
-		const percent = async () => Number( ( await page.locator( '#sync-modal-progress-percent' ).innerText() ).replace( /\D/g, '' ) );
+		const percent = async () => Number( await page.locator( '#sync-modal-progress [role="progressbar"]' ).getAttribute( 'aria-valuenow' ) );
 		await expect.poll( percent, { timeout: ui.LONG, intervals: [ 100 ] } ).toBeGreaterThanOrEqual( 60 );
 		await shot( page, 5 );
 

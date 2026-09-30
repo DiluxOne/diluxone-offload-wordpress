@@ -351,7 +351,7 @@ class AdminRenderTest extends IntegrationTestCase {
         $html = $this->render('overview');
         $this->assertStringContainsString('42', $html);
         $this->assertStringNotContainsString('diluxone-offload-stats-wrap diluxone-offload-loading', $html, 'warm cache: not in loading state');
-        $this->assertMatchesRegularExpression('/id="stats-loading"[^>]*display: none/', $html, 'warm cache: overlay hidden');
+        $this->assertMatchesRegularExpression('/id="stats-loading"[^>]* hidden>/', $html, 'warm cache: overlay hidden');
     }
 
     public function test_overview_paints_the_loading_overlay_on_a_cold_cache(): void {
@@ -360,7 +360,7 @@ class AdminRenderTest extends IntegrationTestCase {
         delete_transient('diluxone_offload_azure_stats');
         $html = $this->render('overview');
         $this->assertStringContainsString('diluxone-offload-stats-wrap diluxone-offload-loading', $html);
-        $this->assertDoesNotMatchRegularExpression('/id="stats-loading"[^>]*display: none/', $html, 'cold cache: overlay visible');
+        $this->assertDoesNotMatchRegularExpression('/id="stats-loading"[^>]* hidden>/', $html, 'cold cache: overlay visible');
     }
 
     public function test_sync_tab_explains_unreadable_credentials(): void {

@@ -72,10 +72,10 @@ $ago           = static function ( int $ts ): string {
 							<span class="status-indicator status-success"></span>
 							<?php esc_html_e( 'Configured', 'diluxone-offload' ); ?>
 						<?php elseif ( $is_decrypt_failure ) : ?>
-							<span class="status-indicator" style="background:#dba617;"></span>
+							<span class="status-indicator status-paused"></span>
 							<?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?>
 						<?php elseif ( $is_configured && $is_paused ) : ?>
-							<span class="status-indicator" style="background:#dba617;"></span>
+							<span class="status-indicator status-paused"></span>
 							<?php
 							printf(
 								/* translators: %s: short reason for the pause */
@@ -99,7 +99,7 @@ $ago           = static function ( int $ts ): string {
 							?>
 						</p>
 					<?php elseif ( $is_decrypt_failure ) : ?>
-						<p class="state-details" style="color:#856404;">
+						<p class="state-details is-paused">
 							<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 						</p>
 						<p class="state-details">
@@ -108,7 +108,7 @@ $ago           = static function ( int $ts ): string {
 							</a>
 						</p>
 					<?php elseif ( $is_configured && $is_paused ) : ?>
-						<p class="state-details" style="color:#856404;">
+						<p class="state-details is-paused">
 							<?php esc_html_e( 'See banner above for details.', 'diluxone-offload' ); ?>
 						</p>
 					<?php endif; ?>
@@ -127,7 +127,7 @@ $ago           = static function ( int $ts ): string {
 							<span class="status-indicator status-success"></span>
 							<?php esc_html_e( 'Active', 'diluxone-offload' ); ?>
 						<?php elseif ( $is_offloading && $is_paused ) : ?>
-							<span class="status-indicator" style="background:#dba617;"></span>
+							<span class="status-indicator status-paused"></span>
 							<?php
 							printf(
 								/* translators: %s: short reason for the pause */
@@ -141,7 +141,7 @@ $ago           = static function ( int $ts ): string {
 						<?php endif; ?>
 					</p>
 					<?php if ( $is_offloading && $is_paused ) : ?>
-					<p class="state-details" style="margin-top:6px; color:#856404; font-size:12px;">
+					<p class="state-details is-paused is-small">
 						<?php esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?>
 					</p>
 					<?php endif; ?>

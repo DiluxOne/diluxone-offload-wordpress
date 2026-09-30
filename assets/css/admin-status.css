@@ -249,3 +249,17 @@
 	}
 
 }
+
+/* A paused plugin, in the cards' own words. */
+.status-indicator.status-paused {
+	background: #dba617;
+}
+
+.state-details.is-paused {
+	color: #7a5a00;
+}
+
+.state-details.is-small {
+	margin-top: 6px;
+	font-size: 12px;
+}

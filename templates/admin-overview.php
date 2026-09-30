@@ -108,15 +108,15 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						</p>
 					<?php endforeach; ?>
 				<?php elseif ( $is_decrypt_failure ) : ?>
-					<p class="status-label" style="color:#dba617;"><?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?></p>
-					<p class="status-details" style="color:#856404;">
+					<p class="status-label is-paused"><?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?></p>
+					<p class="status-details is-paused">
 						<?php esc_html_e( 'Stored credentials cannot be decrypted. See banner above.', 'diluxone-offload' ); ?>
 					</p>
 					<a href="<?php echo esc_url( Admin::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary button-small">
 						<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 					</a>
 				<?php elseif ( $is_configured && $is_paused ) : ?>
-					<p class="status-label" style="color:#dba617;">
+					<p class="status-label is-paused">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
@@ -125,7 +125,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						);
 						?>
 					</p>
-					<p class="status-details" style="color:#856404;">
+					<p class="status-details is-paused">
 						<?php esc_html_e( 'See banner above for details.', 'diluxone-offload' ); ?>
 					</p>
 				<?php else : ?>
@@ -156,7 +156,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						<?php esc_html_e( 'Your files are in the cloud', 'diluxone-offload' ); ?>
 					</p>
 				<?php elseif ( $is_synced && $is_paused ) : ?>
-					<p class="status-label" style="color:#dba617;">
+					<p class="status-label is-paused">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
@@ -204,7 +204,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						<?php esc_html_e( 'Files served from cloud storage', 'diluxone-offload' ); ?>
 					</p>
 				<?php elseif ( $is_offloading && $is_paused ) : ?>
-					<p class="status-label" style="color:#dba617;">
+					<p class="status-label is-paused">
 						<?php
 						printf(
 							/* translators: %s: short reason for the pause */
@@ -235,10 +235,10 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 	<!-- Storage Overview (only if configured) -->
 	<?php if ( $is_configured ) : ?>
 		<div class="storage-overview-section">
-			<h3 style="display: flex; align-items: center; justify-content: space-between;">
+			<h3 class="diluxone-offload-heading-with-action">
 				<?php esc_html_e( 'Storage Overview', 'diluxone-offload' ); ?>
 				<button type="button" id="refresh-stats-btn" class="button button-small">
-					<span class="dashicons dashicons-update" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+					<span class="dashicons dashicons-update diluxone-offload-icon-small"></span>
 					<?php esc_html_e( 'Refresh', 'diluxone-offload' ); ?>
 				</button>
 			</h3>
@@ -253,7 +253,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 			$is_loading = ( $cloud_stats === null );
 			?>
 			<div class="diluxone-offload-stats-wrap<?php echo esc_attr( $is_loading ? ' diluxone-offload-loading' : '' ); ?>" aria-busy="<?php echo esc_attr( $is_loading ? 'true' : 'false' ); ?>">
-				<div id="stats-loading" class="diluxone-offload-loading-overlay" role="status" aria-live="polite" style="<?php echo esc_attr( $is_loading ? '' : 'display: none;' ); ?>">
+				<div id="stats-loading" class="diluxone-offload-loading-overlay" role="status" aria-live="polite"<?php echo esc_attr( $is_loading ? '' : ' hidden' ); ?>>
 					<span class="spinner is-active"></span>
 					<p><?php esc_html_e( 'Loading storage statistics…', 'diluxone-offload' ); ?></p>
 					<p class="diluxone-offload-loading-hint">
@@ -292,7 +292,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 						</div>
 					</div>
 
-					<p id="stat-last-updated" class="description" style="margin-top: 10px; text-align: right; font-size: 12px;"></p>
+					<p id="stat-last-updated" class="description diluxone-offload-last-updated"></p>
 					<?php
 				else :
 					$cs_data       = $cloud_stats['data'];
@@ -334,25 +334,25 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 							<div class="diluxone-offload-pie-container" id="stat-pie-section">
 								<div class="diluxone-offload-pie" style="background: conic-gradient(#2271b1 0% <?php echo esc_attr( (string) $s1 ); ?>%, #d63638 <?php echo esc_attr( (string) $s1 ); ?>% <?php echo esc_attr( (string) $s2 ); ?>%, #dba617 <?php echo esc_attr( (string) $s2 ); ?>% <?php echo esc_attr( (string) $s3 ); ?>%, #8c8f94 <?php echo esc_attr( (string) $s3 ); ?>% 100%);"></div>
 								<div class="diluxone-offload-pie-legend">
-									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #2271b1;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot diluxone-offload-legend-dot--images"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
 										echo esc_html( sprintf( __( 'Images %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['images'] ?? 0 ), $pct_images ) );
 									?>
 									</div>
-									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #d63638;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot diluxone-offload-legend-dot--videos"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
 										echo esc_html( sprintf( __( 'Videos %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['videos'] ?? 0 ), $pct_videos ) );
 									?>
 									</div>
-									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #dba617;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot diluxone-offload-legend-dot--audio"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
 										echo esc_html( sprintf( __( 'Audio %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['audio'] ?? 0 ), $pct_audio ) );
 									?>
 									</div>
-									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: #8c8f94;"></span>
+									<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot diluxone-offload-legend-dot--other"></span>
 									<?php
 										/* translators: 1: number of files, 2: percentage */
 										echo esc_html( sprintf( __( 'Other %1$s (%2$s%%)', 'diluxone-offload' ), number_format_i18n( $files_by_type['other'] ?? 0 ), $pct_other ) );
@@ -387,7 +387,7 @@ endif;
 							$ago = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
 						}
 						?>
-					<p id="stat-last-updated" class="description" style="margin-top: 10px; text-align: right; font-size: 12px;">
+					<p id="stat-last-updated" class="description diluxone-offload-last-updated">
 						<?php
 						/* translators: %s: relative time, e.g. "3 minutes ago" */
 						echo esc_html( sprintf( __( 'Last updated: %s', 'diluxone-offload' ), $ago ) );

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { configureUnreachableProvider, emptyTracking, resetPlugin } from './helpers/wp';
+import { configureUnreachableProvider, emptyTracking, resetPlugin, wp } from './helpers/wp';
 
 /**
  * Status › Health and the data screens without a cloud account: what they
@@ -69,6 +69,25 @@ test.describe.serial( 'Sync & Offloading › Offloading with the longest account
 		const number = page.locator( '.diluxone-offload-bignum__v:not(.diluxone-offload-bignum__v--text)' ).first();
 		const size = ( el: HTMLElement | SVGElement ) => parseFloat( getComputedStyle( el ).fontSize );
 		expect( await value.evaluate( size ) ).toBeLessThan( await number.evaluate( size ) );
+	} );
+
+	test( 'the bar shows the files only in the cloud and, striped, the ones with a copy here, each with its swatch', async ( { page } ) => {
+		wp( [ 'eval', '\\DiluxOneOffload\\DiluxOneOffloadDB::add_file( "/2026/09/here.jpg", 2048 ); \\DiluxOneOffload\\DiluxOneOffloadDB::mark_synced( "/2026/09/here.jpg" ); \\DiluxOneOffload\\DiluxOneOffloadDB::add_cloud_only_file( "/2026/09/gone.jpg", 1024 );' ] );
+		try {
+			await page.goto( `${ ADMIN }?page=diluxone-offload-sync&tab=offloading` );
+			await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( 'All in the cloud · 1 still has a copy here' );
+			const look = ( selector: string ) => page.locator( selector ).first().evaluate( ( el ) => {
+				const css = getComputedStyle( el );
+				return css.backgroundImage !== 'none' ? css.backgroundImage : css.backgroundColor;
+			} );
+			for ( const part of [ 'cloud', 'local' ] ) {
+				const bar = await look( `.diluxone-offload-meter > .diluxone-offload-meter__part--${ part }` );
+				expect( await look( `.diluxone-offload-legend i.diluxone-offload-meter__part--${ part }` ), `${ part } swatch` ).toBe( bar );
+			}
+			expect( await look( '.diluxone-offload-meter > .diluxone-offload-meter__part--local' ) ).toContain( 'repeating-linear-gradient' );
+		} finally {
+			emptyTracking();
+		}
 	} );
 } );
 

@@ -147,3 +147,24 @@
 		background: #f9f9f9;
 	}
 }
+
+/* Until a connection test passes, Save stays out of reach, and this says why. */
+.test-status-message {
+	margin-top: 8px;
+	color: #d63638;
+	font-weight: 600;
+}
+
+.diluxone-offload-inline-spinner {
+	float: none;
+	margin: 0 0 0 8px;
+}
+
+#remove-provider-modal .cancel-remove {
+	margin-left: 10px;
+}
+
+.diluxone-offload-button-spinner {
+	float: none;
+	margin: 0 5px 0 0;
+}

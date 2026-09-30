@@ -430,3 +430,63 @@
 		flex-direction: column;
 	}
 }
+
+/* A paused plugin, in the cards' own words. */
+.status-label.is-paused {
+	color: #996800;
+}
+
+.status-details.is-paused {
+	color: #7a5a00;
+}
+
+.diluxone-offload-heading-with-action {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.diluxone-offload-icon-small {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	vertical-align: middle;
+}
+
+.diluxone-offload-last-updated {
+	margin-top: 10px;
+	text-align: right;
+	font-size: 12px;
+}
+
+.diluxone-offload-legend-dot--images {
+	background: #2271b1;
+}
+
+.diluxone-offload-legend-dot--videos {
+	background: #d63638;
+}
+
+.diluxone-offload-legend-dot--audio {
+	background: #dba617;
+}
+
+.diluxone-offload-legend-dot--other {
+	background: #8c8f94;
+}
+
+/* Figures the provider could not give. */
+.diluxone-offload-bar-value.is-unavailable {
+	color: #d63638;
+	font-weight: 600;
+}
+
+.diluxone-offload-stat-value.is-unavailable {
+	color: #d63638;
+	font-size: 16px;
+}
+
+.diluxone-offload-stats-why {
+	color: #d63638;
+	margin-top: 10px;
+}

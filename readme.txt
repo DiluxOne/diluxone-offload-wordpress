@@ -220,6 +220,7 @@ Unreleased.
 * A large file's parts (above 10 MB) now go up in parallel, like the other files, instead of one after another while the rest of the sync waited. A part that meets a temporary error from the storage service is sent again instead of failing the file. A very large file no longer has to go up within one request of the sync: the next one takes it up where it was left, sending only the parts the storage service does not have yet.
 * The sync and Disconnect from Cloud reuse their connections to the storage service from one group of files to the next, instead of opening a new one, with its secure handshake, for every file.
 * Status › Health names the storage service in use (Cloudflare R2, Amazon S3, …) and no longer shows a card that repeated the plugin's state. Screens that speak of the storage say "container or bucket", and a hostname too long for its card (Cloudflare R2's public one) is shortened, with the whole name on hover.
+* The Sync, Offloading and Disconnect screens and their windows are built on WordPress' own buttons, notices and cards, and take the accent of your admin colour scheme. Offloading's bar shows, in one full bar, the files only in the cloud and, striped, the ones that still have a copy on this server (the disk Delete Local Files can free). While a sync has files pending, the ones that already failed show as a red part of its bar. Messages these screens showed in English only are now translated.
 
 = 2.0.0 =
 
