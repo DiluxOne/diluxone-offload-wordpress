@@ -1075,11 +1075,6 @@ msgstr "Zugangsdaten: Schlüssel wechseln oder Anbieter entfernen"
 msgid "Status › Health"
 msgstr "Status › Zustand"
 
-#: includes/class-diluxone-offload-admin.php:1480
-#: includes/class-diluxone-offload-admin.php:1525
-msgid "Settings › Serving (Force HTTPS)"
-msgstr "Einstellungen › Auslieferung (HTTPS erzwingen)"
-
 #: includes/class-diluxone-offload-admin.php:1486
 msgid "What can change here"
 msgstr "Was sich hier ändern lässt"
@@ -3924,3 +3919,9 @@ msgid ""
 msgstr ""
 "Verfügbar für Azure Blob Storage, Amazon S3 und Cloudflare R2. Dein "
 "Speicherdienst legt neue Uploads in seiner Standardklasse ab."
+
+#: includes/class-diluxone-offload-admin.php:1480
+#: includes/class-diluxone-offload-admin.php:1525
+msgid "Settings › Serving (Force HTTPS, caching, storage class)"
+msgstr ""
+"Einstellungen › Auslieferung (HTTPS erzwingen, Caching, Speicherklasse)"

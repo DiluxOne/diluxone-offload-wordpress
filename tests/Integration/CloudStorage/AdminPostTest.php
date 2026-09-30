@@ -211,7 +211,7 @@ class AdminPostTest extends IntegrationTestCase {
         } finally {
             remove_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10);
         }
-        $this->assertStringContainsString('Failed to save configuration', $q['error']);
+        $this->assertStringContainsString('The configuration could not be saved', $q['error']);
     }
 
     // ── save_config: the Cloud Provider screen ──────────────
@@ -365,7 +365,7 @@ class AdminPostTest extends IntegrationTestCase {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'tools']);
         $this->assertSame('diluxone-offload', $q['page']);
         $this->assertArrayNotHasKey('tab', $q);
-        $this->assertStringContainsString('Invalid save request', $q['error']);
+        $this->assertStringContainsString('The save request was not valid', $q['error']);
     }
 }
 

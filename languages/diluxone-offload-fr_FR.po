@@ -1072,11 +1072,6 @@ msgstr "Identifiants : changer la clé ou retirer le fournisseur"
 msgid "Status › Health"
 msgstr "État › Santé"
 
-#: includes/class-diluxone-offload-admin.php:1480
-#: includes/class-diluxone-offload-admin.php:1525
-msgid "Settings › Serving (Force HTTPS)"
-msgstr "Réglages › Diffusion (forcer HTTPS)"
-
 #: includes/class-diluxone-offload-admin.php:1486
 msgid "What can change here"
 msgstr "Ce qui peut changer ici"
@@ -3934,3 +3929,8 @@ msgid ""
 msgstr ""
 "Proposé pour Azure Blob Storage, Amazon S3 et Cloudflare R2. Votre service "
 "de stockage range les nouveaux envois dans sa classe par défaut."
+
+#: includes/class-diluxone-offload-admin.php:1480
+#: includes/class-diluxone-offload-admin.php:1525
+msgid "Settings › Serving (Force HTTPS, caching, storage class)"
+msgstr "Réglages › Diffusion (forcer HTTPS, cache, classe de stockage)"

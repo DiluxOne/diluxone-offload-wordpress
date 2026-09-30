@@ -1069,11 +1069,6 @@ msgstr "Credenciais: rotacionar a chave ou remover o provedor"
 msgid "Status › Health"
 msgstr "Status › Saúde"
 
-#: includes/class-diluxone-offload-admin.php:1480
-#: includes/class-diluxone-offload-admin.php:1525
-msgid "Settings › Serving (Force HTTPS)"
-msgstr "Configurações › Entrega (forçar HTTPS)"
-
 #: includes/class-diluxone-offload-admin.php:1486
 msgid "What can change here"
 msgstr "O que pode mudar aqui"
@@ -3882,3 +3877,9 @@ msgid ""
 msgstr ""
 "Disponível para Azure Blob Storage, Amazon S3 e Cloudflare R2. O seu serviço"
 " de armazenamento guarda os novos carregamentos na classe padrão."
+
+#: includes/class-diluxone-offload-admin.php:1480
+#: includes/class-diluxone-offload-admin.php:1525
+msgid "Settings › Serving (Force HTTPS, caching, storage class)"
+msgstr ""
+"Configurações › Entrega (forçar HTTPS, cache, classe de armazenamento)"

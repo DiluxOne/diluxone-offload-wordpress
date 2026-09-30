@@ -1477,7 +1477,7 @@ class Admin {
 				$links = array(
 					$link( \__( 'Credentials: rotate the key, or remove the provider', 'diluxone-offload' ), 'cloud-provider', 'credentials' ),
 					$link( \__( 'Status › Health', 'diluxone-offload' ), 'status', 'health' ),
-					$link( \__( 'Settings › Serving (Force HTTPS)', 'diluxone-offload' ), 'settings', 'serving' ),
+					$link( \__( 'Settings › Serving (Force HTTPS, caching, storage class)', 'diluxone-offload' ), 'settings', 'serving' ),
 				);
 				break;
 
@@ -1522,7 +1522,7 @@ class Admin {
 				$links = array(
 					$link( \__( 'Sync', 'diluxone-offload' ), 'sync-offloading', 'sync' ),
 					$link( \__( 'Disconnect', 'diluxone-offload' ), 'sync-offloading', 'disconnect' ),
-					$link( \__( 'Settings › Serving (Force HTTPS)', 'diluxone-offload' ), 'settings', 'serving' ),
+					$link( \__( 'Settings › Serving (Force HTTPS, caching, storage class)', 'diluxone-offload' ), 'settings', 'serving' ),
 				);
 				break;
 
