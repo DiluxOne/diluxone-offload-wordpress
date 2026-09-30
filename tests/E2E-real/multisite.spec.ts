@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, blobExists, blobMd5, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
 import { BASE_URL, wp, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -46,6 +46,30 @@ test.describe.serial( 'multisite journey', () => {
 		}
 		expect( pluginState( site ) ).toBe( 'configured' );
 		expect( pluginState( site, other ) ).toBe( 'configured' );
+	} );
+
+	test( 'what a site finds in the shared container is its own folder only, and emptying it spares the rest', async ( { page } ) => {
+		const mainLeftover = `uploads/leftover-${ run.runId }.txt`;
+		const otherLeftover = `uploads/sites/${ blogId }/leftover.txt`;
+		const strangerSite = `uploads/sites/999${ blogId }/leftover.txt`;
+		for ( const key of [ mainLeftover, otherLeftover, strangerSite ] ) await putObject( run, key, 'left by another install' );
+		try {
+			// The other site sees its one object, and emptying takes only it.
+			await ui.goTab( page, other, 'sync' );
+			expect( await ui.targetFound( page ) ).toBe( 1 );
+			expect( await ui.emptyTarget( page, run.container ) ).toMatch( /Done: 1 deleted/ );
+			expect( await blobExists( run, otherLeftover ) ).toBe( false );
+			expect( await blobExists( run, mainLeftover ), 'the main site keeps its folder' ).toBe( true );
+
+			// The main site's folder is uploads/ without uploads/sites/: one object, not three.
+			await ui.goTab( page, base, 'sync' );
+			expect( await ui.targetFound( page ) ).toBe( 1 );
+			expect( await ui.emptyTarget( page, run.container ) ).toMatch( /Done: 1 deleted/ );
+			expect( await blobExists( run, mainLeftover ) ).toBe( false );
+			expect( await blobExists( run, strangerSite ), 'another site\'s folder is never the main site\'s' ).toBe( true );
+		} finally {
+			for ( const key of [ mainLeftover, otherLeftover, strangerSite ] ) await deleteObject( run, key );
+		}
 	} );
 
 	test( 'the same file names on both sites become different keys', async ( { page } ) => {

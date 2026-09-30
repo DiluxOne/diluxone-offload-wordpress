@@ -93,3 +93,12 @@ export async function blobMd5( run: RealRun, key: string ): Promise< string > {
 export function fileMd5( file: string ): string {
 	return createHash( 'md5' ).update( fs.readFileSync( file ) ).digest( 'hex' );
 }
+
+/** A blob put there by someone else: what a reused container already holds. */
+export async function putBlob( run: RealRun, key: string, body: string ): Promise< void > {
+	await containerClient( run ).getBlockBlobClient( key ).upload( body, Buffer.byteLength( body ) );
+}
+
+export async function deleteBlob( run: RealRun, key: string ): Promise< void > {
+	await containerClient( run ).getBlobClient( key ).deleteIfExists();
+}

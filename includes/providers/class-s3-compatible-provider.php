@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class S3CompatibleProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
+	use TransientRetry;
 
 	/**
 	 * Bytes per part of a multipart upload, and the largest file sent in a
@@ -200,7 +201,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * One signed request through the WordPress HTTP API.
+	 * One signed request through the WordPress HTTP API, sent again on a
+	 * transient error (TransientRetry). The signature stays valid for the
+	 * retries: it is minutes old at most.
 	 *
 	 * @param string               $method  HTTP method.
 	 * @param string               $url     Request URL.
@@ -220,7 +223,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		if ( '' !== $body ) {
 			$args['body'] = $body;
 		}
-		return wp_remote_request( $url, $args + $extra );
+		return $this->send_with_retry( $url, $args + $extra );
 	}
 
 	// ── Errors ──────────────────────────────────────────────
@@ -361,9 +364,10 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			return self::failed( $this->failure_line( $status, (string) wp_remote_retrieve_body( $put ) ) );
 		}
 
-		$get      = wp_remote_get(
+		$get      = $this->send_with_retry(
 			$this->public_url . '/' . $this->object_path( $key ),
 			array(
+				'method'      => 'GET',
 				'timeout'     => 30,
 				'redirection' => 0,
 			)
@@ -786,7 +790,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 					ConfigManager::record_connection_failure( $code, $e->getMessage(), 'list_files' );
 					throw $e;
 				}
-				if ( $attempt >= $max_retries ) {
+				// A 5xx or a dropped connection was already asked again three
+				// times by send_with_retry(); only a bad listing body is retried here.
+				if ( $attempt >= $max_retries || self::retried_inside( $code ) ) {
 					throw new \Exception( 'Failed to list files after ' . (int) $max_retries . ' attempts: ' . esc_html( $e->getMessage() ) );
 				}
 				Logger::error( '[DiluxOne Offload S3CompatibleProvider] Attempt ' . $attempt . ' failed (retryable), retrying in 2s... Error: ' . $e->getMessage() );
@@ -801,45 +807,60 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @throws \Exception On any failed page.
 	 */
 	private function list_all( string $prefix ): array {
-		$files = array();
-		$token = '';
-		$page  = 0;
-
+		$files  = array();
+		$marker = '';
 		do {
-			++$page;
-			$query = 'list-type=2&prefix=' . rawurlencode( $prefix );
-			if ( '' !== $token ) {
-				$query .= '&continuation-token=' . rawurlencode( $token );
-			}
-
-			$response = $this->request( 'GET', $this->request_url( '', $query ), array(), '', 60 );
-			if ( is_wp_error( $response ) ) {
-				throw new \Exception( 'Listing failed on page ' . (int) $page . ': ' . esc_html( $response->get_error_message() ) );
-			}
-			$status = (int) wp_remote_retrieve_response_code( $response );
-			$body   = (string) wp_remote_retrieve_body( $response );
-			if ( 200 !== $status ) {
-				throw new \Exception( esc_html( $this->failure_line( $status, $body ) ) . ' on listing page ' . (int) $page );
-			}
-			$xml = self::parse_xml( $body );
-			if ( null === $xml || 'ListBucketResult' !== $xml->getName() ) {
-				throw new \Exception( 'Invalid listing on page ' . (int) $page );
-			}
-
-			foreach ( $xml->Contents as $object ) {
-				$info    = new FileInfo(
-					(string) $object->Key,
-					(int) $object->Size,
-					self::md5_of_etag( (string) $object->ETag ),
-					(string) $object->LastModified
-				);
-				$files[] = $info->toArray();
-			}
-
-			$token = 'true' === (string) $xml->IsTruncated ? (string) $xml->NextContinuationToken : '';
-		} while ( '' !== $token );
+			$page   = $this->list_page( $prefix, $marker );
+			$files  = array_merge( $files, $page['files'] );
+			$marker = $page['next'];
+		} while ( '' !== $marker );
 
 		return $files;
+	}
+
+	/**
+	 * One ListObjectsV2 page (up to 1000 objects); `next` is its continuation token.
+	 *
+	 * @param string $prefix Key prefix.
+	 * @param string $marker Continuation token of the page before, or ''.
+	 * @return array{files: array<int, array<string, mixed>>, next: string}
+	 * @throws \Exception When the page cannot be listed.
+	 */
+	public function list_page( string $prefix, string $marker = '' ): array {
+		$query = 'list-type=2&prefix=' . rawurlencode( $prefix );
+		if ( '' !== $marker ) {
+			$query .= '&continuation-token=' . rawurlencode( $marker );
+		}
+
+		$response = $this->request( 'GET', $this->request_url( '', $query ), array(), '', 60 );
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Listing failed: ' . esc_html( $response->get_error_message() ) );
+		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = (string) wp_remote_retrieve_body( $response );
+		if ( 200 !== $status ) {
+			throw new \Exception( esc_html( $this->failure_line( $status, $body ) ) . ' on a listing page' );
+		}
+		$xml = self::parse_xml( $body );
+		if ( null === $xml || 'ListBucketResult' !== $xml->getName() ) {
+			throw new \Exception( 'Invalid listing page' );
+		}
+
+		$files = array();
+		foreach ( $xml->Contents as $object ) {
+			$info    = new FileInfo(
+				(string) $object->Key,
+				(int) $object->Size,
+				self::md5_of_etag( (string) $object->ETag ),
+				(string) $object->LastModified
+			);
+			$files[] = $info->toArray();
+		}
+
+		return array(
+			'files' => $files,
+			'next'  => 'true' === (string) $xml->IsTruncated ? (string) $xml->NextContinuationToken : '',
+		);
 	}
 
 	// ── Identity ────────────────────────────────────────────

@@ -122,6 +122,8 @@ class Plugin {
 			add_action( 'wp_ajax_diluxone_offload_scan_remote', array( $this, 'ajax_cs_scan_remote' ) );
 			add_action( 'wp_ajax_diluxone_offload_calculate_download', array( $this, 'ajax_cs_calculate_download' ) );
 			add_action( 'wp_ajax_diluxone_offload_calculate_sync', array( $this, 'ajax_cs_calculate_sync' ) );
+			add_action( 'wp_ajax_diluxone_offload_inspect_target', array( $this, 'ajax_inspect_target' ) );
+			add_action( 'wp_ajax_diluxone_offload_empty_target', array( $this, 'ajax_empty_target' ) );
 
 			// ⭐ NEW: Delete local files endpoints
 			add_action( 'wp_ajax_diluxone_offload_get_deletable_stats', array( $this, 'ajax_cs_get_deletable_stats' ) );
@@ -431,6 +433,91 @@ class Plugin {
 		} else {
 			wp_send_json_error( esc_html( $result['message'] ) );
 		}
+	}
+
+	/**
+	 * AJAX: before the first sync, what already sits under this site's
+	 * prefix in the container or bucket (objects and bytes). Answered only
+	 * while the target is untouched (configured, nothing tracked), and listed
+	 * every time: a cancelled and reset sync leaves objects there a minute
+	 * after the prefix was empty, and a kept answer would say it still is.
+	 * Messages go out as plain text; the script inserts them with .text().
+	 * A provider's exception message comes escaped (WordPress's standard for
+	 * a thrown message), so it is decoded back to text first.
+	 */
+	public function ajax_inspect_target(): void {
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
+		}
+
+		if ( ! $this->sync_manager ) {
+			wp_send_json_error( __( 'Sync manager not available', 'diluxone-offload' ) );
+		}
+
+		if ( ! SyncManager::target_untouched() ) {
+			wp_send_json_error( __( 'The target is inspected only before the first sync.', 'diluxone-offload' ) );
+		}
+
+		try {
+			$found = $this->sync_manager->inspect_target();
+		} catch ( \Exception $e ) {
+			Logger::warning( '[DiluxOne Offload Plugin] The target could not be listed: ' . $e->getMessage() );
+			/* translators: %s: error message */
+			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'files'  => $found['files'],
+				'bytes'  => $found['bytes'],
+				'size'   => size_format( $found['bytes'] ),
+				'target' => SyncManager::target_name(),
+				'prefix' => DiluxOneOffloadDB::listing_prefix(),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: empty this site's prefix in the container or bucket before the
+	 * first sync, one time-budgeted round per request, each resuming the
+	 * listing at the marker the round before returned. Refused unless the
+	 * posted name is the configured container or bucket, typed by the owner,
+	 * and the target is still untouched: once a sync ran, what sits there is
+	 * this site's own media.
+	 */
+	public function ajax_empty_target(): void {
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
+		}
+
+		if ( ! $this->sync_manager ) {
+			wp_send_json_error( __( 'Sync manager not available', 'diluxone-offload' ) );
+		}
+
+		$typed  = isset( $_POST['confirm'] ) ? sanitize_text_field( wp_unslash( $_POST['confirm'] ) ) : '';
+		$target = SyncManager::target_name();
+		if ( $target === '' || ! hash_equals( $target, $typed ) ) {
+			wp_send_json_error( __( 'The name typed is not the name of the container or bucket; nothing was deleted.', 'diluxone-offload' ) );
+		}
+
+		if ( ! SyncManager::target_untouched() ) {
+			wp_send_json_error( __( 'A sync has run since, so what is there is this site\'s media; nothing was deleted.', 'diluxone-offload' ) );
+		}
+
+		try {
+			$marker = isset( $_POST['marker'] ) ? sanitize_text_field( wp_unslash( $_POST['marker'] ) ) : '';
+			$result = $this->sync_manager->empty_target( self::batch_seconds(), $marker );
+		} catch ( \Exception $e ) {
+			Logger::warning( '[DiluxOne Offload Plugin] The target could not be emptied: ' . $e->getMessage() );
+			/* translators: %s: error message */
+			wp_send_json_error( sprintf( __( 'The container or bucket could not be listed: %s', 'diluxone-offload' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ) );
+		}
+
+		wp_send_json_success( $result );
 	}
 
 	/**

@@ -57,6 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class AzureProvider implements CloudStorageClientInterface {
 
 	use StorageStats;
+	use TransientRetry;
 
 	/**
 	 * Bytes per block, and the largest file sent in a single Put Blob request.
@@ -180,9 +181,10 @@ class AzureProvider implements CloudStorageClientInterface {
 			$url     = $this->endpoint . '/' . $this->container_name . '?restype=container';
 			$headers = $this->get_auth_headers( 'GET', $url );
 
-			$response = wp_remote_get(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'GET',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -287,7 +289,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Get auth headers (already includes x-ms-blob-type)
 			$headers = $this->get_auth_headers( 'PUT', $url, $file_content, $content_type );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'PUT',
@@ -357,9 +359,10 @@ class AzureProvider implements CloudStorageClientInterface {
 				wp_mkdir_p( $dir );
 			}
 
-			$response = wp_remote_get(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'      => 'GET',
 					'headers'     => $headers,
 					'timeout'     => $this->download_timeout,
 					'stream'      => true,
@@ -459,7 +462,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\nblockid:{$block_id}\ncomp:block";
 			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'PUT',
@@ -515,7 +518,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\ncomp:blocklist";
 		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-		$response = wp_remote_request(
+		$response = $this->send_with_retry(
 			$base_url . '?comp=blocklist',
 			array(
 				'method'  => 'PUT',
@@ -559,9 +562,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -592,9 +596,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -641,9 +646,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'HEAD', $url );
 
-			$response = wp_remote_head(
+			$response = $this->send_with_retry(
 				$url,
 				array(
+					'method'  => 'HEAD',
 					'headers' => $headers,
 					'timeout' => 30,
 				)
@@ -696,7 +702,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			$headers = $this->get_auth_headers( 'DELETE', $url );
 
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$url,
 				array(
 					'method'  => 'DELETE',
@@ -802,7 +808,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			);
 
 			// Execute copy request
-			$response = wp_remote_request(
+			$response = $this->send_with_retry(
 				$dest_url,
 				array(
 					'method'  => 'PUT',
@@ -851,6 +857,91 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
+	 * One List Blobs page (up to 5000 blobs); `next` is its NextMarker.
+	 *
+	 * @param string $prefix Key prefix.
+	 * @param string $marker NextMarker of the page before, or ''.
+	 * @return array{files: array<int, array<string, mixed>>, next: string}
+	 * @throws \Exception When the page cannot be listed.
+	 */
+	public function list_page( string $prefix, string $marker = '' ): array {
+		$page = $this->list_page_dto( $prefix, $marker );
+		return array(
+			'files' => array_map(
+				static function ( FileInfo $file ): array {
+					return $file->toArray();
+				},
+				$page['files']
+			),
+			'next'  => $page['next'],
+		);
+	}
+
+	/**
+	 * @param string $prefix Key prefix.
+	 * @param string $marker NextMarker of the page before, or ''.
+	 * @return array{files: FileInfo[], next: string}
+	 * @throws \Exception When the page cannot be listed: a transport error, an HTTP error, an empty or unparseable body.
+	 */
+	private function list_page_dto( string $prefix, string $marker ): array {
+		$url = $this->endpoint . '/' . $this->container_name . '?restype=container&comp=list';
+		if ( $prefix ) {
+			$url .= '&prefix=' . rawurlencode( $prefix );
+		}
+		if ( '' !== $marker ) {
+			$url .= '&marker=' . rawurlencode( $marker );
+		}
+
+		$response = $this->send_with_retry(
+			$url,
+			array(
+				'method'  => 'GET',
+				'headers' => $this->get_auth_headers( 'GET', $url ),
+				'timeout' => 60,
+			)
+		);
+
+		// Raise instead of breaking out silently with a partial listing.
+		if ( is_wp_error( $response ) ) {
+			throw new \Exception( 'Azure API error: ' . esc_html( $response->get_error_message() ) );
+		}
+
+		// Azure returns 403/401 as valid HTTP responses.
+		$http_code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $http_code >= 400 ) {
+			throw new \Exception( 'Azure returned HTTP ' . (int) $http_code );
+		}
+
+		// An empty body is an error, not an empty container.
+		$body = wp_remote_retrieve_body( $response );
+		if ( empty( $body ) ) {
+			throw new \Exception( 'Azure returned an empty listing' );
+		}
+
+		$xml = self::parse_xml( $body );
+		if ( null === $xml ) {
+			throw new \Exception( 'Invalid XML response from Azure' );
+		}
+
+		$files = array();
+		if ( isset( $xml->Blobs->Blob ) ) {
+			foreach ( $xml->Blobs->Blob as $blob ) {
+				$files[] = new FileInfo(
+					(string) $blob->Name,
+					(int) $blob->Properties->{'Content-Length'},
+					isset( $blob->Properties->{'Content-MD5'} ) ? (string) $blob->Properties->{'Content-MD5'} : null,
+					(string) $blob->Properties->{'Last-Modified'}
+				);
+			}
+		}
+
+		return array(
+			'files' => $files,
+			'next'  => isset( $xml->NextMarker ) ? (string) $xml->NextMarker : '',
+		);
+	}
+
+	/**
 	 * List all files in Azure Blob Storage (internal DTO version)
 	 *
 	 * @param string $prefix Filter by prefix (e.g., 'uploads/')
@@ -866,78 +957,16 @@ class AzureProvider implements CloudStorageClientInterface {
 		for ( $attempt = 1; $attempt <= $max_retries; $attempt++ ) {
 			try {
 				$files       = array();
-				$marker      = null;
+				$marker      = '';
 				$page_number = 0;
 
 				// Azure List Blobs API uses pagination
 				do {
 					++$page_number;
-					$url = $this->endpoint . '/' . $this->container_name . '?restype=container&comp=list';
-
-					if ( $prefix ) {
-						$url .= '&prefix=' . rawurlencode( $prefix );
-					}
-
-					if ( $marker ) {
-						$url .= '&marker=' . rawurlencode( $marker );
-					}
-
-					$headers = $this->get_auth_headers( 'GET', $url );
-
-					$response = wp_remote_get(
-						$url,
-						array(
-							'headers' => $headers,
-							'timeout' => 60,
-						)
-					);
-
-					// Raise instead of breaking out silently with a partial listing.
-					if ( is_wp_error( $response ) ) {
-						$error_msg = $response->get_error_message();
-						Logger::info( '[DiluxOne Offload AzureProvider] list_files error on page ' . $page_number . ', attempt ' . $attempt . ': ' . $error_msg );
-						throw new \Exception( 'Azure API error on page ' . $page_number . ': ' . $error_msg );
-					}
-
-					// Check HTTP status code — Azure returns 403/401 as valid HTTP responses
-					$http_code = wp_remote_retrieve_response_code( $response );
-					if ( $http_code >= 400 ) {
-						throw new \Exception( 'Azure returned HTTP ' . $http_code . ' on page ' . $page_number );
-					}
-
-					$body = wp_remote_retrieve_body( $response );
-
-					// An empty body is an error, not an empty container.
-					if ( empty( $body ) ) {
-						Logger::info( '[DiluxOne Offload AzureProvider] Empty response body on page ' . $page_number . ', attempt ' . $attempt );
-						throw new \Exception( 'Azure returned empty response on page ' . $page_number );
-					}
-
-					// Parse XML response
-					$xml = self::parse_xml( $body );
-
-					// Unparseable XML is an error too.
-					if ( null === $xml ) {
-						Logger::error( '[DiluxOne Offload AzureProvider] Failed to parse XML on page ' . $page_number . ', attempt ' . $attempt );
-						throw new \Exception( 'Invalid XML response from Azure on page ' . $page_number );
-					}
-
-					// Extract blobs as FileInfo objects
-					if ( isset( $xml->Blobs->Blob ) ) {
-						foreach ( $xml->Blobs->Blob as $blob ) {
-							$files[] = new FileInfo(
-								(string) $blob->Name,
-								(int) $blob->Properties->{'Content-Length'},
-								isset( $blob->Properties->{'Content-MD5'} ) ? (string) $blob->Properties->{'Content-MD5'} : null,
-								(string) $blob->Properties->{'Last-Modified'}
-							);
-						}
-					}
-
-					// Check for next marker (pagination)
-					$marker = isset( $xml->NextMarker ) && ! empty( $xml->NextMarker ) ? (string) $xml->NextMarker : null;
-
-				} while ( $marker !== null );
+					$page   = $this->list_page_dto( $prefix, $marker );
+					$files  = array_merge( $files, $page['files'] );
+					$marker = $page['next'];
+				} while ( '' !== $marker );
 
 				// ✅ SUCCESS: Listado completo exitoso
 				Logger::info( '[DiluxOne Offload AzureProvider] ✅ Successfully listed ' . count( $files ) . ' files from Azure in ' . $page_number . ' pages (attempt ' . $attempt . ')' );
@@ -957,8 +986,9 @@ class AzureProvider implements CloudStorageClientInterface {
 					throw $e;
 				}
 
-				// Only retry server errors (5xx) and network errors
-				if ( $attempt < $max_retries ) {
+				// A 5xx or a dropped connection was already asked again three
+				// times by send_with_retry(); a timeout or a bad body is retried here.
+				if ( $attempt < $max_retries && ! self::retried_inside( $error_code ) ) {
 					Logger::error( '[DiluxOne Offload AzureProvider] Attempt ' . $attempt . ' failed (retryable), retrying in ' . $retry_delay . 's... Error: ' . $e->getMessage() );
 					sleep( $retry_delay );
 					continue;
@@ -1244,7 +1274,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				$string_to_sign = "PUT\n\n\n{$content_length}\n\n" . self::BLOCK_CONTENT_TYPE . "\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\nblockid:{$block_id}\ncomp:block";
 				$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
-				$block_response = wp_remote_request(
+				$block_response = $this->send_with_retry(
 					$url,
 					array(
 						'method'  => 'PUT',
@@ -1449,7 +1479,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @return string Error code (e.g. '403', '401', 'network')
 	 */
 	private function extract_error_code( string $message ): string {
-		if ( preg_match( '/\b(400|401|403|404|409|500|502|503)\b/', $message, $matches ) ) {
+		if ( preg_match( '/\b(400|401|403|404|409|500|502|503|504)\b/', $message, $matches ) ) {
 			return $matches[1];
 		}
 		if ( stripos( $message, 'timeout' ) !== false ) {

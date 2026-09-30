@@ -151,6 +151,10 @@ Not for itself: it has no cache, log or data files on disk; everything it needs 
 
 The one operation that writes to the server is **Sync & Offloading → Disconnect from Cloud**. It copies your media back from the container to the exact uploads-directory paths WordPress has on record (resolved at runtime with `wp_upload_dir()`), so the Media Library works again without the plugin. It restores only what sits under the `uploads/` prefix of your own container, never a script or executable file name (PHP, JavaScript, HTML, shell or Windows executables) whatever put it there, and it runs only when you click it.
 
+= What if the container or bucket already holds files? =
+
+Before the first sync, Sync & Offloading › Sync looks under this site's folder in it (`uploads/`, or `uploads/sites/<id>/` for a site of a network). If something is there, from an earlier install or a staging copy, it says how many files and how much, and lets you continue with them, empty that folder (you type the container's or bucket's name to confirm) or connect another one. Emptying deletes only this site's folder, never anything else in the container or bucket, and only before the first sync.
+
 = Can I move to another storage account or bucket later? =
 
 Yes, including from Azure to an S3-compatible service or back. Remove the current provider configuration from the admin, enter the new account, container or bucket, run a full resync, and the plugin starts serving from the new location. No URL rewriting required.
@@ -209,7 +213,9 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Before the first sync, Sync & Offloading › Sync checks this site's folder in the container or bucket. If something is already there (an earlier install, a staging copy) it says how many files and how much, and lets you continue with them, empty that folder (typing the container's or bucket's name) or connect another one. Emptying never touches anything outside this site's folder.
 * A sync whose uploads go through ends a pause the connection health had recorded (a key that failed and was fixed since), instead of showing "Paused" for up to five more minutes.
+* An upload, a delete or a check that meets a temporary error from the storage service (a 500 or 503, a dropped connection) is sent again, up to three times, instead of failing at once. Backblaze B2 answers that way to about one upload in a hundred, which could leave an image without one of its thumbnails.
 
 = 2.0.0 =
 

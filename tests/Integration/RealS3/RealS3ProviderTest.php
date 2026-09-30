@@ -213,4 +213,15 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $this->assertSame([self::$prefix . 'uploads/sites/2/x.bin'], array_column(self::$provider->list_files(self::$prefix . 'uploads/sites/2/'), 'path'));
         $this->assertContains(self::$prefix . 'uploads/x.bin', array_column(self::$provider->list_files(self::$prefix . 'uploads/'), 'path'));
     }
+
+    public function test_a_page_of_the_listing_is_the_same_objects_and_ends_the_listing(): void {
+        $local = $this->tempFile(1024, 'bin');
+        foreach (['a', 'b', 'c'] as $name) {
+            $this->assertTrue(self::$provider->upload_file($local, self::$prefix . "uploads/paged/$name.bin")['success']);
+        }
+        $page = self::$provider->list_page(self::$prefix . 'uploads/paged/');
+        $this->assertSame('', $page['next'], 'three objects fit one page');
+        $this->assertSame(array_column(self::$provider->list_files(self::$prefix . 'uploads/paged/'), 'path'), array_column($page['files'], 'path'));
+        $this->assertSame(1024, $page['files'][0]['size']);
+    }
 }

@@ -32,6 +32,12 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var string|null When set, verify_upload_response() refuses every upload with this line. */
     public ?string $upload_verdict = null;
 
+    /** @var string|null When set, list_files() throws with this message. */
+    public ?string $list_error = null;
+
+    /** @var string[] Remote paths delete_file() refuses (HTTP 403). */
+    public array $undeletable = [];
+
     /** @var int Download handles handed out (one per attempted download). */
     public int $downloads = 0;
 
@@ -83,8 +89,17 @@ class FakeCloudClient implements CloudStorageClientInterface {
         return ['path' => $key, 'size' => strlen($this->blobs[$key]), 'md5' => $this->get_file_checksum($key), 'last_modified' => gmdate('D, d M Y H:i:s') . ' GMT'];
     }
 
+    /** @var callable|null Runs before each delete, with the key: something else happening meanwhile. */
+    public $on_delete = null;
+
     public function delete_file(string $remote_path): array {
         $key = ltrim($remote_path, '/');
+        if (null !== $this->on_delete) {
+            ($this->on_delete)($key);
+        }
+        if (in_array($key, $this->undeletable, true)) {
+            return ['success' => false, 'error' => 'HTTP 403 fake refusal'];
+        }
         unset($this->blobs[$key]);
         $this->deleted[] = $key;
         return ['success' => true, 'error' => ''];
@@ -100,6 +115,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
     }
 
     public function list_files(string $remote_path = ''): array {
+        if (null !== $this->list_error) {
+            throw new \Exception($this->list_error);
+        }
         $out = [];
         foreach ($this->blobs as $path => $content) {
             if ($remote_path === '' || strpos($path, ltrim($remote_path, '/')) === 0) {
@@ -107,6 +125,28 @@ class FakeCloudClient implements CloudStorageClientInterface {
             }
         }
         return $out;
+    }
+
+    /** Objects per page of list_page(), like a provider's page limit. */
+    public int $page_size = 1000;
+
+    /** Pages list_page() has served. */
+    public int $pages_listed = 0;
+
+    /** Pages in key order; the marker is the last key of the page before, like S3's position-based token. */
+    public function list_page(string $prefix, string $marker = ''): array {
+        if (null !== $this->list_error) {
+            throw new \Exception($this->list_error);
+        }
+        ++$this->pages_listed;
+        $keys = array_keys($this->blobs);
+        sort($keys, SORT_STRING);
+        $keys = array_values(array_filter($keys, static fn($k) => strpos($k, ltrim($prefix, '/')) === 0 && ($marker === '' || strcmp($k, $marker) > 0)));
+        $page = array_slice($keys, 0, $this->page_size);
+        return [
+            'files' => array_map(fn($k) => ['path' => $k, 'size' => strlen($this->blobs[$k]), 'md5' => '', 'last_modified' => ''], $page),
+            'next'  => count($keys) > $this->page_size ? (string) end($page) : '',
+        ];
     }
 
     public function get_file_url(string $remote_path): string {

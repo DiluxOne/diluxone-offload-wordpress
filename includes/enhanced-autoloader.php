@@ -54,6 +54,7 @@ function diluxone_offload_autoloader( string $class_name ): void {
 		// Providers
 		'Providers\\AzureProvider'                => 'includes/providers/class-azure-provider.php',
 		'Providers\\StorageStats'                 => 'includes/providers/trait-storage-stats.php',
+		'Providers\\TransientRetry'               => 'includes/providers/trait-transient-retry.php',
 		'Providers\\S3CompatibleProvider'         => 'includes/providers/class-s3-compatible-provider.php',
 		'Providers\\S3Presets'                    => 'includes/providers/class-s3-presets.php',
 		'Providers\\AwsSignatureV4'               => 'includes/providers/class-aws-signature-v4.php',

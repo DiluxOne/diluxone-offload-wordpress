@@ -582,7 +582,7 @@ class SyncManager {
 			// recorded before (a key that has since been fixed) ends here, as
 			// it does for an upload through the stream wrapper, instead of
 			// waiting for the next check of the connection.
-			if ( $round_uploaded > 0 && 'unhealthy' === ( ConfigManager::get_connection_health()['status'] ?? '' ) ) {
+			if ( $round_uploaded > 0 && ( ConfigManager::get_connection_health()['status'] ?? '' ) === 'unhealthy' ) {
 				ConfigManager::record_connection_success();
 			}
 
@@ -1500,6 +1500,118 @@ class SyncManager {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether the target has not been touched by this site yet: a provider is
+	 * configured, no sync has run and the tracking table is empty. Only then
+	 * is what sits under this site's prefix somebody else's (an earlier
+	 * install, a staging copy), and only then may it be inspected or emptied.
+	 *
+	 * @return bool
+	 */
+	public static function target_untouched(): bool {
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+		return ConfigManager::get_state() === PluginState::CONFIGURED
+			&& (int) ( DiluxOneOffloadDB::get_stats()['total_files'] ?? 0 ) === 0;
+	}
+
+	/**
+	 * The name of the container or bucket the provider writes to, the one the
+	 * owner types to confirm emptying it.
+	 *
+	 * @return string '' when no provider is configured.
+	 */
+	public static function target_name(): string {
+		$pc = ConfigManager::get_config()['provider_config'] ?? array();
+		return (string) ( $pc['bucket'] ?? $pc['container_name'] ?? '' );
+	}
+
+	/**
+	 * What already sits under this site's prefix in the container or bucket:
+	 * how many objects and how many bytes. Only this site's objects count
+	 * (the main site of a network leaves out `uploads/sites/`).
+	 *
+	 * @return array{files: int, bytes: int}
+	 * @throws \Exception When the listing fails (the caller reports it).
+	 */
+	public function inspect_target(): array {
+		if ( ! $this->cloud_client ) {
+			throw new \Exception( 'Cloud client not configured' );
+		}
+		$files = CloudStreamWrapper::site_files( $this->cloud_client->list_files( DiluxOneOffloadDB::listing_prefix() ) );
+		$bytes = 0;
+		foreach ( $files as $file ) {
+			$bytes += (int) ( $file['size'] ?? 0 );
+		}
+		return array(
+			'files' => count( $files ),
+			'bytes' => $bytes,
+		);
+	}
+
+	/**
+	 * Delete what sits under this site's prefix, a page of the listing at a
+	 * time, for as long as the time budget lasts; the browser asks again with
+	 * the marker it got back until `done`. Only one page is listed per step,
+	 * so a large reused bucket costs a page per request, not a full listing.
+	 * Nothing outside the prefix is touched: other sites of a network, other
+	 * folders. The target is checked before every delete: a sync started from
+	 * another tab stops the round, and the next request is refused.
+	 *
+	 * @param float  $time_limit Seconds this request may spend deleting.
+	 * @param string $marker     Where the listing resumes: '' at first, then the `next` returned.
+	 * @return array{deleted: int, failed: int, errors: string[], next: string, done: bool}
+	 * @throws \Exception When the listing fails.
+	 */
+	public function empty_target( float $time_limit, string $marker = '' ): array {
+		if ( ! $this->cloud_client ) {
+			throw new \Exception( 'Cloud client not configured' );
+		}
+		$start   = microtime( true );
+		$prefix  = DiluxOneOffloadDB::listing_prefix();
+		$deleted = 0;
+		$failed  = 0;
+		$errors  = array();
+		$done    = false;
+
+		while ( true ) {
+			$page = $this->cloud_client->list_page( $prefix, $marker );
+			foreach ( CloudStreamWrapper::site_files( $page['files'] ) as $file ) {
+				// Out of time, or no longer untouched: the rest of this page is
+				// listed again from the same marker, without what went already.
+				$out_of_time = $deleted + $failed > 0 && microtime( true ) - $start >= $time_limit;
+				if ( $out_of_time || ! self::target_untouched() ) {
+					break 2;
+				}
+				$result = $this->cloud_client->delete_file( (string) $file['path'] );
+				if ( ! empty( $result['success'] ) ) {
+					++$deleted;
+				} else {
+					++$failed;
+					if ( count( $errors ) < 5 ) {
+						$errors[] = (string) $file['path'] . ': ' . (string) ( $result['error'] ?? 'unknown error' );
+					}
+				}
+			}
+			if ( $page['next'] === '' ) {
+				$done = true;
+				break;
+			}
+			$marker = $page['next'];
+			if ( microtime( true ) - $start >= $time_limit ) {
+				break;
+			}
+		}
+
+		Logger::info( '[DiluxOne Offload SyncManager] Emptying the target: ' . $deleted . ' deleted, ' . $failed . ' failed' . ( $done ? ', done.' : ', more to go.' ) );
+		return array(
+			'deleted' => $deleted,
+			'failed'  => $failed,
+			'errors'  => $errors,
+			'next'    => $done ? '' : $marker,
+			'done'    => $done,
+		);
 	}
 
 	/**

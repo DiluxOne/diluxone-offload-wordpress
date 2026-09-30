@@ -327,6 +327,37 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 
 			<?php else : ?>
 				<!-- ACTIONS: START SYNC (fresh configuration) -->
+				<?php
+				// Before the first sync the script lists this site's prefix in the
+				// container or bucket; when something is already there, this callout
+				// says what and holds Start Sync until the owner picks a way on.
+				?>
+				<div id="diluxone-offload-target" class="diluxone-offload-callout diluxone-offload-callout--warn" hidden>
+					<p id="diluxone-offload-target-found"></p>
+					<p class="description"><?php esc_html_e( 'Continue and the first sync uploads this site\'s media next to them: a file with the same name is replaced by this site\'s, the rest stay, and a later Disconnect would bring them back too. Empty it and only this site\'s folder is deleted; nothing else in the container or bucket is touched.', 'diluxone-offload' ); ?></p>
+					<p class="diluxone-offload-target-actions">
+						<button type="button" id="diluxone-offload-target-continue" class="button"><?php esc_html_e( 'Continue with these files', 'diluxone-offload' ); ?></button>
+						<button type="button" id="diluxone-offload-target-empty-open" class="button diluxone-offload-button-danger"><?php esc_html_e( 'Empty it first', 'diluxone-offload' ); ?></button>
+						<a href="<?php echo esc_url( $screen_urls['credentials'] ?? '' ); ?>" class="button button-link"><?php esc_html_e( 'Use another one', 'diluxone-offload' ); ?></a>
+					</p>
+					<div id="diluxone-offload-target-empty" hidden>
+						<p>
+							<label for="diluxone-offload-target-confirm">
+								<?php
+								printf(
+									/* translators: %s: the name of the container or bucket */
+									esc_html__( 'Type %s to delete everything under this site\'s folder in it:', 'diluxone-offload' ),
+									'<code>' . esc_html( \DiluxOneOffload\SyncManager::target_name() ) . '</code>'
+								);
+								?>
+							</label>
+							<input type="text" id="diluxone-offload-target-confirm" class="regular-text" autocomplete="off">
+							<button type="button" id="diluxone-offload-target-empty-go" class="button diluxone-offload-button-danger" disabled><?php esc_html_e( 'Delete them', 'diluxone-offload' ); ?></button>
+						</p>
+					</div>
+					<p id="diluxone-offload-target-status" class="description" aria-live="polite"></p>
+				</div>
+
 				<div style="padding: 20px 0;">
 					<button id="start-sync-btn" class="button button-primary button-hero" style="margin-bottom: 15px;">
 						<span class="dashicons dashicons-cloud-upload"></span>
