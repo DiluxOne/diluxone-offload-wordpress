@@ -579,6 +579,25 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertStringEndsWith( '?uploadId=' . $long, $abort['url'] );
 	}
 
+	/**
+	 * When the service cannot be asked (a 5xx after its retries, an
+	 * unfinished uploads listing that fails), no new upload starts: the old
+	 * one would be left behind, billed. The file fails this round and keeps
+	 * its token.
+	 */
+	public function test_an_upload_that_cannot_be_asked_for_starts_nothing(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer( fn() => self::reply( 503, self::error( 'SlowDown', 'Reduce your request rate' ) ) );
+		foreach ( array( 'U1', '#' . sha1( 'U1' ) ) as $name ) {
+			$GLOBALS['_test_wp_http_log'] = array();
+			$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), $name );
+			$this->assertFalse( $r['success'], $name );
+			$this->assertStringContainsString( 'taken up next time', $r['error'] );
+			$this->assertNotContains( 'POST', array_column( $this->requests(), 'method' ), 'no new upload: ' . $name );
+		}
+		unlink( $f );
+	}
+
 	/** An upload the service no longer knows (aborted, expired) is replaced by a new one. */
 	public function test_an_upload_the_service_forgot_starts_over(): void {
 		$f = $this->tmp( 11 * 1048576 );

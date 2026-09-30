@@ -959,10 +959,13 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	/**
 	 * A large file: the multipart upload is started here; its parts and its
 	 * commit go through the sync's pool. An unfinished one is taken up with
-	 * ListParts, when the service still knows it.
+	 * ListParts; a new one starts only when the service says it does not
+	 * know that upload. When it cannot be asked (a 5xx, a timeout), nothing
+	 * starts: the file fails this round and its row keeps the token, so the
+	 * upload is taken up later instead of being left behind, billed.
 	 *
 	 * @param array<string, mixed> $file_info        ['local_path' => string, 'remote_path' => string]
-	 * @param string|null          $resume_upload_id The UploadId to take up, or null for a new upload.
+	 * @param string|null          $resume_upload_id The UploadId to take up (or its `#` form), or null for a new upload.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
 	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
@@ -975,12 +978,13 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		}
 
 		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
-			$resume_upload_id = $this->resolve_upload_id( $key, $resume_upload_id );
-		}
-		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
-			$landed = $this->list_parts( $key, $resume_upload_id );
-			if ( null !== $landed ) {
-				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $resume_upload_id );
+			$upload_id = $this->resolve_upload_id( $key, $resume_upload_id );
+			$landed    = null === $upload_id || false === $upload_id ? $upload_id : $this->list_parts( $key, $upload_id );
+			if ( false === $landed || is_string( $landed ) ) {
+				return self::no_handle( 'Could not ask for the unfinished upload of ' . $key . ( is_string( $landed ) ? ': ' . $landed : '' ) . '; it is taken up next time' );
+			}
+			if ( null !== $landed && is_string( $upload_id ) ) {
+				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id );
 				foreach ( $landed as $part => $landed_part ) {
 					if ( $part <= $upload->partCount() && $landed_part['size'] === $upload->length( $part ) ) {
 						$upload->recordTag( $part, $landed_part['etag'] );
@@ -1008,24 +1012,29 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	/**
 	 * ListParts, every page: the parts the service holds for an upload, by
 	 * number, with their ETag and size. Null when the service no longer
-	 * knows the upload (NoSuchUpload, aborted or expired) or cannot be asked.
+	 * knows the upload (404 NoSuchUpload: aborted or expired); the error line
+	 * when it cannot be asked.
 	 *
 	 * @param string $key       Object key.
 	 * @param string $upload_id The UploadId.
-	 * @return array<int, array{etag: string, size: int}>|null
+	 * @return array<int, array{etag: string, size: int}>|string|null
 	 */
-	private function list_parts( string $key, string $upload_id ): ?array {
+	private function list_parts( string $key, string $upload_id ) {
 		$parts  = array();
 		$marker = 0;
 		for ( $page = 0; $page < 20; $page++ ) { // 1000 parts a page, 10000 at most.
 			$query    = '?uploadId=' . rawurlencode( $upload_id ) . ( $marker > 0 ? '&part-number-marker=' . $marker : '' );
 			$response = $this->request( 'GET', $this->request_url( $key ) . $query );
-			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			if ( is_wp_error( $response ) ) {
+				return $response->get_error_message();
+			}
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			if ( 404 === $status ) {
 				return null;
 			}
-			$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+			$xml = 200 === $status ? self::parse_xml( (string) wp_remote_retrieve_body( $response ) ) : null;
 			if ( null === $xml ) {
-				return null;
+				return $this->failure_line( $status, (string) wp_remote_retrieve_body( $response ) );
 			}
 			foreach ( $xml->Part as $part ) {
 				$parts[ (int) $part->PartNumber ] = array(
@@ -1158,7 +1167,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 */
 	public function abort_chunked_upload( ChunkedUpload $upload ): void {
 		$upload_id = $this->resolve_upload_id( $upload->remotePath(), $upload->uploadId() );
-		if ( null !== $upload_id ) {
+		if ( is_string( $upload_id ) ) {
 			$this->abort( $this->request_url( $upload->remotePath() ), $upload_id );
 		}
 	}
@@ -1167,13 +1176,13 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * The UploadId a token names: itself, or, for the `#` form a name too
 	 * long for the row is kept as, the unfinished upload of the key whose
 	 * UploadId has that SHA-1 (ListMultipartUploads, every page). Null when
-	 * the service holds none.
+	 * the service holds none, false when it cannot be asked.
 	 *
 	 * @param string $key  Object key.
 	 * @param string $name UploadId, or `#` and its SHA-1.
-	 * @return string|null
+	 * @return string|false|null
 	 */
-	private function resolve_upload_id( string $key, string $name ): ?string {
+	private function resolve_upload_id( string $key, string $name ) {
 		if ( '#' !== substr( $name, 0, 1 ) ) {
 			return $name;
 		}
@@ -1182,11 +1191,11 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		for ( $page = 0; $page < 20; $page++ ) {
 			$response = $this->request( 'GET', $this->request_url( '', $query ) );
 			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-				return null;
+				return false;
 			}
 			$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
 			if ( null === $xml ) {
-				return null;
+				return false;
 			}
 			foreach ( $xml->Upload as $unfinished ) {
 				if ( $key === (string) $unfinished->Key && hash_equals( $sha1, sha1( (string) $unfinished->UploadId ) ) ) {

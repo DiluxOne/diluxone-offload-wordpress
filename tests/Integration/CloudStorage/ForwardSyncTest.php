@@ -527,6 +527,7 @@ class ForwardSyncTest extends IntegrationTestCase {
 
         $this->assertSame('completed', $sm->process_batch(30.0)['status']);
         $this->assertSame([null, null], $this->client->resume_requests, 'the token no longer describes the file');
+        $this->assertSame(['uploads/prt/edited.prt'], $this->client->abandoned, 'the old upload goes before the new one starts');
         $this->assertSame(9, $this->client->part_requests, 'three parts, then all six again');
         $this->assertSame($edited, $this->client->blobs['uploads/prt/edited.prt']);
     }
