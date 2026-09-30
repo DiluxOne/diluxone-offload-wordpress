@@ -3,17 +3,16 @@ name: Release
 # Publishes DiluxOne Offload to wordpress.org as a deployment the maintainer
 # approves, through the shared workflow in DiluxOne/.github: every push to
 # main publishes the development build (the shipped tree stamped
-# <next>-dev.<N>) as the one "Development build" pre-release on the moving
-# tag `dev`, and computes the next version from the type:* labels of what
-# merged. While
-# the newest changelog entry of readme.txt starts with the line `Unreleased.`
-# the version is not ready and nothing waits; once a pull request removed
-# that line (and set the version markers to the version it releases), the
-# job waits for approval in the environment `wordpress-org`, then checks that
-# the markers say that version, deploys, tags and creates the release. A tag X.Y.Z an
-# administrator pushes by hand goes through the same job and must be that
-# computed version. Release tags are permanent: a failed deploy is fixed and
-# re-run, never re-tagged. See docs/release.md.
+# <next>-dev.<N>) as the one "Development build" pre-release on the moving tag
+# `dev`, and computes the next version from the type:* labels of what merged.
+# While the newest changelog entry of readme.txt starts with the line
+# `Unreleased.` the version is not ready and nothing waits; once a pull
+# request removed that line (and set the version markers to the version it
+# releases), the job waits for approval in the environment `wordpress-org`,
+# then checks that the markers say that version, deploys, tags and creates the
+# release. A tag X.Y.Z an administrator pushes by hand goes through the same
+# job and must be that computed version. Release tags are permanent: a failed
+# deploy is fixed and re-run, never re-tagged. See docs/release.md.
 
 on:
   push:
