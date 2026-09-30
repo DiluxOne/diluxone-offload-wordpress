@@ -433,3 +433,30 @@ if (!function_exists('get_current_blog_id')) {
         return (int) ($GLOBALS['_test_multisite']['blog_id'] ?? 1);
     }
 }
+
+// ── Mail: messages are recorded in $GLOBALS['_test_wp_mail'], never sent ──
+
+if (!function_exists('is_email')) {
+    function is_email($email) {
+        return is_string($email) && false !== filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : false;
+    }
+}
+
+if (!function_exists('wp_mail')) {
+    function wp_mail($to, $subject, $message, $headers = '', $attachments = []): bool {
+        $GLOBALS['_test_wp_mail'][] = ['to' => $to, 'subject' => $subject, 'message' => $message];
+        return empty($GLOBALS['_test_wp_mail_refuse']); // a test sets it to play a mail server that refuses
+    }
+}
+
+if (!function_exists('wp_specialchars_decode')) {
+    function wp_specialchars_decode($text, $quote_style = ENT_NOQUOTES) {
+        return htmlspecialchars_decode((string) $text, $quote_style);
+    }
+}
+
+if (!function_exists('admin_url')) {
+    function admin_url($path = '') {
+        return 'https://example.test/wp-admin/' . ltrim((string) $path, '/');
+    }
+}

@@ -261,6 +261,9 @@ Unreleased.
 * A file too large for the storage service's limit on parts goes up in larger parts instead of failing: past about 5 GB on Scaleway (1,000 parts), past about 48 GB elsewhere.
 * Settings › Serving › New uploads: browser caching, on by default, stores `Cache-Control: public, max-age=604800` (one week, editable, or off) with every new upload, so browsers and CDNs keep your media instead of asking the storage again. And a storage class for new uploads: Standard, or the cheaper infrequent-access class (Azure's Cool tier, STANDARD_IA on Amazon S3 and Cloudflare R2), which charges per read and bills a minimum of 30 days. Files already in the cloud keep what they were stored with.
 * The notices after saving settings, the provider or new credentials are translated.
+* Settings › Transfers › Folders the initial sync leaves out: one folder per line under `wp-content/uploads/` (backups, caches); the scan skips them and lists them on the Sync screen. Files uploaded through the site while offloading is on still go to the cloud.
+* An e-mail to the site's administrator address when uploads pause (the storage failed three times in a row) and one more when they resume, never one per failure. On by default; Settings › Logging turns it off.
+* Tools › Site Health has a test for the connection to your storage, critical with the reason when uploads are paused, and an Info section with the provider, the service, the state and the version (never a key).
 
 = 2.0.0 =
 

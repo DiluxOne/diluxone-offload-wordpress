@@ -45,6 +45,7 @@ use DiluxOneOffload\Enums\PluginState;
 use DiluxOneOffload\Enums\SyncStatus;
 use DiluxOneOffload\DTOs\ChunkedUpload;
 use DiluxOneOffload\DTOs\SyncFilter;
+use DiluxOneOffload\DTOs\PluginSettings;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -240,6 +241,26 @@ class SyncManager {
 	private function is_debug_enabled() {
 		$config = ConfigManager::get_config();
 		return ! empty( $config['debug_enabled'] );
+	}
+
+	/**
+	 * Whether a file lies in one of the folders the initial sync leaves out
+	 * (Settings › Transfers). A folder is a prefix of the path under uploads/,
+	 * so `backups/` is that folder and what is inside it, never a `backups/`
+	 * deeper in the tree.
+	 *
+	 * @param string   $relative_path The file's path under uploads/.
+	 * @param string[] $folders       PluginSettings::getExcludedFolders().
+	 * @return bool
+	 */
+	public static function in_excluded_folder( string $relative_path, array $folders ): bool {
+		$relative_path = ltrim( str_replace( '\\', '/', $relative_path ), '/' );
+		foreach ( $folders as $folder ) {
+			if ( 0 === strpos( $relative_path, $folder ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -858,6 +879,7 @@ class SyncManager {
 		$skip_reasons        = array();
 		$skipped_paths       = array(); // reason => relative paths, the first SKIPPED_PATHS_CAP in all
 		$skipped_kept        = 0;
+		$excluded_folders    = PluginSettings::fromArray( ConfigManager::get_plugin_settings() )->getExcludedFolders();
 
 		foreach ( $iterator as $file ) {
 			++$total_files_found;
@@ -877,6 +899,8 @@ class SyncManager {
 				// Skip files with size 0 (empty files) - checked before filter
 				if ( $file_size === 0 ) {
 					$skip_reason = 'empty_file';
+				} elseif ( self::in_excluded_folder( $relative_path, $excluded_folders ) ) {
+					$skip_reason = 'excluded_folder';
 				} elseif ( ! DiluxOneOffloadDB::fits_key( $relative_path ) ) {
 					// A path the tracking table cannot hold is skipped here, and
 					// counted, rather than dropped later without a trace.

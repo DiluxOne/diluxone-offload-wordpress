@@ -733,10 +733,10 @@ class CloudStreamWrapper {
 	 */
 	private function writes_allowed(): bool {
 		$health = \DiluxOneOffload\ConfigManager::get_connection_health();
-		if ( ( $health['consecutive_failures'] ?? 0 ) >= 3 ) {
+		if ( ( $health['consecutive_failures'] ?? 0 ) >= \DiluxOneOffload\ConfigManager::PAUSE_AFTER_FAILURES ) {
 			$health = \DiluxOneOffload\ConfigManager::check_connection_health();
 		}
-		if ( ( $health['consecutive_failures'] ?? 0 ) >= 3 ) {
+		if ( ( $health['consecutive_failures'] ?? 0 ) >= \DiluxOneOffload\ConfigManager::PAUSE_AFTER_FAILURES ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] Write refused, cloud connection unavailable (' . ( $health['error_code'] ?? '' ) . '): ' . $this->path );
 			return false;
 		}

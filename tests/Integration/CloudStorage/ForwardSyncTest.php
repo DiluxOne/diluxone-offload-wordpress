@@ -650,6 +650,21 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertNull($files[array_search('uploads/scan/keep.sc', $paths, true)]['checksum'], 'initial sync skips MD5');
     }
 
+    public function test_scan_leaves_out_the_folders_settings_names_and_says_why(): void {
+        $this->configure(['allowed_file_types' => 'xf', 'excluded_folders' => ['xfbackups/']]);
+        $this->fixture('xfbackups/db.xf', 'b');
+        $this->fixture('xfbackups/2026/old.xf', 'o');
+        $this->fixture('xfkeep/xfbackups/photo.xf', 'k');
+        $files = (new SyncManager())->scan_files_to_sync(true);
+        $paths = array_map(fn($f) => $f['remote_path'], $files);
+        $this->assertContains('uploads/xfkeep/xfbackups/photo.xf', $paths, 'a namesake deeper down is synced');
+        $this->assertNotContains('uploads/xfbackups/db.xf', $paths);
+        $this->assertNotContains('uploads/xfbackups/2026/old.xf', $paths);
+        $skipped = ConfigManager::get_skipped();
+        $this->assertSame(2, $skipped['reasons']['excluded_folder']['count']);
+        $this->assertContains('/xfbackups/db.xf', $skipped['reasons']['excluded_folder']['paths']);
+    }
+
     public function test_scan_computes_checksums_when_not_initial(): void {
         $this->configure(['allowed_file_types' => 'ck']);
         $this->fixture('ck/a.ck', 'abc');
