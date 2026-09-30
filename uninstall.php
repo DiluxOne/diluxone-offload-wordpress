@@ -31,9 +31,14 @@ require_once DILUXONE_OFFLOAD_DIR . 'includes/enhanced-autoloader.php';
 function diluxone_offload_uninstall_site() {
 	global $wpdb;
 
-	// First, while the credentials and the table are still there.
-	if ( \DiluxOneOffload\DiluxOneOffloadDB::table_exists() ) {
-		\DiluxOneOffload\DiluxOneOffloadDB::abandon_unfinished_uploads();
+	// First, while the credentials and the table are still there. Best
+	// effort: whatever the storage does, the database cleanup below runs.
+	try {
+		if ( \DiluxOneOffload\DiluxOneOffloadDB::table_exists() ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::abandon_unfinished_uploads();
+		}
+	} catch ( \Throwable $e ) {
+		unset( $e );
 	}
 
 	$options = array(
