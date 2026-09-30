@@ -40,6 +40,7 @@ namespace DiluxOneOffload;
 
 use DiluxOneOffload\Enums\PluginState;
 use DiluxOneOffload\Enums\SyncStatus;
+use DiluxOneOffload\DTOs\ChunkedUpload;
 use DiluxOneOffload\DTOs\SyncFilter;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -549,6 +550,7 @@ class SyncManager {
 					'local_path'  => $local_path,
 					'remote_path' => $remote_path,
 					'size'        => $file['size'],
+					'upload_id'   => $file['upload_id'] ?? null,
 				);
 
 				// Don't exceed batch size
@@ -929,11 +931,14 @@ class SyncManager {
 	 * part that fails for good fails its file and drops the upload.
 	 *
 	 * Past the deadline the first slots still fill, so every request uploads
-	 * something, and the parts and commits of files already started go on,
-	 * but no other file starts: the ones left stay pending for the next
-	 * request, untouched. A file's attempt is counted as it starts, so a
-	 * request killed mid-transfer (max_execution_time, a proxy) charges only
-	 * the files in flight, and three such kills retire only them.
+	 * something, and the transfers in flight finish, but no other file or
+	 * part starts (a commit still does, it is short): the files left stay
+	 * pending for the next request, untouched, and a large file left half
+	 * sent is taken up there from its row's token, sending only the parts the
+	 * service does not hold, with its attempt handed back. A file's attempt
+	 * is counted as it starts, so a request killed mid-transfer
+	 * (max_execution_time, a proxy) charges only the files in flight, and
+	 * three such kills retire only them.
 	 *
 	 * @param array<int, array<string, mixed>> $batch    Array of file_info arrays
 	 * @param float                            $deadline microtime() after which no new file starts.
@@ -946,6 +951,7 @@ class SyncManager {
 		$uploads    = array(); // index => ChunkedUpload of a large file under way
 		$parts_left = array(); // index => parts that have not landed yet
 		$tries      = array(); // "index:part" => attempts of that part
+		$chunked    = array(); // Indexes of the large files started here.
 		$results    = array();
 		$mh         = curl_multi_init();
 		$first      = true;
@@ -957,9 +963,9 @@ class SyncManager {
 			$free = $slots - count( $active );
 			while ( $free > 0 && ! empty( $queue ) ) {
 				list( $kind, $i, $part ) = $queue[0];
-				// Parts and commits belong to files already started and always
-				// go; a new file starts in the first fill or while there is time.
-				if ( 'file' === $kind && ! $first && microtime( true ) >= $deadline ) {
+				// A new file or part starts in the first fill or while there is
+				// time; a commit finishes a file whose parts all landed.
+				if ( 'commit' !== $kind && ! $first && microtime( true ) >= $deadline ) {
 					break;
 				}
 				array_shift( $queue );
@@ -974,13 +980,19 @@ class SyncManager {
 					if ( isset( $handle_data['upload'] ) ) {
 						$upload           = $handle_data['upload'];
 						$uploads[ $i ]    = $upload;
-						$parts_left[ $i ] = $upload->partCount();
-						$parts            = array();
-						$count            = $upload->partCount();
-						for ( $n = 1; $n <= $count; $n++ ) {
-							$parts[] = array( 'part', $i, $n );
+						$chunked[]        = $i;
+						$missing          = $upload->missingParts();
+						$parts_left[ $i ] = count( $missing );
+						$tasks            = array( array( 'commit', $i, 0 ) );
+						if ( array() !== $missing ) {
+							$tasks = array_map(
+								static function ( int $n ) use ( $i ): array {
+									return array( 'part', $i, $n );
+								},
+								$missing
+							);
 						}
-						array_unshift( $queue, ...$parts );
+						array_unshift( $queue, ...$tasks );
 						continue;
 					}
 				} elseif ( 'part' === $kind ) {
@@ -1039,6 +1051,17 @@ class SyncManager {
 		} while ( ! empty( $active ) || ! empty( $queue ) );
 
 		curl_multi_close( $mh );
+
+		foreach ( $chunked as $i ) {
+			if ( ! isset( $results[ $i ] ) ) {
+				// Left half sent by the deadline: the next request takes it up,
+				// and this one does not count as a failed attempt.
+				DiluxOneOffloadDB::refund_attempt( $batch[ $i ]['path'] );
+			} elseif ( empty( $results[ $i ]['success'] ) ) {
+				DiluxOneOffloadDB::set_upload_id( $batch[ $i ]['path'], null );
+			}
+		}
+
 		ksort( $results );
 		return $results;
 	}
@@ -1181,9 +1204,19 @@ class SyncManager {
 
 		$file_size = filesize( $local_path );
 
-		// A large file goes up in parts, each a transfer of the pool.
+		// A large file goes up in parts, each a transfer of the pool; its row
+		// keeps what the next request needs to take it up if this one ends
+		// before it does.
 		if ( $file_size > $this->chunked_threshold ) {
-			return $this->cloud_client->begin_chunked_upload( $file_info );
+			$mtime   = (int) filemtime( $local_path );
+			$started = $this->cloud_client->begin_chunked_upload(
+				$file_info,
+				ChunkedUpload::resumableUploadId( $file_info['upload_id'] ?? null, (int) $file_size, $mtime )
+			);
+			if ( isset( $started['upload'] ) ) {
+				DiluxOneOffloadDB::set_upload_id( $file_info['path'], $started['upload']->resumeToken( $mtime ) );
+			}
+			return $started;
 		}
 
 		// Regular upload for files < 10MB

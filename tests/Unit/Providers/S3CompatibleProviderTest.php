@@ -525,6 +525,48 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertSame( 3, $r['upload']->partCount(), '5 MiB parts' );
 	}
 
+	/** Taking up an upload: ListParts, every page, tags the parts of the right size; nothing is created. */
+	public function test_a_chunked_upload_is_taken_up_from_the_parts_the_service_lists(): void {
+		$f     = $this->tmp( 11 * 1048576 );
+		$part  = fn( int $n, int $size ) => '<Part><PartNumber>' . $n . '</PartNumber><ETag>"e' . $n . '"</ETag><Size>' . $size . '</Size></Part>';
+		$pages = array(
+			'<ListPartsResult>' . $part( 1, 5242880 ) . '<IsTruncated>true</IsTruncated><NextPartNumberMarker>1</NextPartNumberMarker></ListPartsResult>',
+			// Part 2 landed short (a transfer cut off): it is sent again, not committed.
+			'<ListPartsResult>' . $part( 2, 1000 ) . $part( 3, 1048576 ) . '<IsTruncated>false</IsTruncated></ListPartsResult>',
+		);
+		$this->answer(
+			function () use ( &$pages ) {
+				return self::reply( 200, (string) array_shift( $pages ) );
+			}
+		);
+
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), 'U1' );
+		unlink( $f );
+
+		$this->assertTrue( $r['success'] );
+		$this->assertSame( array( 'GET', 'GET' ), array_column( $this->requests(), 'method' ) );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=U1', $this->requests()[0]['url'] );
+		$this->assertSame( 'https://s3.example.com/media/uploads/big.mov?uploadId=U1&part-number-marker=1', $this->requests()[1]['url'] );
+		$this->assertSame( 'U1', $r['upload']->uploadId() );
+		$this->assertSame( array( 2 ), $r['upload']->missingParts() );
+		$this->assertSame( '"e3"', $r['upload']->tag( 3 ) );
+	}
+
+	/** An upload the service no longer knows (aborted, expired) is replaced by a new one. */
+	public function test_an_upload_the_service_forgot_starts_over(): void {
+		$f = $this->tmp( 11 * 1048576 );
+		$this->answer(
+			fn( string $method ) => 'GET' === $method
+				? self::reply( 404, self::error( 'NoSuchUpload', 'The specified upload does not exist.' ) )
+				: self::reply( 200, '<InitiateMultipartUploadResult><UploadId>NEW</UploadId></InitiateMultipartUploadResult>' )
+		);
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), 'OLD' );
+		unlink( $f );
+		$this->assertSame( array( 'GET', 'POST' ), array_column( $this->requests(), 'method' ) );
+		$this->assertSame( 'NEW', $r['upload']->uploadId() );
+		$this->assertSame( array( 1, 2, 3 ), $r['upload']->missingParts() );
+	}
+
 	public function test_a_chunked_upload_that_cannot_start_says_why(): void {
 		$f = $this->tmp( 11 * 1048576 );
 		$this->answer( fn() => self::reply( 403, self::error( 'AccessDenied', 'Access Denied' ) ) );

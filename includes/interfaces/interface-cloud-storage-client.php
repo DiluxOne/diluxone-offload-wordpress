@@ -176,10 +176,17 @@ interface CloudStorageClientInterface {
 	 * here but what names the upload (S3's CreateMultipartUpload; Azure
 	 * needs no call).
 	 *
-	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
+	 * With $resume_upload_id, the upload an earlier request left unfinished
+	 * is taken up: the provider asks the service which parts it holds (S3's
+	 * ListParts, Azure's uncommitted block list) and tags those whose size is
+	 * right, so only the rest is sent. When the service no longer knows the
+	 * upload, a new one starts.
+	 *
+	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id The unfinished upload to take up ('' for a provider that names none), or null for a new one.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
-	public function begin_chunked_upload( array $file_info ): array;
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array;
 
 	/**
 	 * A cURL handle that sends one part, read from the file as it goes (no

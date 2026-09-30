@@ -958,18 +958,36 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 
 	/**
 	 * A large file: the multipart upload is started here; its parts and its
-	 * commit go through the sync's pool.
+	 * commit go through the sync's pool. An unfinished one is taken up with
+	 * ListParts, when the service still knows it.
 	 *
-	 * @param array<string, mixed> $file_info ['local_path' => string, 'remote_path' => string]
+	 * @param array<string, mixed> $file_info        ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id The UploadId to take up, or null for a new upload.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
-	public function begin_chunked_upload( array $file_info ): array {
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
 		$local_path = (string) $file_info['local_path'];
 		$key        = ltrim( (string) $file_info['remote_path'], '/' );
 
 		$size = is_file( $local_path ) ? (int) filesize( $local_path ) : 0;
 		if ( $size <= 0 ) {
 			return self::no_handle( 'File not found: ' . $local_path );
+		}
+
+		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
+			$landed = $this->list_parts( $key, $resume_upload_id );
+			if ( null !== $landed ) {
+				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $resume_upload_id );
+				foreach ( $landed as $part => $landed_part ) {
+					if ( $part <= $upload->partCount() && $landed_part['size'] === $upload->length( $part ) ) {
+						$upload->recordTag( $part, $landed_part['etag'] );
+					}
+				}
+				return array(
+					'success' => true,
+					'upload'  => $upload,
+				);
+			}
 		}
 
 		$upload_id = $this->create_multipart( $key, MimeHelper::get_mime_type( $key ) );
@@ -982,6 +1000,42 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			'success' => true,
 			'upload'  => new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id[0] ),
 		);
+	}
+
+	/**
+	 * ListParts, every page: the parts the service holds for an upload, by
+	 * number, with their ETag and size. Null when the service no longer
+	 * knows the upload (NoSuchUpload, aborted or expired) or cannot be asked.
+	 *
+	 * @param string $key       Object key.
+	 * @param string $upload_id The UploadId.
+	 * @return array<int, array{etag: string, size: int}>|null
+	 */
+	private function list_parts( string $key, string $upload_id ): ?array {
+		$parts  = array();
+		$marker = 0;
+		for ( $page = 0; $page < 20; $page++ ) { // 1000 parts a page, 10000 at most.
+			$query    = '?uploadId=' . rawurlencode( $upload_id ) . ( $marker > 0 ? '&part-number-marker=' . $marker : '' );
+			$response = $this->request( 'GET', $this->request_url( $key ) . $query );
+			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				return null;
+			}
+			$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+			if ( null === $xml ) {
+				return null;
+			}
+			foreach ( $xml->Part as $part ) {
+				$parts[ (int) $part->PartNumber ] = array(
+					'etag' => (string) $part->ETag,
+					'size' => (int) $part->Size,
+				);
+			}
+			$marker = (int) $xml->NextPartNumberMarker;
+			if ( 'true' !== strtolower( (string) $xml->IsTruncated ) || $marker <= 0 ) {
+				return $parts;
+			}
+		}
+		return $parts;
 	}
 
 	/**

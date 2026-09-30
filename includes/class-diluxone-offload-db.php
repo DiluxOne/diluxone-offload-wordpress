@@ -22,6 +22,8 @@
 
 namespace DiluxOneOffload;
 
+use DiluxOneOffload\DTOs\ChunkedUpload;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -133,7 +135,7 @@ class DiluxOneOffloadDB {
             `deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = file deleted locally but exists in cloud',
             `errors` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Error counter for retries',
             `error_message` TEXT NULL DEFAULT NULL COMMENT 'Last error message',
-            `upload_id` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Azure Block Blob upload ID for resuming',
+            `upload_id` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Unfinished chunked upload to take up (ChunkedUpload::resumeToken)',
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (`file`),
@@ -455,10 +457,11 @@ class DiluxOneOffloadDB {
 	}
 
 	/**
-	 * Set upload_id for multipart upload tracking
+	 * Keep, or forget with null, what a later request needs to take up a
+	 * large file's unfinished upload (ChunkedUpload::resumeToken()).
 	 *
-	 * @param string $file_path
-	 * @param string $upload_id
+	 * @param string      $file_path
+	 * @param string|null $upload_id
 	 * @return int|false
 	 */
 	public static function set_upload_id( $file_path, $upload_id ) {
@@ -470,6 +473,26 @@ class DiluxOneOffloadDB {
 			array( 'file' => $file_path ),
 			array( '%s' ),
 			array( '%s' )
+		);
+	}
+
+	/**
+	 * Hand back the attempt counted when a file started, for a large file a
+	 * request left half sent on purpose (its time was up): the next request
+	 * takes it up, and a file that needs many requests is not retired as
+	 * failed for it.
+	 *
+	 * @param string $file_path
+	 * @return int|false
+	 */
+	public static function refund_attempt( $file_path ) {
+		global $wpdb;
+
+		return $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::get_table_name() . ' SET errors = GREATEST( errors - 1, 0 ) WHERE file = %s',
+				$file_path
+			)
 		);
 	}
 
@@ -782,6 +805,7 @@ class DiluxOneOffloadDB {
 	public static function clear_table(): bool {
 		global $wpdb;
 
+		self::abandon_unfinished_uploads();
 		$result = $wpdb->query( 'TRUNCATE TABLE ' . self::get_table_name() );
 
 		if ( $result !== false ) {
@@ -789,6 +813,32 @@ class DiluxOneOffloadDB {
 		}
 
 		return $result !== false;
+	}
+
+	/**
+	 * Drop the chunked uploads rows still name before the rows go, so an S3
+	 * multipart upload nobody can take up any more is not kept and billed
+	 * (Azure discards uncommitted blocks on its own). Best effort: a provider
+	 * that cannot be reached leaves them to the bucket's lifecycle rule.
+	 */
+	private static function abandon_unfinished_uploads(): void {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( 'SELECT file, size, upload_id FROM ' . self::get_table_name() . " WHERE upload_id IS NOT NULL AND upload_id <> ''", ARRAY_A );
+		if ( empty( $rows ) ) {
+			return;
+		}
+		$client = ConfigManager::get_cloud_client();
+		if ( null === $client ) {
+			return;
+		}
+		$basedir = wp_upload_dir()['basedir'];
+		foreach ( $rows as $row ) {
+			$upload_id = ChunkedUpload::uploadIdOf( (string) $row['upload_id'] );
+			if ( null !== $upload_id && (int) $row['size'] > 0 ) {
+				$client->abort_chunked_upload( new ChunkedUpload( $basedir . $row['file'], self::key_from_path( (string) $row['file'] ), (int) $row['size'], (int) $row['size'], $upload_id ) );
+			}
+		}
 	}
 
 	/**

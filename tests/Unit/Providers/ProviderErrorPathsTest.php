@@ -203,6 +203,34 @@ class ProviderErrorPathsTest extends TestCase {
 		unlink( $file );
 	}
 
+	/** Taking up an upload: the uncommitted block list tags our blocks of the right size, and only those. */
+	public function test_azure_an_upload_is_taken_up_from_the_uncommitted_blocks(): void {
+		$block = fn( string $name, int $size ) => '<Block><Name>' . $name . '</Name><Size>' . $size . '</Size></Block>';
+		$xml   = '<?xml version="1.0" encoding="utf-8"?><BlockList><CommittedBlocks /><UncommittedBlocks>'
+			. $block( base64_encode( '000000' ), 4194304 )
+			. $block( base64_encode( '000001' ), 12 )        // Cut short: sent again.
+			. $block( base64_encode( 'someone-else' ), 10 ) // Not ours: never committed.
+			. '</UncommittedBlocks></BlockList>';
+		$GLOBALS['_test_wp_http'] = fn() => self::raw( 200, $xml );
+		$file = $this->tmp( 9 * 1024 * 1024 );
+
+		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big file.bin' ), '' )['upload'];
+		unlink( $file );
+
+		$this->assertCount( 1, $GLOBALS['_test_wp_http_log'] );
+		$this->assertStringContainsString( '/media/uploads/big%20file.bin?blocklisttype=uncommitted&comp=blocklist', $GLOBALS['_test_wp_http_log'][0]['url'] );
+		$this->assertArrayHasKey( 'Authorization', $GLOBALS['_test_wp_http_log'][0]['args']['headers'] );
+		$this->assertSame( array( 2, 3 ), $upload->missingParts() );
+	}
+
+	public function test_azure_a_blob_with_no_blocks_to_take_up_starts_over(): void {
+		$GLOBALS['_test_wp_http'] = fn() => self::raw( 404, '<?xml version="1.0"?><Error><Code>BlobNotFound</Code></Error>' );
+		$file   = $this->tmp( 5 * 1024 * 1024 );
+		$upload = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin' ), '' )['upload'];
+		unlink( $file );
+		$this->assertSame( array( 1, 2 ), $upload->missingParts() );
+	}
+
 	public function test_azure_a_rejected_block_quotes_the_error_code_but_never_the_signature(): void {
 		$body   = '<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>'
 			. '<Message>Server failed to authenticate the request.</Message>'

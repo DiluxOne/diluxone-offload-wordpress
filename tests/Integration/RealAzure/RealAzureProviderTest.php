@@ -3,6 +3,7 @@ namespace Tests\Integration\RealAzure;
 
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\Providers\AzureProvider;
+use Tests\Integration\SendsParts;
 
 /**
  * The Azure provider against a real storage account: every request the
@@ -16,6 +17,9 @@ use DiluxOneOffload\Providers\AzureProvider;
  * its own container and deletes it at the end.
  */
 class RealAzureProviderTest extends IntegrationTestCase {
+
+    use SendsParts;
+
 
     private static string $account = '';
     private static string $key = '';
@@ -144,6 +148,28 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $before = memory_get_usage(true);
         $this->assertTrue(self::$provider->download_file($remote, $down)['success']);
         $this->assertLessThan(6 * 1048576, memory_get_usage(true) - $before, 'a 9 MiB download is streamed');
+        $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** The sync's path: blocks as handles, an upload taken up from the uncommitted blocks, the block list. */
+    public function test_a_large_file_is_taken_up_where_it_was_left_and_assembled_byte_for_byte(): void {
+        $local = $this->tempFile(9 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => 'uploads/2026/09/resumed.mp4'];
+        $first = self::$provider->begin_chunked_upload($file);
+        $this->assertTrue($first['success'], $first['error'] ?? '');
+        $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
+        $this->assertFalse(self::$provider->file_exists($file['remote_path']), 'an uncommitted block is not a blob');
+
+        // A later request: Azure lists block 1 as uncommitted.
+        $upload = self::$provider->begin_chunked_upload($file, '')['upload'];
+        $this->assertSame([2, 3], $upload->missingParts());
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+
+        $down = $this->tempFile(0);
+        $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
         $this->assertSame(md5_file($local), md5_file($down));
     }
 

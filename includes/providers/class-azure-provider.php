@@ -1207,12 +1207,14 @@ class AzureProvider implements CloudStorageClientInterface {
 	/**
 	 * A large file goes up as 4 MiB blocks, each a Put Block the sync sends
 	 * through its pool, then one Put Block List. Azure needs no call to
-	 * start: the block ids are the part numbers.
+	 * start: the block ids are the part numbers. To take up an unfinished
+	 * upload, the uncommitted block list says which blocks Azure holds.
 	 *
-	 * @param array<string, mixed> $file_info File information ['local_path' => string, 'remote_path' => string]
+	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
+	 * @param string|null          $resume_upload_id '' to take up the blocks already sent, null to start over.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
-	public function begin_chunked_upload( array $file_info ): array {
+	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
 		$local_path = (string) $file_info['local_path'];
 		$size       = is_file( $local_path ) ? (int) filesize( $local_path ) : 0;
 		if ( $size <= 0 ) {
@@ -1221,10 +1223,55 @@ class AzureProvider implements CloudStorageClientInterface {
 				'error'   => 'File not found: ' . $local_path,
 			);
 		}
+		$upload = new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE );
+		if ( null !== $resume_upload_id ) {
+			foreach ( $this->uncommitted_blocks( $upload->remotePath() ) as $part => $block_size ) {
+				if ( $part <= $upload->partCount() && $block_size === $upload->length( $part ) ) {
+					$upload->recordTag( $part, self::block_id( $part ) );
+				}
+			}
+		}
 		return array(
 			'success' => true,
-			'upload'  => new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE ),
+			'upload'  => $upload,
 		);
+	}
+
+	/**
+	 * The blocks Azure holds for a blob and nobody committed yet, by part
+	 * number, with their sizes. Nothing when there are none, when the blob
+	 * does not exist or when Azure cannot be asked: the upload starts over.
+	 *
+	 * @param string $remote_path Blob path.
+	 * @return array<int, int>
+	 */
+	private function uncommitted_blocks( string $remote_path ): array {
+		$url      = "{$this->endpoint}/{$this->container_name}/" . $this->object_path( $remote_path ) . '?blocklisttype=uncommitted&comp=blocklist';
+		$response = $this->send_with_retry(
+			$url,
+			array(
+				'method'  => 'GET',
+				'headers' => $this->get_auth_headers( 'GET', $url ),
+				'timeout' => 30,
+			)
+		);
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return array();
+		}
+		$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+		if ( null === $xml || ! isset( $xml->UncommittedBlocks->Block ) ) {
+			return array();
+		}
+		$blocks = array();
+		foreach ( $xml->UncommittedBlocks->Block as $block ) {
+			// Our ids are the zero-based index in six digits; anything else is
+			// not a block of this plugin and is left out of the commit.
+			$index = base64_decode( (string) $block->Name, true );
+			if ( false !== $index && 1 === preg_match( '/^\d{6}$/', $index ) ) {
+				$blocks[ (int) $index + 1 ] = (int) $block->Size;
+			}
+		}
+		return $blocks;
 	}
 
 	/**
@@ -1235,7 +1282,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @return array<string, mixed> ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
 	 */
 	public function prepare_part_handle( ChunkedUpload $upload, int $part ): array {
-		$encoded_path   = $this->encoded_blob_path( $upload->remotePath() );
+		$encoded_path   = $this->object_path( $upload->remotePath() );
 		$block_id       = self::block_id( $part );
 		$content_length = $upload->length( $part );
 		$date           = gmdate( 'D, d M Y H:i:s T' );
@@ -1314,7 +1361,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			);
 		}
 
-		$encoded_path   = $this->encoded_blob_path( $upload->remotePath() );
+		$encoded_path   = $this->object_path( $upload->remotePath() );
 		$block_list_xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>';
 		foreach ( $tags as $block_id ) {
 			$block_list_xml .= '<Latest>' . $block_id . '</Latest>';
@@ -1366,17 +1413,6 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * @param ChunkedUpload $upload The upload.
 	 */
 	public function abort_chunked_upload( ChunkedUpload $upload ): void {
-	}
-
-	/**
-	 * A blob's path, each segment percent-encoded, as the URL and the
-	 * signature both carry it.
-	 *
-	 * @param string $remote_path Blob path.
-	 * @return string
-	 */
-	private function encoded_blob_path( string $remote_path ): string {
-		return implode( '/', array_map( 'rawurlencode', explode( '/', ltrim( $remote_path, '/' ) ) ) );
 	}
 
 	/**

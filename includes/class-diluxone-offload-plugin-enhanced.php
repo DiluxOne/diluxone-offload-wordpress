@@ -363,8 +363,9 @@ class Plugin {
 	 * Seconds one sync or disconnect request keeps transferring before it
 	 * answers the browser, which then asks for the next batch: 8 by default,
 	 * short enough for a responsive progress bar and far from any
-	 * max_execution_time. Past it no new transfer starts; the ones in flight
-	 * finish.
+	 * max_execution_time. Past it a sync starts no new file (the transfers in
+	 * flight, and the parts of a file already started, finish), and a
+	 * disconnect finishes the round of at most 12 MB it is downloading.
 	 *
 	 * @return float
 	 */

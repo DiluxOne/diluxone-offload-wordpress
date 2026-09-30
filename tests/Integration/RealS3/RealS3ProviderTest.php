@@ -4,6 +4,7 @@ namespace Tests\Integration\RealS3;
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\Providers\AwsSignatureV4;
 use DiluxOneOffload\Providers\S3CompatibleProvider;
+use Tests\Integration\SendsParts;
 
 /**
  * The S3-compatible provider against a real S3 server: real SigV4
@@ -19,6 +20,9 @@ use DiluxOneOffload\Providers\S3CompatibleProvider;
  * its own and deletes what it wrote.
  */
 class RealS3ProviderTest extends IntegrationTestCase {
+
+    use SendsParts;
+
 
     /** @var array<string, string> */
     private static array $settings = [];
@@ -159,6 +163,44 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $down = $this->tempFile(0);
         $this->assertTrue(self::$provider->download_file($key, $down)['success']);
         $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** The sync's path: parts as handles, an upload taken up with ListParts where it was left, the commit. */
+    public function test_a_large_file_is_taken_up_where_it_was_left_and_assembled_byte_for_byte(): void {
+        $local = $this->tempFile(11 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => $this->key('resumed.mp4')];
+        $first = self::$provider->begin_chunked_upload($file);
+        $this->assertTrue($first['success'], $first['error'] ?? '');
+        $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
+
+        // A later request: the service says part 1 is there.
+        $again  = self::$provider->begin_chunked_upload($file, $first['upload']->uploadId());
+        $upload = $again['upload'];
+        $this->assertSame($first['upload']->uploadId(), $upload->uploadId());
+        $this->assertSame([2, 3], $upload->missingParts());
+        foreach ($upload->missingParts() as $part) {
+            $this->assertNull(self::sendPart(self::$provider, $upload, $part));
+        }
+        $this->assertNull(self::commitParts(self::$provider, $upload));
+
+        $down = $this->tempFile(0);
+        $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
+        $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** An aborted upload is one the service no longer knows: taking it up starts a new one. */
+    public function test_an_aborted_upload_cannot_be_taken_up_and_starts_over(): void {
+        $local = $this->tempFile(6 * 1048576, 'mp4');
+        $file  = ['local_path' => $local, 'remote_path' => $this->key('aborted.mp4')];
+        $first = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $first, 1));
+        self::$provider->abort_chunked_upload($first);
+
+        $again = self::$provider->begin_chunked_upload($file, $first->uploadId())['upload'];
+        $this->assertNotSame($first->uploadId(), $again->uploadId());
+        $this->assertSame([1, 2], $again->missingParts());
+        self::$provider->abort_chunked_upload($again);
+        $this->assertFalse(self::$provider->file_exists($file['remote_path']));
     }
 
     public function test_the_part_boundary_on_both_sides(): void {

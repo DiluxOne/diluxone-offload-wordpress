@@ -418,49 +418,108 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame($bytes, $this->client->blobs['uploads/prt/retry.prt']);
     }
 
-    /** A part refused for good, or a part still failing on its third try, fails its file alone and drops its upload. */
-    public function test_a_part_that_fails_for_good_fails_its_file_and_drops_the_upload(): void {
+    /** A part refused for good fails its file alone, drops its upload and forgets it. */
+    public function test_a_part_refused_for_good_fails_its_file_and_drops_the_upload(): void {
         global $wpdb;
         $this->configure(['allowed_file_types' => 'prt']);
         $this->fixture('prt/denied.prt', random_bytes(3000));
-        $this->fixture('prt/flaky.prt', random_bytes(3000));
         $this->fixture('prt/fine.prt', 'fine');
         $sm = new SyncManager();
         $this->assertTrue($sm->start_sync()['success']);
         $this->chunkedAt($sm, 1000, 1000);
-        // The larger-first order does not separate two files of one size, so
-        // every part 2 is scripted: a 403 for one, three 500s for the other.
-        $this->client->part_statuses = [2 => [403, 500, 500, 500]];
-        $sm->set_parallel_uploads(10); // Both files' parts and the small file in the first fill.
+        $this->client->part_statuses = [2 => [403]];
 
         $sm->process_batch(0.0);
         $this->assertSame('fine', $this->client->blobs['uploads/prt/fine.prt'] ?? null, 'the other files of the round go through');
         $this->assertArrayNotHasKey('uploads/prt/denied.prt', $this->client->blobs);
-        $this->assertArrayNotHasKey('uploads/prt/flaky.prt', $this->client->blobs);
-        $this->assertEqualsCanonicalizing(['uploads/prt/denied.prt', 'uploads/prt/flaky.prt'], $this->client->abandoned);
-        $errors = $wpdb->get_col('SELECT error_message FROM ' . DB::get_table_name() . " WHERE synced = 0 ORDER BY error_message");
-        $this->assertCount(2, $errors);
-        $this->assertStringContainsString('HTTP 403', $errors[0]);
-        $this->assertStringContainsString('HTTP 500', $errors[1]);
+        $this->assertSame(['uploads/prt/denied.prt'], $this->client->abandoned);
+        $row = $wpdb->get_row($wpdb->prepare('SELECT error_message, upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/denied.prt'), ARRAY_A);
+        $this->assertStringContainsString('HTTP 403', (string) $row['error_message']);
+        $this->assertNull($row['upload_id'], 'nothing is left to take up');
     }
 
-    /** Past the budget no new file starts, but a large file already started finishes: its parts are not left behind. */
-    public function test_a_request_past_its_budget_finishes_the_large_file_it_started(): void {
+    /** A part still failing on its third try fails the file; the next round starts it over with a new upload. */
+    public function test_a_part_that_keeps_failing_fails_the_file_and_the_retry_starts_over(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $bytes = random_bytes(3000);
+        $this->fixture('prt/flaky.prt', $bytes);
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $this->chunkedAt($sm, 1000, 1000);
+        $this->client->part_statuses = [2 => [500, 500, 500]];
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(['uploads/prt/flaky.prt'], $this->client->abandoned, 'the first upload was dropped');
+        $this->assertSame([null, null], $this->client->resume_requests, 'and the second one did not try to take it up');
+        $this->assertSame(8, $this->client->part_requests, 'three parts and two retries, then three parts');
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/flaky.prt']);
+    }
+
+    /**
+     * Past the budget no new part starts either: a large file left half sent
+     * keeps its token, is not charged the attempt, and the next request takes
+     * it up, sending only the parts the service does not hold.
+     */
+    public function test_a_large_file_left_half_sent_is_taken_up_by_the_next_request(): void {
+        global $wpdb;
         $this->configure(['allowed_file_types' => 'prt']);
         $bytes = random_bytes(6000);
-        $this->fixture('prt/started.prt', $bytes);
-        for ($i = 0; $i < 6; $i++) {
-            $this->fixture("prt/later{$i}.prt", 'l');
-        }
+        $this->fixture('prt/long.prt', $bytes);
+        $this->fixture('prt/later.prt', 'l');
         $sm = new SyncManager();
         $this->assertTrue($sm->start_sync()['success']);
         $sm->set_parallel_uploads(3);
         $this->chunkedAt($sm, 1000, 1000);
 
         $r = $sm->process_batch(0.0);
-        $this->assertSame($bytes, $this->client->blobs['uploads/prt/started.prt'] ?? null, 'six parts and the commit, all past the budget');
-        $this->assertSame(1, $r['uploaded_this_batch'], 'its parts took the slots ahead of the small files, which never started');
-        $this->assertSame(6, (int) $GLOBALS['wpdb']->get_var('SELECT COUNT(*) FROM ' . DB::get_table_name() . ' WHERE synced = 0 AND errors = 0'));
+        $this->assertSame(0, $r['uploaded_this_batch'], 'the first fill is three parts of the large file');
+        $this->assertSame(3, $this->client->part_requests);
+        $row = $wpdb->get_row($wpdb->prepare('SELECT synced, errors, upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/long.prt'), ARRAY_A);
+        $this->assertSame('0', $row['synced']);
+        $this->assertSame('0', $row['errors'], 'a file left half sent on purpose is not a failed attempt');
+        $this->assertStringEndsWith('|fake-upload', (string) $row['upload_id']);
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(['fake-upload'], array_values(array_filter($this->client->resume_requests)), 'the second request took the upload up');
+        $this->assertSame(6, $this->client->part_requests, 'and sent only the three parts the service did not hold');
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/long.prt']);
+        $this->assertNull($wpdb->get_var($wpdb->prepare('SELECT upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/long.prt')), 'a synced file keeps no token');
+    }
+
+    /** A file that changed since its upload was left half sent is sent again whole, as a new upload. */
+    public function test_a_file_that_changed_since_is_started_over(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $path = $this->fixture('prt/edited.prt', random_bytes(6000));
+        $sm   = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        $this->chunkedAt($sm, 1000, 1000);
+        $sm->process_batch(0.0);
+
+        $edited = random_bytes(6000);
+        file_put_contents($path, $edited);
+        touch($path, time() + 60);
+        clearstatcache();
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame([null, null], $this->client->resume_requests, 'the token no longer describes the file');
+        $this->assertSame(9, $this->client->part_requests, 'three parts, then all six again');
+        $this->assertSame($edited, $this->client->blobs['uploads/prt/edited.prt']);
+    }
+
+    /** A table emptied while an upload was half sent drops that upload: nobody could take it up any more. */
+    public function test_emptying_the_table_drops_the_uploads_it_named(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $this->fixture('prt/orphan.prt', random_bytes(6000));
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        $this->chunkedAt($sm, 1000, 1000);
+        $sm->process_batch(0.0);
+        $this->assertSame([], $this->client->abandoned);
+
+        DB::clear_table();
+        $this->assertSame(['uploads/prt/orphan.prt'], $this->client->abandoned);
     }
 
     public function test_a_small_upload_that_fails_needs_nothing_handed_back(): void {

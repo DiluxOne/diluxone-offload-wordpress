@@ -217,12 +217,27 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var array<string, array<int, string>> Bytes of every part that landed, per key and part number. */
     private array $parts = [];
 
-    public function begin_chunked_upload(array $file_info): array {
+    /** @var array<int, string|null> The upload the engine asked to take up on each start (null: a new one). */
+    public array $resume_requests = [];
+
+    public function begin_chunked_upload(array $file_info, ?string $resume_upload_id = null): array {
         $size = is_file($file_info['local_path']) ? (int) filesize($file_info['local_path']) : 0;
         if ($size <= 0) {
             return ['success' => false, 'error' => 'File not found: ' . $file_info['local_path']];
         }
-        return ['success' => true, 'upload' => new ChunkedUpload($file_info['local_path'], ltrim($file_info['remote_path'], '/'), $size, $this->part_size, 'fake-upload')];
+        $this->resume_requests[] = $resume_upload_id;
+        $key    = ltrim($file_info['remote_path'], '/');
+        $upload = new ChunkedUpload($file_info['local_path'], $key, $size, $this->part_size, 'fake-upload');
+        if (null === $resume_upload_id) {
+            unset($this->parts[$key]); // A new upload: what an earlier one left is not part of it.
+        }
+        // Like ListParts: the service says which parts it holds, with their size.
+        foreach ($this->parts[$key] ?? [] as $part => $bytes) {
+            if ($part <= $upload->partCount() && strlen($bytes) === $upload->length($part)) {
+                $upload->recordTag($part, 'tag-' . $part);
+            }
+        }
+        return ['success' => true, 'upload' => $upload];
     }
 
     /** A real PUT of the part's bytes, streamed from the file the way the providers do it. */

@@ -217,7 +217,7 @@ Unreleased.
 * A sync whose uploads go through ends a pause the connection health had recorded (a key that failed and was fixed since), instead of showing "Paused" for up to five more minutes.
 * An upload, a delete or a check that meets a temporary error from the storage service (a 500 or 503, a dropped connection) is sent again, up to three times, instead of failing at once. Backblaze B2 answers that way to about one upload in a hundred, which could leave an image without one of its thumbnails.
 * The initial sync uses every parallel upload from the start: a library that begins with large files used to send them one at a time, and now sends them alongside small ones, each upload starting as soon as another finishes.
-* A large file's parts (above 10 MB) now go up in parallel, like the other files, instead of one after another while the rest of the sync waited. A part that meets a temporary error from the storage service is sent again instead of failing the file.
+* A large file's parts (above 10 MB) now go up in parallel, like the other files, instead of one after another while the rest of the sync waited. A part that meets a temporary error from the storage service is sent again instead of failing the file. A very large file no longer has to go up within one request of the sync: the next one takes it up where it was left, sending only the parts the storage service does not have yet.
 
 = 2.0.0 =
 

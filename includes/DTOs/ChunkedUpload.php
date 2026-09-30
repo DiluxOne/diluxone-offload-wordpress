@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * the sync's pool: the file, the provider's name for the upload (an S3
  * UploadId; empty for Azure, whose blocks need none) and the tag each part
  * got back (an S3 ETag, an Azure block id), which the commit lists in order.
+ * An upload a request did not finish is taken up by the next one: the row
+ * keeps resumeToken(), and the provider tags the parts that already landed.
  *
  * @package DiluxOneOffload\DTOs
  * @since 2.1.0
@@ -126,6 +128,63 @@ class ChunkedUpload {
 	 */
 	public function tag( int $part ): string {
 		return $this->tags[ $part ] ?? '';
+	}
+
+	/**
+	 * The parts that still have to be sent, in order.
+	 *
+	 * @return int[]
+	 */
+	public function missingParts(): array {
+		$missing = array();
+		$count   = $this->partCount();
+		for ( $part = 1; $part <= $count; $part++ ) {
+			if ( '' === $this->tag( $part ) ) {
+				$missing[] = $part;
+			}
+		}
+		return $missing;
+	}
+
+	/**
+	 * What the sync keeps in the file's row to take the upload up again in
+	 * a later request: the file's size and modification time, so a file that
+	 * changed since is started over, and the provider's name for the upload.
+	 * Which parts landed is asked of the service when it is taken up.
+	 *
+	 * @param int $mtime The file's modification time.
+	 * @return string
+	 */
+	public function resumeToken( int $mtime ): string {
+		return 'v1|' . $this->size . '|' . $mtime . '|' . $this->uploadId;
+	}
+
+	/**
+	 * The upload a row's token names, if it still describes the same file.
+	 *
+	 * @param string|null $token What resumeToken() returned, or null.
+	 * @param int         $size  The file's size now.
+	 * @param int         $mtime The file's modification time now.
+	 * @return string|null The provider's name for the upload ('' for one that needs none); null to start over.
+	 */
+	public static function resumableUploadId( ?string $token, int $size, int $mtime ): ?string {
+		$fields = explode( '|', (string) $token, 4 );
+		if ( null === self::uploadIdOf( $token ) || (string) $size !== $fields[1] || (string) $mtime !== $fields[2] ) {
+			return null;
+		}
+		return $fields[3];
+	}
+
+	/**
+	 * The provider's name for the upload a token keeps, whatever the file is
+	 * like now (to drop the upload); null when it is not a token.
+	 *
+	 * @param string|null $token What resumeToken() returned, or null.
+	 * @return string|null
+	 */
+	public static function uploadIdOf( ?string $token ): ?string {
+		$fields = explode( '|', (string) $token, 4 );
+		return 4 === count( $fields ) && 'v1' === $fields[0] ? $fields[3] : null;
 	}
 
 	/**
