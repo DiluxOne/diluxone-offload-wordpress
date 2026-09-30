@@ -445,7 +445,7 @@ if (!function_exists('is_email')) {
 if (!function_exists('wp_mail')) {
     function wp_mail($to, $subject, $message, $headers = '', $attachments = []): bool {
         $GLOBALS['_test_wp_mail'][] = ['to' => $to, 'subject' => $subject, 'message' => $message];
-        return true;
+        return empty($GLOBALS['_test_wp_mail_refuse']); // a test sets it to play a mail server that refuses
     }
 }
 

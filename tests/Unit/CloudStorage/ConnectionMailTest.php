@@ -19,7 +19,7 @@ class ConnectionMailTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		unset( $GLOBALS['_test_wp_options'], $GLOBALS['_test_wp_transients'], $GLOBALS['_test_wp_mail'] );
+		unset( $GLOBALS['_test_wp_options'], $GLOBALS['_test_wp_transients'], $GLOBALS['_test_wp_mail'], $GLOBALS['_test_wp_mail_refuse'] );
 		parent::tearDown();
 	}
 
@@ -100,5 +100,13 @@ class ConnectionMailTest extends TestCase {
 		$this->assertSame( 'decrypt_failed', $health['error_code'] );
 		$this->assertSame( 3, $health['consecutive_failures'], 'recorded once, not again and again' );
 		$this->assertCount( 1, $this->mail() );
+	}
+
+	public function test_a_message_the_mail_server_refused_is_not_tried_again_on_every_failure(): void {
+		$GLOBALS['_test_wp_mail_refuse'] = true;
+		for ( $i = 0; $i < 6; $i++ ) {
+			ConfigManager::record_connection_failure( '403', 'denied', 'upload' );
+		}
+		$this->assertCount( 1, $this->mail(), 'tried once' );
 	}
 }
