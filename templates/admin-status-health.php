@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Status › Health. The plugin state as four cards, and the connection health table.
+ * Admin: Status › Health. The plugin state as three cards (configuration, offloading, the tracking table), and the connection health table.
  *
  * Local variables are populated by Admin::render_screen_content() in the
  * calling scope. Suppress the prefix sniff:
@@ -16,7 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use DiluxOneOffload\Admin;
 use DiluxOneOffload\ConfigManager;
-use DiluxOneOffload\Enums\PluginState;
 
 $config        = $config ?? array();
 $health        = $health ?? array();
@@ -24,7 +23,6 @@ $tracking_rows = (int) ( $tracking_rows ?? 0 );
 $screen_urls   = $screen_urls ?? array();
 
 // Get current state
-$current_state = ConfigManager::get_state();
 $is_configured = ConfigManager::is_configured();
 $is_offloading = ConfigManager::is_offloading_enabled();
 $plugin_config = $config;
@@ -55,52 +53,8 @@ $ago           = static function ( int $ts ): string {
 
 <div class="diluxone-offload-status">
 	<div class="status-section">
-		<!-- Plugin State Cards -->
+		<!-- State cards: configuration, offloading, the tracking table (the plugin's state reads in them and in the banner) -->
 		<div class="state-cards">
-			<!-- Plugin State -->
-			<div class="state-card">
-				<div class="state-icon">
-					<span class="dashicons dashicons-admin-plugins"></span>
-				</div>
-				<div class="state-content">
-					<h3><?php esc_html_e( 'Plugin State', 'diluxone-offload' ); ?></h3>
-					<p class="state-value">
-						<?php
-						$badge_class = 'state-gray';
-						switch ( $current_state ) {
-							case PluginState::CONFIGURED:
-								$badge_class = 'state-blue';
-								break;
-							case PluginState::SYNCING:
-								$badge_class = 'state-yellow';
-								break;
-							case PluginState::SYNCED:
-								$badge_class = 'state-green';
-								break;
-							case PluginState::OFFLOADING_ACTIVE:
-								$badge_class = 'state-purple';
-								break;
-						}
-						if ( $is_paused ) {
-							$badge_class .= ' is-paused';
-						}
-						echo '<span class="state-badge ' . esc_attr( $badge_class ) . '">' . esc_html( PluginState::get_state_name( $current_state ) ) . '</span>';
-						?>
-					</p>
-					<?php if ( $is_paused ) : ?>
-					<p class="state-pause-reason" style="margin-top:6px; color:#856404; font-size:12px;">
-						<?php
-						printf(
-							/* translators: %s: short reason, e.g. "credentials unreadable" */
-							esc_html__( 'Paused (%s) — see banner above.', 'diluxone-offload' ),
-							esc_html( $pause_label )
-						);
-						?>
-					</p>
-					<?php endif; ?>
-				</div>
-			</div>
-
 			<!-- Configuration Status -->
 			<div class="state-card">
 				<div class="state-icon">
@@ -139,7 +93,7 @@ $ago           = static function ( int $ts ): string {
 							<?php
 							echo wp_kses(
 								/* translators: %s: storage provider name wrapped in <strong> */
-								sprintf( __( 'Provider: %s', 'diluxone-offload' ), '<strong>' . esc_html( \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( (string) $plugin_config['cloud_provider'] ) ) . '</strong>' ),
+								sprintf( __( 'Provider: %s', 'diluxone-offload' ), '<strong>' . esc_html( \DiluxOneOffload\Factories\CloudStorageFactory::get_service_label( $plugin_config ) ) . '</strong>' ),
 								array( 'strong' => array() )
 							);
 							?>
@@ -270,7 +224,7 @@ $ago           = static function ( int $ts ): string {
 				<div class="info-card">
 					<h4><?php esc_html_e( 'How it checks', 'diluxone-offload' ); ?></h4>
 					<p class="description">
-						<?php esc_html_e( 'Every upload and every listing of the container records a success or a failure; a check against the provider runs when a screen opens and the last one is older than five minutes. Three consecutive failures pause new uploads, which are refused rather than written elsewhere, until the next success.', 'diluxone-offload' ); ?>
+						<?php esc_html_e( 'Every upload and every listing of the container or bucket records a success or a failure; a check against the provider runs when a screen opens and the last one is older than five minutes. Three consecutive failures pause new uploads, which are refused rather than written elsewhere, until the next success.', 'diluxone-offload' ); ?>
 					</p>
 				</div>
 			</div>

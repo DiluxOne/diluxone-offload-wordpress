@@ -28,18 +28,18 @@
 	margin-bottom: 50px;
 }
 
-/* State Cards Grid: four cards of equal width and height; two per row on narrower screens. */
+/* State Cards Grid: three cards of equal width and height; stacked on narrow screens. */
 .state-cards {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	grid-auto-rows: 1fr;
 	gap: 16px;
 	margin-bottom: 24px;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 960px) {
 	.state-cards {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 

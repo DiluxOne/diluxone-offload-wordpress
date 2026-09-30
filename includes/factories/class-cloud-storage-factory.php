@@ -97,6 +97,26 @@ class CloudStorageFactory {
 	}
 
 	/**
+	 * The name of the service a configuration uses: the S3-compatible
+	 * provider's preset (Cloudflare R2, Amazon S3, …) rather than the family,
+	 * except Custom, whose label names examples rather than a service.
+	 *
+	 * @param array<string, mixed> $config The plugin's configuration (ConfigManager::get_config()).
+	 * @return string
+	 */
+	public static function get_service_label( array $config ): string {
+		$provider = (string) ( $config['cloud_provider'] ?? '' );
+		$preset   = (string) ( $config['provider_config']['preset'] ?? '' );
+		if ( 's3' === $provider && '' !== $preset && 'custom' !== $preset ) {
+			$label = \DiluxOneOffload\Providers\S3Presets::label( $preset );
+			if ( '' !== $label ) {
+				return $label;
+			}
+		}
+		return self::get_provider_label( $provider );
+	}
+
+	/**
 	 * Check if provider is supported and implemented
 	 *
 	 * @param string $provider
