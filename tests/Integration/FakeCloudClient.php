@@ -214,7 +214,7 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var int Parts sent, retries included. */
     public int $part_requests = 0;
 
-    /** @var array<string, array<int, string>> Bytes of every part that landed, per key and part number. */
+    /** @var array<string, array<int, int>> Length of every part that landed, per key and part number (its bytes are read from the file at the commit, so none is held in memory). */
     private array $parts = [];
 
     /** @var array<int, string|null> The upload the engine asked to take up on each start (null: a new one). */
@@ -232,8 +232,8 @@ class FakeCloudClient implements CloudStorageClientInterface {
             unset($this->parts[$key]); // A new upload: what an earlier one left is not part of it.
         }
         // Like ListParts: the service says which parts it holds, with their size.
-        foreach ($this->parts[$key] ?? [] as $part => $bytes) {
-            if ($part <= $upload->partCount() && strlen($bytes) === $upload->length($part)) {
+        foreach ($this->parts[$key] ?? [] as $part => $length) {
+            if ($part <= $upload->partCount() && $length === $upload->length($part)) {
                 $upload->recordTag($part, 'tag-' . $part);
             }
         }
@@ -253,7 +253,7 @@ class FakeCloudClient implements CloudStorageClientInterface {
         ]);
         $fh = self::stream_part($ch, $upload, $part);
         if ($status < 300) {
-            $this->parts[$upload->remotePath()][$part] = (string) file_get_contents($upload->localPath(), false, null, $upload->offset($part), $upload->length($part));
+            $this->parts[$upload->remotePath()][$part] = $upload->length($part);
         }
         return ['success' => true, 'handle' => $ch, 'file_handle' => $fh];
     }
@@ -279,9 +279,13 @@ class FakeCloudClient implements CloudStorageClientInterface {
             CURLOPT_TIMEOUT        => 10,
         ]);
         if ($this->upload_status < 300) {
-            $landed = $this->parts[$upload->remotePath()] ?? [];
-            ksort($landed);
-            $this->blobs[$upload->remotePath()] = implode('', array_intersect_key($landed, $tags));
+            $blob = '';
+            foreach (array_keys($tags) as $part) {
+                if (isset($this->parts[$upload->remotePath()][$part])) {
+                    $blob .= (string) file_get_contents($upload->localPath(), false, null, $upload->offset($part), $upload->length($part));
+                }
+            }
+            $this->blobs[$upload->remotePath()] = $blob;
         }
         return [
             'success'     => true,
