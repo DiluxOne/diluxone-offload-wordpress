@@ -173,11 +173,12 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $this->assertTrue($first['success'], $first['error'] ?? '');
         $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
 
-        // A later request, through the token the row keeps (an upload name
-        // longer than the row allows, as R2's are, is kept as its SHA-1 and
-        // found by listing the key's unfinished uploads): part 1 is there.
-        $token  = \DiluxOneOffload\DTOs\ChunkedUpload::resumableUploadId($first['upload']->resumeToken(1700000000), 11 * 1048576, 1700000000);
-        $again  = self::$provider->begin_chunked_upload($file, $token);
+        // A later request, through what the sync keeps (an upload name longer
+        // than the row allows, as R2's are, is kept in an option by its
+        // SHA-1): part 1 is there.
+        \DiluxOneOffload\DiluxOneOffloadDB::remember_upload('/not-a-row', $first['upload'], 1700000000);
+        $token  = $first['upload']->resumeToken(1700000000);
+        $again  = self::$provider->begin_chunked_upload($file, \DiluxOneOffload\DiluxOneOffloadDB::resumable_upload_name($token, 11 * 1048576, 1700000000));
         $upload = $again['upload'];
         $this->assertSame($first['upload']->uploadId(), $upload->uploadId());
         $this->assertSame([2, 3], $upload->missingParts());
@@ -191,8 +192,16 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $this->assertSame(md5_file($local), md5_file($down));
     }
 
-    /** An upload named only by its SHA-1 (how the row keeps a long one) is found by ListMultipartUploads and taken up. */
+    /**
+     * An upload named only by its SHA-1 is found by ListMultipartUploads: the
+     * fallback when the long name the sync keeps in an option is gone.
+     * Cloudflare R2 did not return the upload this way in CI (30 September
+     * 2026), so the sync does not count on it there.
+     */
     public function test_an_upload_named_by_its_sha1_is_found_among_the_unfinished_uploads(): void {
+        if ('r2' === (self::$settings['preset'] ?? '')) {
+            $this->markTestSkipped('R2 did not list the upload by its key; the sync keeps long names in an option instead.');
+        }
         $file  = ['local_path' => $this->tempFile(6 * 1048576, 'mp4'), 'remote_path' => $this->key('by-sha1.mp4')];
         $first = self::$provider->begin_chunked_upload($file)['upload'];
         $this->assertNull(self::sendPart(self::$provider, $first, 1));

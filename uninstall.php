@@ -33,6 +33,7 @@ function diluxone_offload_uninstall_site() {
 		'diluxone_offload_timestamps',
 		'diluxone_offload_last_upload',
 		'diluxone_offload_skipped',
+		'diluxone_offload_upload_names',
 		'diluxone_offload_db_version',
 		// Names earlier builds used; nothing writes them any more, but a site
 		// upgraded from one of them still has them.

@@ -339,6 +339,8 @@ class DiluxOneOffloadDB {
 	public static function mark_synced( $file_path ) {
 		global $wpdb;
 
+		self::drop_long_name( $wpdb->get_var( $wpdb->prepare( 'SELECT upload_id FROM ' . self::get_table_name() . ' WHERE file = %s', $file_path ) ) );
+
 		$result = $wpdb->update(
 			self::get_table_name(),
 			array(
@@ -457,8 +459,97 @@ class DiluxOneOffloadDB {
 	}
 
 	/**
-	 * Keep, or forget with null, what a later request needs to take up a
-	 * large file's unfinished upload (ChunkedUpload::resumeToken()).
+	 * Where an upload name too long for the `upload_id` column is kept, by
+	 * its SHA-1 (the `#` form the column holds): Cloudflare R2's run past 250
+	 * characters. One option per site, not autoloaded.
+	 */
+	const LONG_UPLOAD_NAMES_OPTION = 'diluxone_offload_upload_names';
+
+	/**
+	 * Keep what a later request needs to take up a large file's unfinished
+	 * upload: the row's token, and the upload's full name when the token
+	 * carries only its SHA-1.
+	 *
+	 * @param string        $file_path Row's file.
+	 * @param ChunkedUpload $upload    The upload.
+	 * @param int           $mtime     The file's modification time.
+	 */
+	public static function remember_upload( string $file_path, ChunkedUpload $upload, int $mtime ): void {
+		$token = $upload->resumeToken( $mtime );
+		$name  = ChunkedUpload::uploadIdOf( $token );
+		if ( null !== $name && '#' === substr( $name, 0, 1 ) ) {
+			$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+
+			$names[ substr( $name, 1 ) ] = $upload->uploadId();
+			update_option( self::LONG_UPLOAD_NAMES_OPTION, $names, false );
+		}
+		self::set_upload_id( $file_path, $token );
+	}
+
+	/**
+	 * Forget a row's unfinished upload (it finished, failed or was set aside).
+	 *
+	 * @param string $file_path Row's file.
+	 */
+	public static function forget_upload( string $file_path ): void {
+		global $wpdb;
+
+		$token = $wpdb->get_var( $wpdb->prepare( 'SELECT upload_id FROM ' . self::get_table_name() . ' WHERE file = %s', $file_path ) );
+		self::drop_long_name( is_string( $token ) ? $token : null );
+		self::set_upload_id( $file_path, null );
+	}
+
+	/**
+	 * The full name of the upload a token keeps: itself, or the long name
+	 * kept for its `#` form (still the `#` form when it is not kept, for
+	 * the provider to look up); null when the token is none.
+	 *
+	 * @param string|null $token A row's token.
+	 * @return string|null
+	 */
+	public static function upload_name_of( ?string $token ): ?string {
+		$name = ChunkedUpload::uploadIdOf( $token );
+		if ( null === $name || '#' !== substr( $name, 0, 1 ) ) {
+			return $name;
+		}
+		$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+		$full  = $names[ substr( $name, 1 ) ] ?? null;
+		return is_string( $full ) ? $full : $name;
+	}
+
+	/**
+	 * The name of the upload to take up for a file as it is now, or null to
+	 * start over (ChunkedUpload::resumableUploadId(), with long names found).
+	 *
+	 * @param string|null $token A row's token.
+	 * @param int         $size  The file's size now.
+	 * @param int         $mtime The file's modification time now.
+	 * @return string|null
+	 */
+	public static function resumable_upload_name( ?string $token, int $size, int $mtime ): ?string {
+		return null === ChunkedUpload::resumableUploadId( $token, $size, $mtime ) ? null : self::upload_name_of( $token );
+	}
+
+	/**
+	 * Drop the long name a token's `#` form points at, if it is kept.
+	 *
+	 * @param string|null $token A row's token.
+	 */
+	private static function drop_long_name( ?string $token ): void {
+		$name = ChunkedUpload::uploadIdOf( $token );
+		if ( null === $name || '#' !== substr( $name, 0, 1 ) ) {
+			return;
+		}
+		$names = (array) get_option( self::LONG_UPLOAD_NAMES_OPTION, array() );
+		if ( isset( $names[ substr( $name, 1 ) ] ) ) {
+			unset( $names[ substr( $name, 1 ) ] );
+			update_option( self::LONG_UPLOAD_NAMES_OPTION, $names, false );
+		}
+	}
+
+	/**
+	 * Keep, or forget with null, a row's token as it is (remember_upload()
+	 * and forget_upload() are what the sync calls).
 	 *
 	 * @param string      $file_path
 	 * @param string|null $upload_id
@@ -806,6 +897,7 @@ class DiluxOneOffloadDB {
 		global $wpdb;
 
 		self::abandon_unfinished_uploads();
+		delete_option( self::LONG_UPLOAD_NAMES_OPTION );
 		$result = $wpdb->query( 'TRUNCATE TABLE ' . self::get_table_name() );
 
 		if ( $result !== false ) {
@@ -834,7 +926,7 @@ class DiluxOneOffloadDB {
 		}
 		$basedir = wp_upload_dir()['basedir'];
 		foreach ( $rows as $row ) {
-			$upload_id = ChunkedUpload::uploadIdOf( (string) $row['upload_id'] );
+			$upload_id = self::upload_name_of( (string) $row['upload_id'] );
 			if ( null !== $upload_id && (int) $row['size'] > 0 ) {
 				$client->abort_chunked_upload( new ChunkedUpload( $basedir . $row['file'], self::key_from_path( (string) $row['file'] ), (int) $row['size'], (int) $row['size'], $upload_id ) );
 			}

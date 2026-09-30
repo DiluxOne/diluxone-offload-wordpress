@@ -1058,7 +1058,7 @@ class SyncManager {
 				// and this one does not count as a failed attempt.
 				DiluxOneOffloadDB::refund_attempt( $batch[ $i ]['path'] );
 			} elseif ( empty( $results[ $i ]['success'] ) ) {
-				DiluxOneOffloadDB::set_upload_id( $batch[ $i ]['path'], null );
+				DiluxOneOffloadDB::forget_upload( $batch[ $i ]['path'] );
 			}
 		}
 
@@ -1210,16 +1210,17 @@ class SyncManager {
 		if ( $file_size > $this->chunked_threshold ) {
 			$mtime  = (int) filemtime( $local_path );
 			$token  = $file_info['upload_id'] ?? null;
-			$resume = ChunkedUpload::resumableUploadId( $token, (int) $file_size, $mtime );
-			$stale  = ChunkedUpload::uploadIdOf( $token );
+			$resume = DiluxOneOffloadDB::resumable_upload_name( $token, (int) $file_size, $mtime );
+			$stale  = DiluxOneOffloadDB::upload_name_of( $token );
 			if ( null === $resume && null !== $stale ) {
 				// The file changed since its upload was left half sent: that
 				// upload can never be finished, so it goes before a new one.
 				$this->cloud_client->abort_chunked_upload( new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), (int) $file_size, (int) $file_size, $stale ) );
+				DiluxOneOffloadDB::forget_upload( $file_info['path'] );
 			}
 			$started = $this->cloud_client->begin_chunked_upload( $file_info, $resume );
 			if ( isset( $started['upload'] ) ) {
-				DiluxOneOffloadDB::set_upload_id( $file_info['path'], $started['upload']->resumeToken( $mtime ) );
+				DiluxOneOffloadDB::remember_upload( $file_info['path'], $started['upload'], $mtime );
 			}
 			return $started;
 		}

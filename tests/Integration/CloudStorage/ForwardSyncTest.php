@@ -504,10 +504,13 @@ class ForwardSyncTest extends IntegrationTestCase {
         $sm->process_batch(0.0);
         $token = (string) $wpdb->get_var($wpdb->prepare('SELECT upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/r2.prt'));
         $this->assertStringEndsWith('|#' . sha1($this->client->upload_name), $token, 'the row keeps the SHA-1, which fits');
+        $this->assertSame([sha1($this->client->upload_name) => $this->client->upload_name], get_option(DB::LONG_UPLOAD_NAMES_OPTION), 'and the name itself is kept aside');
 
         $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame($this->client->upload_name, $this->client->resume_requests[1], 'the provider is handed the full name');
         $this->assertSame(6, $this->client->part_requests, 'the second request sent only the missing parts');
         $this->assertSame($bytes, $this->client->blobs['uploads/prt/r2.prt']);
+        $this->assertSame([], get_option(DB::LONG_UPLOAD_NAMES_OPTION), 'a synced file leaves no name behind');
     }
 
     /** A file that changed since its upload was left half sent is sent again whole, as a new upload. */
@@ -545,6 +548,7 @@ class ForwardSyncTest extends IntegrationTestCase {
 
         DB::clear_table();
         $this->assertSame(['uploads/prt/orphan.prt'], $this->client->abandoned);
+        $this->assertFalse(get_option(DB::LONG_UPLOAD_NAMES_OPTION), 'and the names kept aside go with the rows');
     }
 
     public function test_a_small_upload_that_fails_needs_nothing_handed_back(): void {
