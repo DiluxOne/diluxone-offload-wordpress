@@ -20,6 +20,9 @@
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_getcontent
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_remove_handle
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_multi_close
+ * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_share_init
+ * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_share_setopt
+ * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
  * phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_getinfo
@@ -134,6 +137,58 @@ class SyncManager {
 	private $parallel_uploads = 5;
 	/** @var int Files larger than this threshold (bytes) use chunked upload. */
 	private $chunked_threshold = 10485760;
+
+	/** @var resource|null The request's multi handle, kept across rounds (transport(); PHPStan reads the PHP 7.4 stubs, PHP 8 holds a CurlMultiHandle). */
+	private $multi = null;
+
+	/** @var resource|null DNS and TLS sessions shared by the request's transfers (a CurlShareHandle on PHP 8). */
+	private $share = null;
+
+	/**
+	 * The multi handle every round of this request runs on. A multi handle
+	 * keeps the connections its transfers opened, so the next round to the
+	 * same host reuses them instead of paying a new TCP and TLS handshake per
+	 * file; a share handle adds the DNS answers and the TLS sessions, so a
+	 * connection that does have to be opened resumes its session. Released
+	 * when the batch ends (release_transport()).
+	 *
+	 * @return resource The multi handle (PHPStan reads the PHP 7.4 stubs; PHP 8 hands a CurlMultiHandle).
+	 */
+	private function transport() {
+		if ( null === $this->multi ) {
+			$this->multi = curl_multi_init();
+			if ( function_exists( 'curl_share_init' ) ) {
+				$this->share = curl_share_init();
+				curl_share_setopt( $this->share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS );
+				curl_share_setopt( $this->share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION );
+			}
+		}
+		return $this->multi;
+	}
+
+	/**
+	 * Add a transfer to the request's multi handle, sharing its DNS and TLS
+	 * sessions.
+	 *
+	 * @param resource $ch The transfer's handle (a CurlHandle on PHP 8).
+	 */
+	private function add_transfer( $ch ): void {
+		if ( null !== $this->share ) {
+			curl_setopt( $ch, CURLOPT_SHARE, $this->share );
+		}
+		curl_multi_add_handle( $this->transport(), $ch );
+	}
+
+	/**
+	 * Close the request's multi handle and its open connections.
+	 */
+	private function release_transport(): void {
+		if ( null !== $this->multi ) {
+			curl_multi_close( $this->multi );
+			$this->multi = null;
+		}
+		$this->share = null;
+	}
 
 	/**
 	 * The bytes one upload round may take, largest files first: 5 MB per
@@ -469,6 +524,20 @@ class SyncManager {
 	 * @return array<string, mixed> Progress information
 	 */
 	public function process_batch( $time_limit = 8.0 ) {
+		try {
+			return $this->run_batch( (float) $time_limit );
+		} finally {
+			$this->release_transport();
+		}
+	}
+
+	/**
+	 * The rounds of process_batch(), on the request's one transport.
+	 *
+	 * @param float $time_limit Time limit in seconds.
+	 * @return array<string, mixed> Progress information
+	 */
+	private function run_batch( float $time_limit ) {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$start_time          = microtime( true );
@@ -953,7 +1022,7 @@ class SyncManager {
 		$tries      = array(); // "index:part" => attempts of that part
 		$chunked    = array(); // Indexes of the large files started here.
 		$results    = array();
-		$mh         = curl_multi_init();
+		$mh         = $this->transport();
 		$first      = true;
 		foreach ( array_keys( $batch ) as $i ) {
 			$queue[] = array( 'file', $i, 0 );
@@ -1011,7 +1080,7 @@ class SyncManager {
 					}
 					continue;
 				}
-				curl_multi_add_handle( $mh, $handle_data['handle'] );
+				$this->add_transfer( $handle_data['handle'] );
 				$active[ $this->handle_id( $handle_data['handle'] ) ] = array( array( $kind, $i, $part ), $handle_data['handle'], $handle_data['file_handle'] ?? null, $handle_data['on_failure'] ?? null );
 				--$free;
 			}
@@ -1049,8 +1118,6 @@ class SyncManager {
 				$info = curl_multi_info_read( $mh );
 			}
 		} while ( ! empty( $active ) || ! empty( $queue ) );
-
-		curl_multi_close( $mh );
 
 		foreach ( $chunked as $i ) {
 			if ( ! isset( $results[ $i ] ) ) {
@@ -1257,7 +1324,7 @@ class SyncManager {
 	private function download_chunk_parallel( $files ) {
 		Logger::info( '[DiluxOne Offload SyncManager] 🚀 Downloading chunk of ' . count( $files ) . ' files in parallel (concurrency=' . $this->parallel_uploads . ')' );
 
-		$mh           = curl_multi_init();
+		$mh           = $this->transport();
 		$handles      = array();
 		$file_handles = array(); // Track file handles for writing
 		$part_paths   = array(); // Where each download lands before it replaces the attachment
@@ -1271,7 +1338,7 @@ class SyncManager {
 				$handles[ $i ]      = $handle_data['handle'];
 				$file_handles[ $i ] = $handle_data['file_handle'];
 				$part_paths[ $i ]   = (string) ( $handle_data['part_path'] ?? '' );
-				curl_multi_add_handle( $mh, $handle_data['handle'] );
+				$this->add_transfer( $handle_data['handle'] );
 			} else {
 				// Failed to prepare handle
 				$results[ $i ] = array(
@@ -1337,8 +1404,6 @@ class SyncManager {
 				);
 			}
 		}
-
-		curl_multi_close( $mh );
 
 		// Fill missing results
 		foreach ( $files as $i => $file_info ) {
@@ -1751,6 +1816,20 @@ class SyncManager {
 	 * @return array<string, mixed> Progress information
 	 */
 	public function process_reverse_batch( $time_limit = 8.0 ) {
+		try {
+			return $this->run_reverse_batch( (float) $time_limit );
+		} finally {
+			$this->release_transport();
+		}
+	}
+
+	/**
+	 * The rounds of process_reverse_batch(), on the request's one transport.
+	 *
+	 * @param float $time_limit Time limit in seconds.
+	 * @return array<string, mixed> Progress information
+	 */
+	private function run_reverse_batch( float $time_limit ) {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$start_time            = microtime( true );

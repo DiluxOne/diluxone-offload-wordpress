@@ -551,6 +551,36 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertFalse(get_option(DB::LONG_UPLOAD_NAMES_OPTION), 'and the names kept aside go with the rows');
     }
 
+    /**
+     * The rounds of one request share its connections: against a server that
+     * keeps them open, three rounds of two files open no more connections
+     * than one round, where a multi handle per round opened one per file.
+     */
+    public function test_the_rounds_of_a_request_reuse_its_connections(): void {
+        $server = new \Tests\Integration\KeepAliveServer(8779);
+        try {
+            $this->client = new \Tests\Integration\FakeCloudClient($server->base_url);
+            $this->configure(['allowed_file_types' => 'ka']);
+            for ($i = 0; $i < 6; $i++) {
+                $this->fixture("ka/f{$i}.ka", str_repeat('k', 100 + $i));
+            }
+            $sm = new SyncManager();
+            $this->assertTrue($sm->start_sync()['success']);
+            $sm->set_parallel_uploads(3);
+            $cap = new \ReflectionProperty($sm, 'batch_size');
+            if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+            	$cap->setAccessible( true );
+            }
+            $cap->setValue($sm, 2); // Three rounds of two.
+
+            $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+            $this->assertCount(6, $this->client->blobs);
+            $this->assertLessThanOrEqual(2, $server->connections(), 'the second and third rounds ran on the first round\'s connections');
+        } finally {
+            $server->stop();
+        }
+    }
+
     public function test_a_small_upload_that_fails_needs_nothing_handed_back(): void {
         $this->configure(['allowed_file_types' => 'sml']);
         $this->fixture('sml/refused.sml', 'small');

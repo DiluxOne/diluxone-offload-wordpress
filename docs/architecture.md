@@ -159,7 +159,7 @@ Conventions:
   - Allocations of large strings or arrays per call.
   - `error_log` calls in hot methods (use `Logger::debug` so they're gated).
 - **Connection-health checks must be idempotent.** A repeated `decrypt_failed` event must NOT inflate `consecutive_failures` on every page load. The pattern is in `ConfigManager::get_config()`, around its call to `record_connection_failure()` — preserve it.
-- For sync, the engine runs one pool of transfers per round: whole files through `prepare_batch_upload_handle()`, and each part of a large file through `prepare_part_handle()`, ahead of the next files, then its commit. A part that meets a 5xx or a dropped connection is tried up to three times in all. Past the request's time budget no new file or part starts; a large file left half sent is taken up by the next request. Don't introduce sequential per-file or per-part loops in new sync paths.
+- For sync, the engine runs one pool of transfers per round: whole files through `prepare_batch_upload_handle()`, and each part of a large file through `prepare_part_handle()`, ahead of the next files, then its commit. A part that meets a 5xx or a dropped connection is tried up to three times in all. Past the request's time budget no new file or part starts; a large file left half sent is taken up by the next request. Every round of a request, uploads and Disconnect downloads, runs on one multi handle (`SyncManager::transport()`), so the connections of one round are reused by the next. Don't introduce sequential per-file or per-part loops in new sync paths.
 
 ---
 

@@ -186,6 +186,35 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertSame('two-22', file_get_contents($this->base . '/2026/09/d2.jpg'));
     }
 
+    /** The download rounds of a request share its connections too (see ForwardSyncTest). */
+    public function test_the_download_rounds_of_a_request_reuse_its_connections(): void {
+        $server = new \Tests\Integration\KeepAliveServer(8780);
+        try {
+            $blobs = [];
+            for ($i = 0; $i < 6; $i++) {
+                $blobs["uploads/2026/09/ka{$i}.jpg"] = str_repeat('d', 10 + $i);
+                $this->local("2026/09/ka{$i}.jpg");
+            }
+            $this->client        = new FakeCloudClient($server->base_url);
+            $this->client->blobs = $blobs;
+            $this->client->download_status = 200;
+            $sm = new SyncManager();
+            $this->assertTrue($sm->start_reverse_sync('scratch')['success']);
+            $sm->set_parallel_uploads(3);
+            $cap = new \ReflectionProperty($sm, 'batch_size');
+            if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+            	$cap->setAccessible( true );
+            }
+            $cap->setValue($sm, 2); // Three rounds of two.
+
+            $this->assertSame('completed', $sm->process_reverse_batch(30.0)['status']);
+            $this->assertSame(0, DB::count_deleted_files(), 'every file is back on disk');
+            $this->assertLessThanOrEqual(2, $server->connections(), 'the second and third rounds ran on the first round\'s connections');
+        } finally {
+            $server->stop();
+        }
+    }
+
     public function test_reverse_batch_skips_files_already_present_with_the_right_size(): void {
         $this->client->blobs = ['uploads/2026/09/have.jpg' => 'exact'];
         file_put_contents($this->local('2026/09/have.jpg'), 'exact');
