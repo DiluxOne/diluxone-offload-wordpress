@@ -194,9 +194,11 @@ jobs:
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
     # Dependabot pull request, never on a draft, and on a pull request or a
-    # push only when the change touches code; the weekly run and the button
-    # always run. One run at a time: the bucket is shared.
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
+    # push only when the change touches code, except the push that merges a
+    # Dependabot pull request, which always runs (its pull request skipped
+    # this job). The weekly run and the button always run. One run at a time:
+    # the bucket is shared.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (needs.changes.outputs.code != 'false' || github.event.head_commit.author.name == 'dependabot[bot]')) || (needs.changes.outputs.code != 'false' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     concurrency:
       group: real-r2-bucket
       cancel-in-progress: false
@@ -316,9 +318,11 @@ jobs:
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
     # Dependabot pull request, never on a draft, and on a pull request or a
-    # push only when the change touches code; the weekly run and the button
-    # always run. One run at a time: the bucket is shared.
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
+    # push only when the change touches code, except the push that merges a
+    # Dependabot pull request, which always runs (its pull request skipped
+    # this job). The weekly run and the button always run. One run at a time:
+    # the bucket is shared.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (needs.changes.outputs.code != 'false' || github.event.head_commit.author.name == 'dependabot[bot]')) || (needs.changes.outputs.code != 'false' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     concurrency:
       group: real-b2-bucket
       cancel-in-progress: false
@@ -438,9 +442,11 @@ jobs:
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
     # Dependabot pull request, never on a draft, and on a pull request or a
-    # push only when the change touches code; the weekly run and the button
-    # always run. One run at a time: the bucket is shared.
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
+    # push only when the change touches code, except the push that merges a
+    # Dependabot pull request, which always runs (its pull request skipped
+    # this job). The weekly run and the button always run. One run at a time:
+    # the bucket is shared.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (needs.changes.outputs.code != 'false' || github.event.head_commit.author.name == 'dependabot[bot]')) || (needs.changes.outputs.code != 'false' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     concurrency:
       group: real-gcs-bucket
       cancel-in-progress: false

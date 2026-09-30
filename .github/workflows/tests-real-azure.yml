@@ -92,9 +92,11 @@ jobs:
     # are the maintainer's), never on a draft (the bot's reproduction pull
     # requests are drafts, and a fix a person pushes on top runs the suite the
     # moment it is marked ready), and on a pull request or a push only when
-    # the What changed job did not rule the code out; the weekly run and the
-    # button always run.
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
+    # the What changed job did not rule the code out, except the push that
+    # merges a Dependabot pull request, which always runs: its pull request
+    # skipped the suite, and a skipped check would otherwise count as tested.
+    # The weekly run and the button always run.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (needs.changes.outputs.code != 'false' || github.event.head_commit.author.name == 'dependabot[bot]')) || (needs.changes.outputs.code != 'false' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     env:
       AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}
       AZURE_E2E_KEY: ${{ secrets.AZURE_E2E_KEY }}
