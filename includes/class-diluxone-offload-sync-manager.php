@@ -1287,6 +1287,10 @@ class SyncManager {
 			}
 			$started = $this->cloud_client->begin_chunked_upload( $file_info, $resume );
 			if ( isset( $started['upload'] ) ) {
+				if ( null !== $token && $started['upload']->uploadId() !== $resume ) {
+					// The service no longer knew the upload the row named.
+					DiluxOneOffloadDB::forget_upload( $file_info['path'] );
+				}
 				DiluxOneOffloadDB::remember_upload( $file_info['path'], $started['upload'], $mtime );
 			}
 			return $started;

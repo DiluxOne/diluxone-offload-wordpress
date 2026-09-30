@@ -912,11 +912,13 @@ class DiluxOneOffloadDB {
 	 * multipart upload nobody can take up any more is not kept and billed
 	 * (Azure discards uncommitted blocks on its own). Best effort: a provider
 	 * that cannot be reached leaves them to the bucket's lifecycle rule.
+	 *
+	 * @param bool $unsynced_only Only the rows of files not uploaded (the ones Discard failed files removes).
 	 */
-	private static function abandon_unfinished_uploads(): void {
+	private static function abandon_unfinished_uploads( bool $unsynced_only = false ): void {
 		global $wpdb;
 
-		$rows = $wpdb->get_results( 'SELECT file, size, upload_id FROM ' . self::get_table_name() . " WHERE upload_id IS NOT NULL AND upload_id <> ''", ARRAY_A );
+		$rows = $wpdb->get_results( 'SELECT file, size, upload_id FROM ' . self::get_table_name() . " WHERE upload_id IS NOT NULL AND upload_id <> ''" . ( $unsynced_only ? ' AND synced = 0 AND deleted = 0' : '' ), ARRAY_A );
 		if ( empty( $rows ) ) {
 			return;
 		}
@@ -930,7 +932,21 @@ class DiluxOneOffloadDB {
 			if ( null !== $upload_id && (int) $row['size'] > 0 ) {
 				$client->abort_chunked_upload( new ChunkedUpload( $basedir . $row['file'], self::key_from_path( (string) $row['file'] ), (int) $row['size'], (int) $row['size'], $upload_id ) );
 			}
+			self::drop_long_name( (string) $row['upload_id'] );
 		}
+	}
+
+	/**
+	 * Remove every file the sync has not uploaded (Discard failed files), and
+	 * drop the uploads those rows left half sent first.
+	 *
+	 * @return int|false Rows removed.
+	 */
+	public static function discard_unsynced_files() {
+		global $wpdb;
+
+		self::abandon_unfinished_uploads( true );
+		return $wpdb->query( 'DELETE FROM ' . self::get_table_name() . ' WHERE synced = 0 AND deleted = 0' );
 	}
 
 	/**

@@ -535,6 +535,24 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame($edited, $this->client->blobs['uploads/prt/edited.prt']);
     }
 
+    /** Discard failed files drops the uploads its rows left half sent, and keeps the synced rows. */
+    public function test_discarding_the_failed_files_drops_the_uploads_they_named(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $this->fixture('prt/given-up.prt', random_bytes(6000));
+        $this->fixture('prt/done.prt', 'done');
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        $this->chunkedAt($sm, 1000, 1000);
+        $sm->process_batch(0.0);
+        DB::mark_synced('/prt/done.prt'); // Its slot went to the large file's parts.
+        $this->assertSame([], $this->client->abandoned);
+
+        $this->assertSame(1, DB::discard_unsynced_files());
+        $this->assertSame(['uploads/prt/given-up.prt'], $this->client->abandoned);
+        $this->assertSame(1, DB::get_total_count(), 'the synced file stays');
+    }
+
     /** A table emptied while an upload was half sent drops that upload: nobody could take it up any more. */
     public function test_emptying_the_table_drops_the_uploads_it_named(): void {
         $this->configure(['allowed_file_types' => 'prt']);

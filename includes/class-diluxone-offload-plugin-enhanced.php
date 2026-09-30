@@ -1054,17 +1054,9 @@ class Plugin {
 		}
 
 		try {
-			global $wpdb;
-			$table_name = DiluxOneOffloadDB::get_table_name();
-
-			// Delete ALL files with synced=0 (all failed files, regardless of error count)
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), no user input
-			$result = $wpdb->query(
-				"
-                DELETE FROM $table_name
-                WHERE synced = 0 AND deleted = 0
-            "
-			);
+			// Every file with synced=0 (all failed files, regardless of error
+			// count), with the uploads they left half sent.
+			$result = DiluxOneOffloadDB::discard_unsynced_files();
 
 			if ( $result !== false ) {
 				Logger::info( '[DiluxOne Offload Plugin] Discarded ' . $result . ' failed files from database' );
