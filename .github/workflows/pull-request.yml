@@ -1,10 +1,11 @@
 name: Pull request
 
 # Every check a change to DiluxOne Offload goes through, from the shared
-# workflows in DiluxOne/.github: conventions, the fast quality gates and the
-# slow wp-env suites, then the Claude review and the auto-merge decision once
-# they all passed. The real-storage suites (tests-real-azure.yml,
-# tests-real-s3.yml) and CodeQL (codeql.yml) are this repository's own.
+# workflows in DiluxOne/.github: conventions, the fast quality gates, the
+# slow wp-env suites and the real-storage suites (this repository's own
+# tests-real-azure.yml and tests-real-s3.yml, called from here), then the
+# Claude review and the auto-merge decision once they all passed. CodeQL
+# (codeql.yml) is this repository's own too.
 #
 # Nothing runs twice for one change: an edit of the title or description is
 # handled by pull-request-edited.yml (no suites), and a push to main runs the
@@ -50,14 +51,33 @@ jobs:
       checks: read
     uses: DiluxOne/.github/.github/workflows/plugin-tests-wp.yml@v2
 
-  # The paid review runs only once every deterministic check of this
-  # workflow passed: conventions, the static checks and the unit, integration
-  # and end-to-end suites. The real-storage suites live in their own
-  # workflows and are not waited for. A docs-only change skips the suites
-  # inside the tests workflow; the review runs unless something failed.
+  # The real-storage suites, this repository's own workflows, called here so
+  # the review can wait for them. Each decides inside whether it runs (code
+  # changed; keys only on this repository's own non-draft, non-Dependabot
+  # pull requests), so a skipped one does not hold the review back.
+  real-azure:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/tests-real-azure.yml
+    secrets: inherit
+
+  real-s3:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/tests-real-s3.yml
+    secrets: inherit
+
+  # The paid review runs only once every deterministic check passed:
+  # conventions, the static checks, the unit, integration and end-to-end
+  # suites and the real-storage suites. A suite that skipped itself (a
+  # docs-only change, a fork without keys) does not count as a failure.
   review:
-    needs: [conventions, checks, tests]
-    if: ${{ !cancelled() && needs.conventions.result == 'success' && needs.checks.result == 'success' && needs.tests.result != 'failure' }}
+    needs: [conventions, checks, tests, real-azure, real-s3]
+    if: ${{ !cancelled() && needs.conventions.result == 'success' && needs.checks.result == 'success' && needs.tests.result != 'failure' && needs.real-azure.result != 'failure' && needs.real-s3.result != 'failure' }}
     permissions:
       contents: read
       pull-requests: write

@@ -16,13 +16,9 @@ name: Real-storage suite (S3-compatible)
 # request and its author, and comments on that pull request.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
-  push:
-    branches: [main]
-  schedule:
-    - cron: '47 6 * * 1'
+  # Called by pull-request.yml on its pull requests, pushes to main and weekly
+  # run, so the Claude review waits for it; Run workflow runs it alone.
+  workflow_call:
   workflow_dispatch:
 
 concurrency:

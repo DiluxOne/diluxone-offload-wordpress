@@ -8,7 +8,7 @@ The maintainer writes most changes with Claude Code, reads every diff, runs the 
 
 ## The review on every pull request
 
-Every pull request from a branch of this repository is reviewed by Claude, through the shared [`claude-review`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/claude-review.yml) workflow in `DiluxOne/.github`. It runs after the conventions, the fast quality gates and the unit, integration and end-to-end suites pass, so it is never paid for on a change that cannot merge anyway.
+Every pull request from a branch of this repository is reviewed by Claude, through the shared [`claude-review`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/claude-review.yml) workflow in `DiluxOne/.github`. It runs after the conventions, the fast quality gates, the unit, integration and end-to-end suites and the real-storage suites pass, so it is never paid for on a change that cannot merge anyway.
 
 - **What it reads:** the organisation's review profiles ([`general.md`](https://github.com/DiluxOne/.github/blob/main/review-profiles/general.md) and [`plugin-wp.md`](https://github.com/DiluxOne/.github/blob/main/review-profiles/plugin-wp.md), with the lessons of the wordpress.org review), this repository's [`docs/architecture.md`](architecture.md) and [`AGENTS.md`](../AGENTS.md), and the diff.
 - **What it does:** leaves one inline comment per blocker or major problem (minor ones stay in the summary), labels the pull request `risk:low|medium|high` and `complexity:low|medium|high`, and writes one summary comment with what the run cost. The check fails when it finds a blocking problem.
