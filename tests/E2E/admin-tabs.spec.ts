@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { wp } from './helpers/wp';
 
 /**
  * Every admin screen and tab loads and is well-formed.
@@ -64,6 +65,18 @@ for (const view of VIEWS) {
 		expect(inlineScripts, 'inline <script> inside plugin markup').toBe(0);
 		expect(inlineStyles, 'inline <style> inside plugin markup').toBe(0);
 
+		// Styled by WordPress' classes and the plugin's stylesheets: a style
+		// attribute carries only data (a bar's width, the pie's slices).
+		const styled = await wrap.locator('[style]').evaluateAll((els) =>
+			els.map((el) => el.getAttribute('style') ?? '').filter((css) => !/^\s*(width:\s*[\d.]+%;?|background:\s*conic-gradient\(.*)\s*$/.test(css))
+		);
+		expect(styled, 'style attributes that are not data').toEqual([]);
+		// And what is marked hidden is not drawn, even where a class sets display.
+		const shown = await wrap.locator('[hidden]').evaluateAll((els) =>
+			els.filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.id || el.className)
+		);
+		expect(shown, 'elements with the hidden attribute that are drawn').toEqual([]);
+
 		// The screen's own assets were enqueued (shared admin.js/admin.css always).
 		await expect(page.locator('link[id^="diluxone-offload-admin"]').first()).toBeAttached();
 		await expect(page.locator('script[id^="diluxone-offload-admin"]').first()).toBeAttached();
@@ -94,6 +107,25 @@ for (const view of VIEWS) {
 		expect(errors(), 'browser errors').toEqual([]);
 	});
 }
+
+test('the screens take the accent of the user\'s admin colour scheme', async ({ page }) => {
+	const accent = () => page.locator('.wrap.diluxone-offload-admin').evaluate((el) => getComputedStyle(el).getPropertyValue('--diluxone-offload-accent').trim());
+	try {
+		wp(['user', 'meta', 'update', 'admin', 'admin_color', 'ocean']);
+		await page.goto(url('diluxone-offload-sync', 'sync'));
+		// Ocean's accent, whatever this WordPress version paints it: not the default blue.
+		const ocean = await accent();
+		expect(ocean).toMatch(/^#[0-9a-f]{6}$/i);
+		expect(ocean).not.toBe('#2271b1');
+		const hex = (rgb: string) => '#' + (rgb.match(/\d+/g) ?? []).slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('');
+		const border = await page.locator('.nav-tab-active').evaluate((el) => getComputedStyle(el).borderTopColor);
+		expect(hex(border)).toBe(ocean.toLowerCase());
+	} finally {
+		wp(['user', 'meta', 'update', 'admin', 'admin_color', 'fresh']);
+	}
+	await page.goto(url('diluxone-offload-sync', 'sync'));
+	expect(await accent()).toBe('#2271b1');
+});
 
 test('the menu has one submenu per screen', async ({ page }) => {
 	await page.goto(url('diluxone-offload'));

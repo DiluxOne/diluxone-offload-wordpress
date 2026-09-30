@@ -332,6 +332,24 @@ class AdminDataTest extends IntegrationTestCase {
         $this->assertStringContainsString('Failed Files (60)', $html, 'the heading counts all of them');
     }
 
+    public function test_the_sync_bar_shows_failed_files_as_their_own_part(): void {
+        $this->configure(PluginState::SYNCED);
+        $this->useFakeClient();
+        for ($i = 1; $i <= 4; $i++) {
+            DB::add_file(sprintf('/2026/09/b%d.jpg', $i), 10);
+        }
+        DB::mark_synced('/2026/09/b1.jpg');
+        DB::mark_synced('/2026/09/b2.jpg');
+        DB::increment_error('/2026/09/b3.jpg', 'boom');
+
+        $html = $this->render('diluxone-offload-sync', 'sync');
+        $this->assertStringContainsString('2 of 4 · 50%', $html);
+        $this->assertMatchesRegularExpression('/meter__part--done" style="width: 50%"/', $html);
+        $this->assertMatchesRegularExpression('/meter__part--failed" style="width: 25%"/', $html);
+        $this->assertStringContainsString('Still to upload · 1', $html);
+        $this->assertStringContainsString('Failed · 1', $html);
+    }
+
     public function test_disconnect_and_offloading_tabs_show_the_figures(): void {
         $this->configure(PluginState::OFFLOADING_ACTIVE);
         $this->useFakeClient();
@@ -340,7 +358,9 @@ class AdminDataTest extends IntegrationTestCase {
         DB::add_cloud_only_file('/2024/01/cloud-only.jpg', 2048);
         $html = $this->render('diluxone-offload-sync', 'offloading');
         $this->assertStringContainsString('Offloading since', $html);
-        $this->assertStringContainsString('Where the bytes are', $html);
+        $this->assertStringContainsString('Where your 2 files are', $html);
+        $this->assertStringContainsString('diluxone-offload-meter__part--cloud', $html);
+        $this->assertStringContainsString('diluxone-offload-meter__part--local', $html);
         $html = $this->render('diluxone-offload-sync', 'disconnect');
         $this->assertStringContainsString('Files to bring back', $html);
         $this->assertStringContainsString('Free disk here', $html);

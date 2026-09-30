@@ -32,12 +32,12 @@ jQuery(document).ready(function($) {
 			}
 		});
 		if (missing) {
-			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</div>').show();
+			$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + DiluxOneOffloadProvider.i18n.please_fill_in_all_required_fields + '</p></div>').show();
 			return;
 		}
 
 		$button.prop('disabled', true);
-		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + DiluxOneOffloadProvider.i18n.testing);
+		$button.html('<span class="spinner is-active diluxone-offload-button-spinner"></span>' + DiluxOneOffloadProvider.i18n.testing);
 		$result.empty();
 
 		$.ajax({
@@ -48,11 +48,11 @@ jQuery(document).ready(function($) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
 				if (response.success) {
-					$result.html('<div style="padding: 10px; background: #d4edda; border-left: 3px solid #28a745; color: #155724; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</div>').show();
+					$result.html('<div class="notice notice-success inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</p></div>').show();
 					$('#submit').prop('disabled', false);
 					$section.find('.test-status-message').hide();
 				} else {
-					$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</div>').show();
+					$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</p></div>').show();
 					$('#submit').prop('disabled', true);
 					$section.find('.test-status-message').show();
 				}
@@ -60,7 +60,7 @@ jQuery(document).ready(function($) {
 			error: function(xhr, status, error) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>Error: ' + error + '</div>').show();
+				$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + $('<div>').text(error).html() + '</p></div>').show();
 				$('#submit').prop('disabled', true);
 				$section.find('.test-status-message').show();
 			}
@@ -164,9 +164,9 @@ jQuery(document).ready(function($) {
 		var $buttonText = $button.find('.button-text');
 		var $spinner = $button.find('.spinner');
 
-		$button.prop('disabled', true).css('opacity', '0.6');
+		$button.prop('disabled', true);
 		$buttonText.text(DiluxOneOffloadProvider.i18n.deleting_configuration);
-		$spinner.css('visibility', 'visible').show();
+		$spinner.addClass('is-active').prop('hidden', false);
 
 		$.ajax({
 			url: ajaxurl,
@@ -180,17 +180,17 @@ jQuery(document).ready(function($) {
 					// The provider is gone: the Connection tab shows the form again.
 					window.location.href = DiluxOneOffloadProvider.data.urls.connection;
 				} else {
-					alert('Error: ' + (response.data.message || 'Unknown error'));
-					$button.prop('disabled', false).css('opacity', '1');
+					alert(DiluxOneOffloadProvider.i18n.error_deleting_configuration + ' ' + ((response.data && response.data.message) || ''));
+					$button.prop('disabled', false);
 					$buttonText.text(DiluxOneOffloadProvider.i18n.yes_delete_configuration);
-					$spinner.hide();
+					$spinner.removeClass('is-active').prop('hidden', true);
 				}
 			},
 			error: function(xhr, status, error) {
 				alert(DiluxOneOffloadProvider.i18n.error_deleting_configuration + ' ' + error);
-				$button.prop('disabled', false).css('opacity', '1');
+				$button.prop('disabled', false);
 				$buttonText.text(DiluxOneOffloadProvider.i18n.yes_delete_configuration);
-				$spinner.hide();
+				$spinner.removeClass('is-active').prop('hidden', true);
 			}
 		});
 	});
@@ -230,12 +230,12 @@ jQuery(document).ready(function($) {
 			return !$(this).val();
 		}).length > 0;
 		if (missing) {
-			$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</div>');
+			$result.html('<div class="notice notice-error inline"><p>' + DiluxOneOffloadProvider.i18n.please_enter_the_new_access_key + '</p></div>');
 			return;
 		}
 
 		$button.prop('disabled', true);
-		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + DiluxOneOffloadProvider.i18n.testing);
+		$button.html('<span class="spinner is-active diluxone-offload-button-spinner"></span>' + DiluxOneOffloadProvider.i18n.testing);
 		$result.empty();
 
 		$.ajax({
@@ -245,18 +245,19 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
+				// The message comes escaped (esc_html() in Admin::ajax_test_connection()).
 				if (response.success) {
-					$result.html('<div style="padding: 10px; background: #d4edda; border-left: 3px solid #28a745; color: #155724; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</div>');
+					$result.html('<div class="notice notice-success inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</p></div>');
 					$('#save-new-credentials').prop('disabled', false);
 				} else {
-					$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;"><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</div>');
+					$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</p></div>');
 					$('#save-new-credentials').prop('disabled', true);
 				}
 			},
 			error: function(xhr, status, error) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
-				$result.html('<div style="padding: 10px; background: #f8d7da; border-left: 3px solid #dc3545; color: #721c24; border-radius: 3px;">Error: ' + error + '</div>');
+				$result.html('<div class="notice notice-error inline"><p>' + $('<div>').text(error).html() + '</p></div>');
 				$('#save-new-credentials').prop('disabled', true);
 			}
 		});
@@ -267,7 +268,7 @@ jQuery(document).ready(function($) {
 		var data = $.extend({ action: 'diluxone_offload_save_updated_credentials' }, newCredentials());
 
 		$button.prop('disabled', true);
-		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + DiluxOneOffloadProvider.i18n.saving);
+		$button.html('<span class="spinner is-active diluxone-offload-button-spinner"></span>' + DiluxOneOffloadProvider.i18n.saving);
 
 		$.ajax({
 			url: ajaxurl,
@@ -278,7 +279,7 @@ jQuery(document).ready(function($) {
 					// The server queued the confirmation notice; the reload shows it.
 					window.location.href = DiluxOneOffloadProvider.data.urls.credentials;
 				} else {
-					alert('Error: ' + (response.data.message || 'Unknown error'));
+					alert(DiluxOneOffloadProvider.i18n.error_saving_credentials + ' ' + ((response.data && response.data.message) || ''));
 					$button.prop('disabled', false);
 					$button.html(DiluxOneOffloadProvider.i18n.save);
 				}
@@ -297,7 +298,7 @@ jQuery(document).ready(function($) {
 function showProviderConfig(provider) {
 	var configs = document.querySelectorAll('.provider-config');
 	configs.forEach(function(el) {
-		el.style.display = 'none';
+		el.hidden = true;
 		// Remove required from hidden fields to prevent browser validation errors
 		el.querySelectorAll('[required]').forEach(function(input) {
 			input.removeAttribute('required');
@@ -306,7 +307,7 @@ function showProviderConfig(provider) {
 	if (provider) {
 		var selected = document.getElementById(provider + '-config');
 		if (selected) {
-			selected.style.display = 'block';
+			selected.hidden = false;
 			// Restore required on the visible fields that need it
 			selected.querySelectorAll('[data-required]').forEach(function(input) {
 				input.setAttribute('required', '');

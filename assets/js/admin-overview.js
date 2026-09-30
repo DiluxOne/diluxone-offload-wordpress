@@ -12,15 +12,15 @@ jQuery(document).ready(function($) {
 	// the one place that diagnoses the connection, this only reports it.
 	function showStatsError(message) {
 		var i18n = DiluxOneOffloadOverview.i18n;
-		var $bars = $('<div class="diluxone-offload-overview-bars"><div class="diluxone-offload-bar-section"><div class="diluxone-offload-bar-header"><span class="diluxone-offload-bar-title"></span><span class="diluxone-offload-bar-value" style="color: #d63638; font-weight: 600;"></span></div></div></div>');
+		var $bars = $('<div class="diluxone-offload-overview-bars"><div class="diluxone-offload-bar-section"><div class="diluxone-offload-bar-header"><span class="diluxone-offload-bar-title"></span><span class="diluxone-offload-bar-value is-unavailable"></span></div></div></div>');
 		$bars.find('.diluxone-offload-bar-title').text(i18n.storage);
 		$bars.find('.diluxone-offload-bar-value').text(i18n.not_available);
 
-		var $files = $('<div class="diluxone-offload-files-section"><div class="diluxone-offload-files-grid"><div class="diluxone-offload-files-count"><span class="diluxone-offload-stat-label"></span><div class="diluxone-offload-stat-value" style="color: #d63638; font-size: 16px;"></div></div></div></div>');
+		var $files = $('<div class="diluxone-offload-files-section"><div class="diluxone-offload-files-grid"><div class="diluxone-offload-files-count"><span class="diluxone-offload-stat-label"></span><div class="diluxone-offload-stat-value is-unavailable"></div></div></div></div>');
 		$files.find('.diluxone-offload-stat-label').text(i18n.total_files);
 		$files.find('.diluxone-offload-stat-value').text(i18n.not_available);
 
-		var $why = $('<p class="description" style="color: #d63638; margin-top: 10px;"></p>').text(message);
+		var $why = $('<p class="description diluxone-offload-stats-why"></p>').text(message);
 
 		$('#stats-content').empty().append($bars, $files, $why);
 	}
@@ -35,7 +35,7 @@ jQuery(document).ready(function($) {
 		// instead would collapse the card to the height of a spinner and make
 		// the whole page jump twice per refresh.
 		$wrap.addClass('diluxone-offload-loading').attr('aria-busy', 'true');
-		$('#stats-loading').show();
+		$('#stats-loading').prop('hidden', false);
 
 		$.ajax({
 			url: ajaxurl,
@@ -90,7 +90,7 @@ jQuery(document).ready(function($) {
 								var pieHtml = '<div class="diluxone-offload-pie-container" id="stat-pie-section">';
 								pieHtml += '<div class="diluxone-offload-pie" style="background: conic-gradient(#2271b1 0% ' + s1 + '%, #d63638 ' + s1 + '% ' + s2 + '%, #dba617 ' + s2 + '% ' + s3 + '%, #8c8f94 ' + s3 + '% 100%);"></div>';
 								pieHtml += '<div class="diluxone-offload-pie-legend">';
-								var colors = ['#2271b1', '#d63638', '#dba617', '#8c8f94'];
+								var kinds = ['images', 'videos', 'audio', 'other'];
 								var labels2 = [
 									DiluxOneOffloadOverview.i18n.images,
 									DiluxOneOffloadOverview.i18n.videos,
@@ -100,7 +100,7 @@ jQuery(document).ready(function($) {
 								var counts2 = [ft.images || 0, ft.videos || 0, ft.audio || 0, ft.other || 0];
 								var pcts2 = [pImages, pVideos, pAudio, pOther];
 								for (var i = 0; i < 4; i++) {
-									pieHtml += '<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot" style="background: ' + colors[i] + ';"></span> ' + labels2[i] + ' ' + parseInt(counts2[i]).toLocaleString() + ' (' + pcts2[i] + '%)</div>';
+									pieHtml += '<div class="diluxone-offload-legend-item"><span class="diluxone-offload-legend-dot diluxone-offload-legend-dot--' + kinds[i] + '"></span> ' + labels2[i] + ' ' + parseInt(counts2[i]).toLocaleString() + ' (' + pcts2[i] + '%)</div>';
 								}
 								pieHtml += '</div></div>';
 								$('.diluxone-offload-files-count').after(pieHtml);
@@ -110,7 +110,7 @@ jQuery(document).ready(function($) {
 
 					$('#stat-last-updated').text(DiluxOneOffloadOverview.i18n.last_updated + ' ' + DiluxOneOffloadOverview.i18n.just_now);
 				} else {
-					showStatsError((response.data && response.data.message) || 'Unknown error');
+					showStatsError((response.data && response.data.message) || DiluxOneOffloadOverview.i18n.stats_failed);
 				}
 			},
 			error: function(xhr, status, error) {
@@ -119,7 +119,7 @@ jQuery(document).ready(function($) {
 			complete: function() {
 				$button.prop('disabled', false);
 				$button.find('.dashicons').removeClass('spin');
-				$('#stats-loading').hide();
+				$('#stats-loading').prop('hidden', true);
 				$wrap.removeClass('diluxone-offload-loading').attr('aria-busy', 'false');
 			}
 		});

@@ -34,7 +34,7 @@ class Admin {
 	/**
 	 * The tracking table's counts, read once per rendered page.
 	 *
-	 * @var array{total: int, synced: int, pending: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}|null
+	 * @var array{total: int, synced: int, pending: int, errored: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}|null
 	 */
 	private static ?array $tracking_counts = null;
 
@@ -551,10 +551,11 @@ class Admin {
 		// The open tab is marked by a 3 px top border in the accent colour of
 		// the user's admin colour scheme, the way WordPress marks its own
 		// current items, so the plugin follows the scheme instead of bringing
-		// a colour of its own.
+		// a colour of its own. The same accent fills the sync's bars
+		// (--diluxone-offload-accent in admin-sync.css).
 		wp_add_inline_style(
 			'diluxone-offload-admin',
-			sprintf( '.diluxone-offload-admin .nav-tab-active { border-top-color: %s; }', self::accent_color() )
+			sprintf( '.diluxone-offload-admin .nav-tab-active { border-top-color: %1$s; } .diluxone-offload-admin { --diluxone-offload-accent: %1$s; }', self::accent_color() )
 		);
 
 		// Enqueue JS
@@ -738,6 +739,7 @@ class Admin {
 						'storage'       => __( 'Storage', 'diluxone-offload' ),
 						'total_files'   => __( 'Total Files', 'diluxone-offload' ),
 						'request_timed_out_try_again_later' => __( 'Request timed out. Try again later.', 'diluxone-offload' ),
+						'stats_failed'  => __( 'The statistics could not be loaded. Try again later.', 'diluxone-offload' ),
 					),
 					'data' => array(
 						'urls' => self::screen_urls(),
@@ -765,6 +767,52 @@ class Admin {
 						'upload_from_scratch'              => __( 'Upload from Scratch', 'diluxone-offload' ),
 						'scan_and_complete_sync'           => __( 'Scan and Complete Sync', 'diluxone-offload' ),
 						'sync_files_to_cloud'              => __( 'Sync Files to Cloud', 'diluxone-offload' ),
+						// The panels the sync script builds (every word of them here).
+						'analyzing_sync_status'            => __( 'Analyzing Sync Status', 'diluxone-offload' ),
+						'checking_for_active_synchronization' => __( 'Checking for active synchronization...', 'diluxone-offload' ),
+						'validating_action'                => __( 'Validating Action', 'diluxone-offload' ),
+						'calculating_files_to_sync'        => __( 'Calculating files to sync...', 'diluxone-offload' ),
+						'checking_sync_status'             => __( 'Checking sync status...', 'diluxone-offload' ),
+						'resetting_sync'                   => __( 'Resetting Sync', 'diluxone-offload' ),
+						'clearing_and_resetting'           => __( 'Clearing sync data and resetting state...', 'diluxone-offload' ),
+						'calculating_failed_files'         => __( 'Calculating failed files...', 'diluxone-offload' ),
+						/* translators: %s: error message */
+						'error_with_reason'                => __( 'Error: %s', 'diluxone-offload' ),
+						'error'                            => __( 'Error', 'diluxone-offload' ),
+						'unexpected_response'              => __( 'Unexpected response from server', 'diluxone-offload' ),
+						'sync_already_active'              => __( 'Sync is already active. Please wait or refresh the page.', 'diluxone-offload' ),
+						'state_conflict_refreshing'        => __( 'Plugin state conflict. Refreshing page...', 'diluxone-offload' ),
+						/* translators: 1: number of failed files, 2: number of pending files */
+						'cannot_proceed_failed_pending'    => __( 'Cannot proceed: %1$s failed and %2$s pending files. Please resolve them first.', 'diluxone-offload' ),
+						/* translators: %s: the reason the server gave */
+						'operation_not_allowed'            => __( 'Operation not allowed: %s', 'diluxone-offload' ),
+						/* translators: 1: seconds until the next attempt, 2: this attempt's number, 3: attempts allowed */
+						'connection_error_retrying'        => __( 'Connection error. Retrying in %1$s s (attempt %2$s of %3$s)...', 'diluxone-offload' ),
+						'session_expired_reloading'        => __( 'Sync session expired due to inactivity. The page will reload...', 'diluxone-offload' ),
+						'sync_active_in_another_tab'       => __( 'Sync Active in Another Tab', 'diluxone-offload' ),
+						'another_tab_is_processing'        => __( 'Another browser tab is currently processing the sync.', 'diluxone-offload' ),
+						'another_tab_syncing'              => __( 'Another tab is currently syncing.', 'diluxone-offload' ),
+						'progress'                         => __( 'Progress:', 'diluxone-offload' ),
+						/* translators: 1: files processed, 2: files in all */
+						'n_of_total_files'                 => __( '%1$s / %2$s files', 'diluxone-offload' ),
+						'continue_here'                    => __( 'Continue Here', 'diluxone-offload' ),
+						'moves_sync_to_this_tab'           => __( 'This will move the sync to this tab.', 'diluxone-offload' ),
+						'transferring_control'             => __( 'Transferring Control', 'diluxone-offload' ),
+						'taking_over_sync'                 => __( 'Taking over synchronization from the other tab...', 'diluxone-offload' ),
+						'cannot_reset'                     => __( 'Cannot Reset', 'diluxone-offload' ),
+						'refresh_page'                     => __( 'Refresh Page', 'diluxone-offload' ),
+						'error_checking_sync_state'        => __( 'Error checking sync state. Please refresh the page.', 'diluxone-offload' ),
+						'connection_error_refresh'         => __( 'Connection error. Please refresh the page.', 'diluxone-offload' ),
+						'failed_to_calculate_downloads'    => __( 'Failed to calculate download requirements', 'diluxone-offload' ),
+						'connection_error_calculating_downloads' => __( 'Connection error while calculating downloads', 'diluxone-offload' ),
+						'failed_to_scan_cloud'             => __( 'Failed to scan cloud storage', 'diluxone-offload' ),
+						'connection_error_scanning_cloud'  => __( 'Connection error while scanning cloud storage', 'diluxone-offload' ),
+						/* translators: %s: the reason the server gave */
+						'failed_to_start_download'         => __( 'Failed to start download: %s', 'diluxone-offload' ),
+						'connection_error_starting_download' => __( 'Connection error while starting download', 'diluxone-offload' ),
+						/* translators: %s: the reason the server gave */
+						'download_failed'                  => __( 'Download failed: %s', 'diluxone-offload' ),
+						'connection_error_during_download' => __( 'Connection error during download', 'diluxone-offload' ),
 						'error_processing_batch'           => __( 'Error processing batch:', 'diluxone-offload' ),
 						'max_retries_exceeded_sync_stopped_please' => __( '⚠️ Max retries exceeded. Sync stopped. Please check logs and try again.', 'diluxone-offload' ),
 						'sync_completed_successfully'      => __( 'Sync Completed Successfully!', 'diluxone-offload' ),
@@ -1223,13 +1271,14 @@ class Admin {
 
 	/**
 	 * Counts from the tracking table: every row, the synced ones, the ones
-	 * still pending, and the synced ones that still have a local copy.
+	 * still pending (and of those, the ones that already failed an attempt),
+	 * and the synced ones that still have a local copy.
 	 *
 	 * Read once per request: the rail asks on every screen and the Sync and
 	 * Status screens ask again for their own figures.
 	 *
 	 * @param bool $fresh Read again even if this page already did (after a write in the same request).
-	 * @return array{total: int, synced: int, pending: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}
+	 * @return array{total: int, synced: int, pending: int, errored: int, local: int, local_size: int, cloud_only: int, cloud_only_size: int}
 	 */
 	public static function tracking_counts( bool $fresh = false ): array {
 		if ( ! $fresh && is_array( self::$tracking_counts ) ) {
@@ -1245,6 +1294,7 @@ class Admin {
 			"SELECT COUNT(*) AS total,
 				COALESCE(SUM(synced = 1), 0) AS synced,
 				COALESCE(SUM(synced = 0 AND deleted = 0), 0) AS pending,
+				COALESCE(SUM(synced = 0 AND deleted = 0 AND errors > 0), 0) AS errored,
 				COALESCE(SUM(synced = 1 AND deleted = 0), 0) AS local,
 				COALESCE(SUM(CASE WHEN synced = 1 AND deleted = 0 THEN size ELSE 0 END), 0) AS local_size,
 				COALESCE(SUM(synced = 1 AND deleted = 1), 0) AS cloud_only,
@@ -1257,6 +1307,7 @@ class Admin {
 			'total'           => (int) ( $row['total'] ?? 0 ),
 			'synced'          => (int) ( $row['synced'] ?? 0 ),
 			'pending'         => (int) ( $row['pending'] ?? 0 ),
+			'errored'         => (int) ( $row['errored'] ?? 0 ),
 			'local'           => (int) ( $row['local'] ?? 0 ),
 			'local_size'      => (int) ( $row['local_size'] ?? 0 ),
 			'cloud_only'      => (int) ( $row['cloud_only'] ?? 0 ),
@@ -1734,36 +1785,25 @@ class Admin {
 			}
 		}
 		?>
-		<div class="diluxone-offload-health-banner" style="background: #fef0f0; border-left: 4px solid #d63638; padding: 16px 20px; margin-bottom: 20px; border-radius: 4px;">
-			<div style="display: flex; align-items: flex-start; gap: 12px;">
-				<span class="dashicons dashicons-warning" style="color: #d63638; font-size: 24px; flex-shrink: 0; margin-top: 2px;"></span>
-				<div>
-					<strong style="color: #721c24; font-size: 15px;">
-						<?php echo \esc_html( $copy['title'] ); ?>
-					</strong>
-					<p style="margin: 8px 0 0; color: #721c24;">
-						<?php echo \esc_html( $copy['detail'] ); ?>
-					</p>
-					<?php if ( $last_success_text ) : ?>
-					<p style="margin: 4px 0 0; color: #856404; font-size: 13px;">
-						<?php
-						/* translators: %s: human-readable time, e.g. "5 minutes ago" */
-						printf( \esc_html__( 'Last successful connection: %s', 'diluxone-offload' ), \esc_html( $last_success_text ) );
-						?>
-					</p>
-					<?php endif; ?>
-					<?php if ( $is_offloading ) : ?>
-					<p style="margin: 8px 0 0; color: #721c24; font-weight: 600;">
-						<?php \esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?>
-					</p>
-					<?php endif; ?>
-					<p style="margin: 8px 0 0; font-size: 13px;">
-						<a href="<?php echo \esc_url( self::screen_urls()[ $copy['cta_tab'] ] ?? self::screen_url( 'overview' ) ); ?>" style="color: #721c24; text-decoration: underline;">
-							<?php echo \esc_html( $copy['cta_label'] ); ?>
-						</a>
-					</p>
-				</div>
-			</div>
+		<div class="notice notice-error inline diluxone-offload-health-banner">
+			<p><strong><?php echo \esc_html( $copy['title'] ); ?></strong></p>
+			<p><?php echo \esc_html( $copy['detail'] ); ?></p>
+			<?php if ( $last_success_text ) : ?>
+			<p class="description">
+				<?php
+				/* translators: %s: human-readable time, e.g. "5 minutes ago" */
+				printf( \esc_html__( 'Last successful connection: %s', 'diluxone-offload' ), \esc_html( $last_success_text ) );
+				?>
+			</p>
+			<?php endif; ?>
+			<?php if ( $is_offloading ) : ?>
+			<p><strong><?php \esc_html_e( 'New uploads are refused until the connection recovers.', 'diluxone-offload' ); ?></strong></p>
+			<?php endif; ?>
+			<p>
+				<a href="<?php echo \esc_url( self::screen_urls()[ $copy['cta_tab'] ] ?? self::screen_url( 'overview' ) ); ?>">
+					<?php echo \esc_html( $copy['cta_label'] ); ?>
+				</a>
+			</p>
 		</div>
 		<?php
 	}

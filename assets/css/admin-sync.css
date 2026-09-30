@@ -1,211 +1,471 @@
-/* =========================================== */
-/* DILUXONE OFFLOAD - SYNC & OFFLOADING UI */
-/* =========================================== */
+/*
+ * Sync & Offloading: the Sync, Offloading and Disconnect tabs and their
+ * modals. Built on WordPress' own pieces (button, button-primary,
+ * button-hero, notice notice-*, the card shape) plus a few components of
+ * this plugin's; the admin colour scheme's accent arrives as
+ * --diluxone-offload-accent (Admin::accent_color()). No inline styles in
+ * the templates or the scripts: only a bar's width, which is data.
+ */
 
 .diluxone-offload-sync-container {
 	max-width: 100%;
 }
 
-/* Card Styles */
+/* A section of a tab: WordPress' card, full width up to 900px, its title ruled off. */
 .diluxone-offload-sync-container .card {
-	background: #fff;
-	padding: 25px;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+	max-width: 900px;
+	margin: 0 0 20px;
+	padding: 24px;
+	box-sizing: border-box;
 }
 
-.diluxone-offload-sync-container .card h3 {
+.diluxone-offload-sync-container .card > h3 {
+	margin: 0 0 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid #dcdcde;
 	font-size: 18px;
-	font-weight: 600;
-	color: #23282d;
-}
-
-/* Progress Bar Styles */
-.progress-bar {
-	width: 100%;
-	height: 24px;
-	background-color: #f0f0f1;
-	border-radius: 4px;
-	overflow: hidden;
-	margin: 15px 0 10px 0;
-}
-
-.progress-fill {
-	height: 100%;
-	background: linear-gradient(90deg, #0073aa 0%, #005177 100%);
-	transition: width 0.3s ease;
-}
-
-.progress-text {
-	text-align: center;
-	font-size: 14px;
-	color: #666;
-	margin-top: 8px;
-}
-
-/* Button Hero Styles */
-.button-hero {
-	height: auto !important;
-	padding: 12px 24px !important;
-	font-size: 16px !important;
-	line-height: 1.5 !important;
-}
-
-/* Description Text Spacing */
-.diluxone-offload-sync-container .description {
-	line-height: 1.6 !important;
-	margin-top: 8px !important;
-}
-
-/* Button Spacing */
-.diluxone-offload-sync-container .button {
-	margin-bottom: 0 !important;
 }
 
 .diluxone-offload-sync-container .button .dashicons {
 	vertical-align: middle;
+	margin-top: -2px;
 }
 
-/* Ensure proper spacing between action sections */
-.diluxone-offload-actions-card > div > div {
-	margin-bottom: 0;
+/* WordPress notices, set inside a card or a modal. */
+.diluxone-offload-sync-container .notice.inline {
+	margin: 0 0 20px;
 }
 
-.diluxone-offload-actions-card > div > div + div {
-	margin-top: 0;
+.diluxone-offload-sync-container .notice.inline p strong {
+	display: block;
+	margin-bottom: 2px;
 }
 
-/* Spinner Animation */
-@keyframes spin {
-	from { transform: rotate(0deg); }
-	to { transform: rotate(360deg); }
+/* The main action of a state: one wide button and what it does. */
+.diluxone-offload-action {
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px;
+	background: #f6f7f7;
+	margin: 0 0 20px;
 }
 
-.spin {
-	animation: spin 1s linear infinite;
+.diluxone-offload-action .button-hero {
+	display: flex;
+	width: 100%;
+	justify-content: center;
+	align-items: center;
+	gap: 6px;
 }
 
-/* Status Icons */
-.diluxone-offload-status-card .dashicons {
+.diluxone-offload-action .description {
+	margin: 12px 0 0;
+}
+
+.diluxone-offload-actions-row {
+	display: flex;
+	gap: 15px;
+	flex-wrap: wrap;
+}
+
+.diluxone-offload-actions-row > .diluxone-offload-action {
+	flex: 1 1 240px;
+	margin: 0;
+}
+
+/* A destructive button: WordPress' own red, on a primary-shaped button. */
+.diluxone-offload-sync-container .button.diluxone-offload-button-danger,
+.diluxone-offload-modal .button.diluxone-offload-button-danger {
+	background: #d63638;
+	border-color: #d63638;
+	color: #fff;
+}
+
+.diluxone-offload-sync-container .button.diluxone-offload-button-danger:hover,
+.diluxone-offload-sync-container .button.diluxone-offload-button-danger:focus,
+.diluxone-offload-modal .button.diluxone-offload-button-danger:hover,
+.diluxone-offload-modal .button.diluxone-offload-button-danger:focus {
+	background: #b32d2e;
+	border-color: #b32d2e;
+	color: #fff;
+}
+
+/* A bar of one or more parts; each part's width is set by the screen. */
+.diluxone-offload-meter {
+	display: flex;
+	height: 18px;
+	border-radius: 4px;
+	background: #f0f0f1;
+	border: 1px solid #dcdcde;
+	overflow: hidden;
+	margin: 0 0 8px;
+}
+
+.diluxone-offload-meter > span {
+	display: block;
+	height: 100%;
+	transition: width 0.3s ease;
+}
+
+.diluxone-offload-meter--tall {
+	height: 28px;
+}
+
+.diluxone-offload-meter__part--done {
+	background: var(--diluxone-offload-accent, #2271b1);
+}
+
+.diluxone-offload-meter__part--failed {
+	background: #d63638;
+}
+
+/* Offloading: files only in the cloud, solid; files also on this server, striped (disk to free). */
+.diluxone-offload-meter__part--cloud {
+	background: #135e96;
+	min-width: 4px;
+}
+
+.diluxone-offload-meter__part--local {
+	flex-grow: 1;
+	background: repeating-linear-gradient(135deg, #c5d9ed 0, #c5d9ed 8px, #dbe7f3 8px, #dbe7f3 16px);
+}
+
+.diluxone-offload-meter__part--danger {
+	background: #d63638;
+}
+
+.diluxone-offload-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 24px;
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+	font-size: 13px;
+}
+
+.diluxone-offload-legend li {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+/* A swatch; :where() keeps it below the part classes, which give it the part's colour. */
+:where(.diluxone-offload-legend) i {
 	display: inline-block;
+	width: 14px;
+	height: 14px;
+	border-radius: 3px;
+	border: 1px solid #dcdcde;
+	background: #f0f0f1;
 }
 
-/* Modal Improvements */
-#failed-files-modal .wp-list-table code,
-#failed-files-modal .wp-list-table td {
+.diluxone-offload-legend i.diluxone-offload-meter__part--cloud,
+.diluxone-offload-legend i.diluxone-offload-meter__part--local,
+.diluxone-offload-legend i.diluxone-offload-meter__part--done,
+.diluxone-offload-legend i.diluxone-offload-meter__part--failed {
+	min-width: 0;
+	border-color: transparent;
+}
+
+/* Modals: an overlay and a dialog; sections shown and hidden with the hidden attribute. */
+.diluxone-offload-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	background: rgba(0, 0, 0, 0.7);
+}
+
+.diluxone-offload-modal__dialog {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	box-sizing: border-box;
+	width: 90%;
+	max-width: 700px;
+	max-height: 90vh;
+	overflow: auto;
+	background: #fff;
+	border-radius: 4px;
+	padding: 24px 30px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.diluxone-offload-modal__dialog > h2 {
+	margin: 0 0 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid #dcdcde;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.diluxone-offload-modal__dialog > h2 .dashicons-trash {
+	color: #d63638;
+}
+
+.diluxone-offload-modal__section {
+	margin: 20px 0;
+}
+
+.diluxone-offload-modal__footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+	padding-top: 20px;
+	border-top: 1px solid #dcdcde;
+}
+
+.diluxone-offload-modal__footer .button {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* A moment of waiting: a spinner, a title, a line. */
+.diluxone-offload-waiting {
+	text-align: center;
+	padding: 48px 24px;
+}
+
+.diluxone-offload-waiting .spinner {
+	float: none;
+	margin: 0 auto 16px;
+}
+
+.diluxone-offload-waiting h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+}
+
+.diluxone-offload-waiting p {
+	margin: 0;
+	color: #646970;
+}
+
+/* Label and value pairs. */
+.diluxone-offload-kv {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin: 15px 0;
+}
+
+.diluxone-offload-kv > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 0;
+}
+
+.diluxone-offload-kv dt,
+.diluxone-offload-kv .diluxone-offload-kv__k {
+	font-weight: 600;
+}
+
+.diluxone-offload-kv dd {
+	margin: 0;
+}
+
+.diluxone-offload-kv .is-ok {
+	color: #00a32a;
+}
+
+.diluxone-offload-kv .is-warn {
+	color: #996800;
+}
+
+.diluxone-offload-kv .is-failed {
+	color: #d63638;
+}
+
+/* A progress line under a bar. */
+.diluxone-offload-progress-line {
+	text-align: center;
+	margin: 8px 0;
+	color: #646970;
+}
+
+/* Three counters side by side: processed, done, failed. */
+.diluxone-offload-tiles {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin: 16px 0 0;
+}
+
+.diluxone-offload-tile {
+	background: #f6f7f7;
+	border-radius: 4px;
+	padding: 12px;
+	text-align: center;
+}
+
+.diluxone-offload-tile__k {
+	font-size: 12px;
+	color: #646970;
+	margin-bottom: 4px;
+}
+
+.diluxone-offload-tile__v {
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.diluxone-offload-tile--ok {
+	background: #edfaef;
+}
+
+.diluxone-offload-tile--ok .diluxone-offload-tile__v {
+	color: #00701a;
+}
+
+.diluxone-offload-tile--failed {
+	background: #fcf0f1;
+}
+
+.diluxone-offload-tile--failed .diluxone-offload-tile__v {
+	color: #b32d2e;
+}
+
+/* A choice inside a modal (parallel uploads before a sync). */
+.diluxone-offload-choice {
+	margin: 20px 0;
+	padding: 15px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 4px;
+}
+
+.diluxone-offload-choice label {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+.diluxone-offload-choice select {
+	width: 100%;
+	max-width: none;
+}
+
+.diluxone-offload-choice .description {
+	margin: 8px 0 0;
+}
+
+/* The outcome of a run: an icon, a title, a line, then the figures. */
+.diluxone-offload-outcome {
+	text-align: center;
+	padding: 12px 0;
+}
+
+.diluxone-offload-outcome > .dashicons {
+	width: 48px;
+	height: 48px;
+	font-size: 48px;
+	margin-bottom: 12px;
+}
+
+.diluxone-offload-outcome h3 {
+	margin: 0 0 8px;
+}
+
+.diluxone-offload-outcome--ok > .dashicons,
+.diluxone-offload-outcome--ok h3 {
+	color: #00a32a;
+}
+
+.diluxone-offload-outcome--warn > .dashicons,
+.diluxone-offload-outcome--warn h3 {
+	color: #996800;
+}
+
+.diluxone-offload-outcome--failed > .dashicons,
+.diluxone-offload-outcome--failed h3 {
+	color: #d63638;
+}
+
+.diluxone-offload-outcome .diluxone-offload-kv {
+	text-align: left;
+}
+
+.diluxone-offload-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	justify-content: center;
+	margin-top: 20px;
+}
+
+.diluxone-offload-buttons--fill > .button {
+	flex: 1 1 200px;
+	justify-content: center;
+}
+
+/* A destructive action kept apart from the others. */
+.diluxone-offload-danger-zone {
+	margin-top: 24px;
+	padding-top: 20px;
+	border-top: 1px solid #dcdcde;
+}
+
+.diluxone-offload-danger-zone .description {
+	margin-top: 8px;
+}
+
+.diluxone-offload-sync-container .notice.inline.diluxone-offload-spaced {
+	margin-top: 24px;
+}
+
+.diluxone-offload-buttons-left .button {
+	margin: 0 6px 6px 0;
+}
+
+.diluxone-offload-modal__dialog--wide {
+	max-width: 800px;
+}
+
+.diluxone-offload-modal__dialog--narrow {
+	max-width: 560px;
+}
+
+.diluxone-offload-scroll {
+	max-height: 400px;
+	overflow-y: auto;
+	margin: 20px 0;
+}
+
+/* Failed files table in its modal. */
+.diluxone-offload-failed-table .column-file {
+	width: 50%;
+}
+
+.diluxone-offload-failed-table .column-attempts {
+	width: 10%;
+}
+
+.diluxone-offload-failed-table .column-error {
+	width: 40%;
+	font-size: 11px;
+}
+
+.diluxone-offload-failed-table code {
+	font-size: 11px;
+}
+
+.diluxone-offload-failed-table td {
 	word-break: break-word;
 }
 
-/* Responsive */
 @media (max-width: 782px) {
 	.diluxone-offload-sync-container .card {
 		padding: 15px;
 	}
 
-	.button-hero {
-		padding: 10px 20px !important;
-		font-size: 14px !important;
+	.diluxone-offload-tiles {
+		grid-template-columns: minmax(0, 1fr);
 	}
-}
-
-/* Legacy compatibility */
-.sync-status-card, .sync-stats-card {
-	background: #fff;
-	border: 1px solid #ccd0d4;
-	border-radius: 4px;
-	padding: 20px;
-	margin-bottom: 20px;
-}
-
-.sync-status-ready, .sync-status-progress, .sync-status-complete {
-	display: flex;
-	align-items: center;
-	margin-bottom: 20px;
-}
-
-.sync-status-ready .dashicons,
-.sync-status-progress .dashicons,
-.sync-status-complete .dashicons {
-	font-size: 24px;
-	margin-right: 10px;
-	color: #0073aa;
-}
-
-.sync-status-complete .dashicons {
-	color: #46b450;
-}
-
-.sync-actions {
-	margin-top: 15px;
-}
-
-.sync-actions button {
-	margin-right: 10px;
-}
-
-.progress-bar {
-	width: 100%;
-	height: 20px;
-	background-color: #e5e5e5;
-	border-radius: 10px;
-	overflow: hidden;
-	margin: 10px 0;
-}
-
-.progress-fill {
-	height: 100%;
-	background-color: #0073aa;
-	transition: width 0.3s ease;
-}
-
-.progress-text {
-	text-align: center;
-	font-size: 14px;
-	color: #666;
-}
-
-.spin {
-	animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-	0% { transform: rotate(0deg); }
-	100% { transform: rotate(360deg); }
-}
-
-/* Modal styles */
-.diluxone-offload-modal {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	z-index: 100000;
-}
-
-.diluxone-offload-modal-overlay {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.7);
-}
-
-.diluxone-offload-modal-content {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	background: #fff;
-	border-radius: 8px;
-	padding: 30px;
-	max-width: 500px;
-	width: 90%;
-	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.diluxone-offload-modal-content h3 {
-	margin-top: 0;
 }

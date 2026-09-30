@@ -1,5 +1,72 @@
 jQuery(document).ready(function($) {
 
+	// The markup of the sync's panels is built from WordPress' classes and the
+	// plugin's (admin-sync.css): no inline styles; every word from T.
+	const T = DiluxOneOffloadSync.i18n;
+
+	function esc(value) {
+		return $('<div>').text(value === undefined || value === null ? '' : String(value)).html();
+	}
+
+	// A translated string with its %s / %1$s placeholders filled, as sprintf() does.
+	function fmt(template) {
+		const args = Array.prototype.slice.call(arguments, 1);
+		let next = 0;
+		return String(template).replace(/%(?:(\d+)\$)?s/g, function(match, position) {
+			const value = position ? args[position - 1] : args[next++];
+			return value === undefined ? '' : String(value);
+		});
+	}
+
+	function waitingHtml(title, message) {
+		return '<div class="diluxone-offload-waiting"><div class="spinner is-active"></div>' +
+			'<h3>' + esc(title) + '</h3><p>' + esc(message) + '</p></div>';
+	}
+
+	// Label and value rows; a row's third item marks it is-ok, is-warn or is-failed.
+	function kvHtml(rows) {
+		return '<dl class="diluxone-offload-kv">' + rows.map(function(row) {
+			return '<div' + (row[2] ? ' class="' + row[2] + '"' : '') + '><dt>' + esc(row[0]) + '</dt><dd>' + esc(row[1]) + '</dd></div>';
+		}).join('') + '</dl>';
+	}
+
+	// How a run ended: ok, warn or failed, with its icon, title and line.
+	function outcomeHtml(kind, title, text) {
+		const icon = { ok: 'dashicons-yes-alt', warn: 'dashicons-warning', failed: 'dashicons-dismiss' }[kind];
+		return '<div class="diluxone-offload-outcome diluxone-offload-outcome--' + kind + '">' +
+			'<span class="dashicons ' + icon + '"></span><h3>' + esc(title) + '</h3>' +
+			(text ? '<p>' + esc(text) + '</p>' : '') + '</div>';
+	}
+
+	function concurrencyChoiceHtml(id, label, options, description) {
+		return '<div class="diluxone-offload-choice"><label for="' + id + '">' + esc(label) + '</label>' +
+			'<select id="' + id + '">' + options.map(function(o, i) {
+				return '<option value="' + o[0] + '"' + (i === 0 ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+			}).join('') + '</select>' +
+			(description ? '<p class="description">' + esc(description) + '</p>' : '') + '</div>';
+	}
+
+	// Buttons in built panels that close the modal or reload the page.
+	$(document).on('click', '.diluxone-offload-modal-close', function() {
+		$(this).closest('.diluxone-offload-modal').hide();
+	});
+	$(document).on('click', '.diluxone-offload-reload', function() {
+		location.reload();
+	});
+
+	// One place for a message above the cards: a WordPress notice of its type.
+	function notify(message, type) {
+		const $notification = $('#diluxone-offload-notification');
+		$notification
+			.removeClass('notice-success notice-error notice-warning notice-info')
+			.addClass('notice-' + (type || 'info'))
+			.html('<p>' + message + '</p>')
+			.show();
+		if (type === 'success' || type === 'info' || !type) {
+			setTimeout(function() { $notification.fadeOut(); }, 5000);
+		}
+	}
+
 	// ⭐ FIX: Use event delegation for Cancel button to work with dynamically created content
 	$(document).on('click', '#sync-modal-cancel', function() {
 
@@ -9,7 +76,7 @@ jQuery(document).ready(function($) {
 
 			// Show cancelling message
 			$('#sync-modal-progress-label').text(DiluxOneOffloadSync.i18n.cancelling_sync);
-			$('#sync-modal-cancel').prop('disabled', true).css('opacity', '0.5');
+			$('#sync-modal-cancel').prop('disabled', true);
 
 			// ⭐ IMPORTANT: Only reset state to configured if NOT in download mode
 			// In download mode (disconnect), we should stay in "synced" state
@@ -42,28 +109,8 @@ jQuery(document).ready(function($) {
 		}
 	});
 
-	// ⭐ Professional notification system (no alert popups)
 	function showNotification(message, type = 'info') {
-		const $notification = $('#diluxone-offload-notification');
-		const colors = {
-			'success': { bg: '#d4edda', border: '#46b450', color: '#155724' },
-			'error': { bg: '#f8d7da', border: '#dc3545', color: '#721c24' },
-			'warning': { bg: '#fff3cd', border: '#ffc107', color: '#856404' },
-			'info': { bg: '#e7f3ff', border: '#0073aa', color: '#004085' }
-		};
-
-		const style = colors[type] || colors.info;
-		$notification.css({
-			'background-color': style.bg,
-			'border-left-color': style.border,
-			'color': style.color,
-			'display': 'block'
-		}).html(message);
-
-		// Auto-hide success messages after 5 seconds
-		if (type === 'success' || type === 'info') {
-			setTimeout(() => $notification.fadeOut(), 5000);
-		}
+		notify(message, type);
 	}
 
 	function hideNotification() {
@@ -174,21 +221,13 @@ jQuery(document).ready(function($) {
 		});
 	}
 
-	// Show loading state in modal (same as sync calculation)
-	function showLoadingState(title = 'Analyzing Sync Status', message = 'Checking for active synchronization...') {
+	// A waiting state in the modal (the sync's calculation, a check of its state).
+	function showLoadingState(title = T.analyzing_sync_status, message = T.checking_for_active_synchronization) {
 		$('#sync-modal').show();
 		$('#sync-modal-content').hide();
 		$('#sync-modal-summary').hide();
 		$('#sync-modal-progress').hide();
-
-		const loadingHtml = '<div id="diluxone-offload-loading-spinner" style="text-align: center; padding: 60px 20px;">' +
-			'<div class="spinner is-active" style="float: none; margin: 0 auto 20px; width: 40px; height: 40px;"></div>' +
-			'<h3 style="margin: 0 0 12px 0; color: #2271b1; font-size: 20px; font-weight: 600;">' + title + '</h3>' +
-			'<p style="color: #666; font-size: 15px; margin: 0;">' + message + '</p>' +
-			'</div>';
-
-		// ⭐ #sync-container now exists in HTML (line 537), no need to create it
-		$('#sync-container').html(loadingHtml).show();
+		$('#sync-container').html(waitingHtml(title, message)).show();
 	}
 
 	// Hide loading state modal
@@ -197,27 +236,8 @@ jQuery(document).ready(function($) {
 		$('#sync-container').empty();
 	}
 
-	// Show notification message
 	function showNotice(message, type = 'info') {
-		const colors = {
-			'success': { bg: '#d4edda', border: '#46b450', text: '#155724' },
-			'error': { bg: '#f8d7da', border: '#dc3232', text: '#721c24' },
-			'warning': { bg: '#fff3cd', border: '#f0b849', text: '#856404' },
-			'info': { bg: '#d1ecf1', border: '#0073aa', text: '#0c5460' }
-		};
-
-		const color = colors[type] || colors['info'];
-
-		const $notice = $('<div class="diluxone-offload-notice" style="margin: 15px 0; padding: 12px 15px; border-radius: 4px; border-left: 4px solid ' + color.border + '; background: ' + color.bg + '; color: ' + color.text + ';">' +
-			message +
-			'</div>');
-
-		$('#diluxone-offload-notification').html($notice).show();
-
-		// Auto-hide after 5 seconds
-		setTimeout(function() {
-			$('#diluxone-offload-notification').fadeOut();
-		}, 5000);
+		notify(message, type);
 	}
 
 	// Run initial check on page load (always, for multi-tab coordination)
@@ -231,7 +251,7 @@ jQuery(document).ready(function($) {
 
 
 		// Show loading state with unified look & feel
-		showLoadingState('Validating Action', 'Calculating files to sync...');
+		showLoadingState(T.validating_action, T.calculating_files_to_sync);
 
 		// First call: pre-check + calculate (confirmed=0).
 		$.ajax({
@@ -248,7 +268,7 @@ jQuery(document).ready(function($) {
 
 				if (!response.success) {
 					$('#sync-modal').hide();
-					showNotice('Error: ' + (response.data || 'Unknown error'), 'error');
+					showNotice(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
 					return;
 				}
 
@@ -269,12 +289,12 @@ jQuery(document).ready(function($) {
 				// Should never get here.
 				console.error('[DiluxOne Offload Sync] Unexpected response:', response);
 				$('#sync-modal').hide();
-				showNotice('Unexpected response from server', 'error');
+				showNotice(esc(T.unexpected_response), 'error');
 			},
 			error: function(xhr, status, error) {
 				console.error('[DiluxOne Offload Sync] AJAX error on pre-check:', error);
 				$('#sync-modal').hide();
-				showNotice('Connection error. Please try again.', 'error');
+				showNotice(esc(T.connection_error_try_again), 'error');
 			}
 		});
 	}
@@ -304,77 +324,36 @@ jQuery(document).ready(function($) {
 			return;
 		}
 
-		var summaryHtml = '<div class="sync-summary" style="position: relative;">';
-
-		// Close button (X) at top-right
-		summaryHtml += '<button id="close-sync-options-btn" style="position: absolute; top: -10px; right: -10px; background: #d63638; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="' + DiluxOneOffloadSync.i18n.close + '">&times;</button>';
-
-		summaryHtml += '<h3 style="margin: 0 0 15px 0;">☁️ ' + DiluxOneOffloadSync.i18n.upload_summary + '</h3>';
-		summaryHtml += '<div class="summary-stats" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">';
-		summaryHtml += '<div style="margin-bottom: 8px;">';
-		summaryHtml += '<strong>' + DiluxOneOffloadSync.i18n.total_files + '</strong> ' + data.total_files.toLocaleString() + ' (' + data.total_size_formatted + ')';
-		summaryHtml += '</div>';
-		summaryHtml += '<div style="margin-bottom: 8px; color: #0a0;">';
-		summaryHtml += '<strong>' + DiluxOneOffloadSync.i18n.already_uploaded + '</strong> ' + data.synced_files.toLocaleString() + ' (' + data.synced_size_formatted + ') ✅';
-		summaryHtml += '</div>';
-
+		const rows = [
+			[T.total_files, data.total_files.toLocaleString() + ' (' + data.total_size_formatted + ')'],
+			[T.already_uploaded, data.synced_files.toLocaleString() + ' (' + data.synced_size_formatted + ')', 'is-ok']
+		];
 		if (data.new_files > 0) {
-			summaryHtml += '<div style="margin-bottom: 8px; color: #f90;">';
-			summaryHtml += '<strong>' + DiluxOneOffloadSync.i18n.new_files + '</strong> ' + data.new_files.toLocaleString() + ' (' + data.new_files_size_formatted + ') 💛';
-			summaryHtml += '</div>';
+			rows.push([T.new_files, data.new_files.toLocaleString() + ' (' + data.new_files_size_formatted + ')', 'is-warn']);
 		}
-
 		if (data.pending_files > 0) {
-			summaryHtml += '<div style="color: #c60;">';
-			summaryHtml += '<strong>' + DiluxOneOffloadSync.i18n.pending + '</strong> ' + data.pending_files.toLocaleString() + ' (' + data.pending_size_formatted + ') 🎈';
-			summaryHtml += '</div>';
+			rows.push([T.pending, data.pending_files.toLocaleString() + ' (' + data.pending_size_formatted + ')', 'is-warn']);
 		}
 
-		summaryHtml += '</div>';
+		let summaryHtml = '<h2><span class="dashicons dashicons-cloud-upload"></span>' + esc(T.upload_summary) + '</h2>';
+		summaryHtml += kvHtml(rows);
+		summaryHtml += concurrencyChoiceHtml('upload-concurrency-select', T.upload_performance, [
+			[5, T.balanced_5_parallel], [20, T.fast_20_parallel], [40, T.intensive_40_parallel]
+		]);
 
-		// Performance selector
-		summaryHtml += '<div style="margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #2196f3; border-radius: 4px;">';
-		summaryHtml += '<label for="upload-concurrency-select" style="display: block; margin-bottom: 10px; font-weight: 600;">';
-		summaryHtml += '⚡ ' + DiluxOneOffloadSync.i18n.upload_performance;
-		summaryHtml += '</label>';
-		summaryHtml += '<select id="upload-concurrency-select" class="regular-text" style="width: 100%; padding: 8px;">';
-		summaryHtml += '<option value="5" selected>' + DiluxOneOffloadSync.i18n.balanced_5_parallel + '</option>';
-		summaryHtml += '<option value="20">' + DiluxOneOffloadSync.i18n.fast_20_parallel + '</option>';
-		summaryHtml += '<option value="40">' + DiluxOneOffloadSync.i18n.intensive_40_parallel + '</option>';
-		summaryHtml += '</select>';
-		summaryHtml += '</div>';
-
-		// Buttons
-		var continueDisabled = (data.synced_files === 0 || data.pending_files === 0);
-		summaryHtml += '<div class="button-group" style="display: flex; gap: 15px; margin-top: 20px;">';
-
+		// The way on: continue, complete, or start from scratch.
+		const continueDisabled = (data.synced_files === 0 || data.pending_files === 0);
+		const scratch = '<button id="scratch-upload-btn" class="button button-large"><span class="dashicons dashicons-update"></span>' + esc(T.upload_from_scratch) + '</button>';
+		summaryHtml += '<div class="diluxone-offload-buttons diluxone-offload-buttons--fill">';
 		if (!continueDisabled) {
-			// Case 1: Has pending files - show Continue Upload
-			summaryHtml += '<button id="continue-upload-btn" class="button button-primary button-large" style="flex: 1; padding: 15px;">';
-			summaryHtml += '<span class="dashicons dashicons-controls-play"></span> ' + DiluxOneOffloadSync.i18n.continue_upload;
-			summaryHtml += '</button>';
-
-			summaryHtml += '<button id="scratch-upload-btn" class="button button-secondary button-large" style="flex: 1; padding: 15px;">';
-			summaryHtml += '<span class="dashicons dashicons-update"></span> ' + DiluxOneOffloadSync.i18n.upload_from_scratch;
-			summaryHtml += '</button>';
+			summaryHtml += '<button id="continue-upload-btn" class="button button-primary button-large"><span class="dashicons dashicons-controls-play"></span>' + esc(T.continue_upload) + '</button>' + scratch;
 		} else if (data.pending_files === 0 && data.synced_files > 0) {
-			// Case 2: All synced (pending=0) - show Complete Sync button
-			summaryHtml += '<button id="continue-upload-btn" class="button button-primary button-large" style="flex: 1; padding: 15px; background: #46b450; border-color: #46b450;">';
-			summaryHtml += '<span class="dashicons dashicons-yes-alt"></span> ' + DiluxOneOffloadSync.i18n.scan_and_complete_sync;
-			summaryHtml += '</button>';
-
-			summaryHtml += '<button id="scratch-upload-btn" class="button button-secondary button-large" style="flex: 1; padding: 15px;">';
-			summaryHtml += '<span class="dashicons dashicons-update"></span> ' + DiluxOneOffloadSync.i18n.upload_from_scratch;
-			summaryHtml += '</button>';
+			summaryHtml += '<button id="continue-upload-btn" class="button button-primary button-large"><span class="dashicons dashicons-yes-alt"></span>' + esc(T.scan_and_complete_sync) + '</button>' + scratch;
 		} else {
-			// Case 3: Starting fresh (synced=0) - show Upload from Scratch only
-			summaryHtml += '<button id="scratch-upload-btn" class="button button-primary button-large" style="flex: 1; padding: 15px;">';
-			summaryHtml += '<span class="dashicons dashicons-update"></span> ' + DiluxOneOffloadSync.i18n.upload_from_scratch;
-			summaryHtml += '</button>';
+			summaryHtml += scratch.replace('class="button button-large"', 'class="button button-primary button-large"');
 		}
-
 		summaryHtml += '</div>';
-		summaryHtml += '</div>';
+		summaryHtml += '<div class="diluxone-offload-modal__footer"><button id="close-sync-options-btn" class="button">' + esc(T.cancel) + '</button></div>';
 
 		// ⭐ CRITICAL: Ensure modal and container are visible
 		$('#sync-modal').show();
@@ -416,9 +395,8 @@ jQuery(document).ready(function($) {
 		currentSyncState = 'active';
 
 		// Reset progress UI
-		$('#sync-modal-progress-bar').css('width', '0%');
+		$('#sync-modal-progress-bar').css('width', '0%').parent().attr('aria-valuenow', 0);
 		$('#sync-modal-progress-text').text('0 / 0 (0%)');
-		$('#sync-modal-progress-percent').text('0%');
 		$('#sync-modal-stats-processed').text('0');
 		$('#sync-modal-stats-successful').text('0');
 		$('#sync-modal-stats-failed').text('0');
@@ -439,7 +417,7 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				if (!response.success) {
 					$('#sync-modal').hide();
-					showNotice('Error: ' + (response.data || 'Unknown error'), 'error');
+					showNotice(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
 					return;
 				}
 
@@ -457,13 +435,13 @@ jQuery(document).ready(function($) {
 				} else {
 					console.error('[DiluxOne Offload Sync] Unexpected response:', response);
 					$('#sync-modal').hide();
-					showNotice('Unexpected response from server', 'error');
+					showNotice(esc(T.unexpected_response), 'error');
 				}
 			},
 			error: function(xhr, status, error) {
 				console.error('[DiluxOne Offload Sync] AJAX error on execution:', error);
 				$('#sync-modal').hide();
-				showNotice('Connection error. Please try again.', 'error');
+				showNotice(esc(T.connection_error_try_again), 'error');
 			}
 		});
 	}
@@ -480,14 +458,14 @@ jQuery(document).ready(function($) {
 			case 'sync_already_active':
 				console.warn('[DiluxOne Offload Validation] Sync already active');
 				$('#sync-modal').hide();
-				showNotice('Sync is already active. Please wait or refresh the page.', 'warning');
+				showNotice(esc(T.sync_already_active), 'warning');
 				setTimeout(() => location.reload(), 2000);
 				break;
 
 			case 'state_conflict':
 				console.warn('[DiluxOne Offload Validation] Plugin state conflict');
 				$('#sync-modal').hide();
-				showNotice('Plugin state conflict. Refreshing page...', 'warning');
+				showNotice(esc(T.state_conflict_refreshing), 'warning');
 				setTimeout(() => location.reload(), 1000);
 				break;
 
@@ -495,20 +473,14 @@ jQuery(document).ready(function($) {
 				const stats = details;
 				const failedCount = stats.failed_count || 0;
 				const pendingCount = stats.pending_count || 0;
-				let errorMsg = 'Cannot proceed: ';
-				if (failedCount > 0) errorMsg += failedCount + ' failed files';
-				if (failedCount > 0 && pendingCount > 0) errorMsg += ' and ';
-				if (pendingCount > 0) errorMsg += pendingCount + ' pending files';
-				errorMsg += '. Please resolve errors first.';
-
 				$('#sync-modal').hide();
-				showNotice(errorMsg, 'error');
+				showNotice(esc(fmt(T.cannot_proceed_failed_pending, failedCount.toLocaleString(), pendingCount.toLocaleString())), 'error');
 				break;
 
 			default:
 				console.error('[DiluxOne Offload Validation] Unknown error:', reason);
 				$('#sync-modal').hide();
-				showNotice('Operation not allowed: ' + reason, 'error');
+				showNotice(esc(fmt(T.operation_not_allowed, reason)), 'error');
 		}
 	}
 
@@ -570,8 +542,9 @@ jQuery(document).ready(function($) {
 					}
 				} else {
 					// ⭐ FIXED: Handle different error response formats
-					const errorMsg = response.data?.message || response.data || 'Unknown error';
+					const errorMsg = response.data?.message || response.data || T.unexpected_response;
 					console.error('[DiluxOne Offload Sync] Batch error:', errorMsg);
+					// The server sends it escaped (esc_html() in ajax_cs_process_batch()); T.unexpected_response is ours.
 					showNotification(DiluxOneOffloadSync.i18n.error_processing_batch + ' ' + errorMsg, 'error');
 				}
 			},
@@ -595,7 +568,7 @@ jQuery(document).ready(function($) {
 				// Say so in the modal, where the user is looking.
 				const label = $('#sync-modal-progress-label');
 				const resting = label.text();
-				label.text('⚠️ Connection error. Retrying in ' + (backoff/1000) + 's... (attempt ' + retryCount + '/' + maxRetries + ')');
+				label.text(fmt(T.connection_error_retrying, backoff / 1000, retryCount, maxRetries));
 
 				setTimeout(function() {
 					label.text(resting);
@@ -658,7 +631,7 @@ jQuery(document).ready(function($) {
 						stopStateMonitoring();
 						$('#sync-modal').hide();
 
-						showNotice('Sync session expired due to inactivity. The page will reload...', 'warning');
+						showNotice(esc(T.session_expired_reloading), 'warning');
 
 						// Reload page after 2 seconds
 						setTimeout(function() {
@@ -697,25 +670,11 @@ jQuery(document).ready(function($) {
 		const processed = syncMeta.processed_files || 0;
 		const total = syncMeta.total_files || 0;
 
-		let inactiveHtml = '<div style="padding: 30px; text-align: center;">';
-		inactiveHtml += '<div style="font-size: 48px; margin-bottom: 15px;">⏸️</div>';
-		inactiveHtml += '<h3 style="margin: 0 0 10px 0; color: #856404;">Sync Active in Another Tab</h3>';
-		inactiveHtml += '<p style="color: #666; margin-bottom: 20px;">Another browser tab is currently processing the sync.</p>';
+		let inactiveHtml = outcomeHtml('warn', T.sync_active_in_another_tab, T.another_tab_is_processing);
+		inactiveHtml += kvHtml([[T.progress, fmt(T.n_of_total_files, processed.toLocaleString(), total.toLocaleString()) + ' (' + percentage.toFixed(1) + '%)']]);
+		inactiveHtml += '<div class="diluxone-offload-buttons"><button id="continue-here-btn" class="button button-primary button-large"><span class="dashicons dashicons-controls-play"></span>' + esc(T.continue_here) + '</button></div>';
+		inactiveHtml += '<p class="description diluxone-offload-progress-line">' + esc(T.moves_sync_to_this_tab) + '</p>';
 
-		// Progress info
-		inactiveHtml += '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">';
-		inactiveHtml += '<div style="margin-bottom: 8px;"><strong>Progress:</strong> ' + processed + ' / ' + total + ' files (' + percentage.toFixed(1) + '%)</div>';
-		inactiveHtml += '</div>';
-
-		inactiveHtml += '<button id="continue-here-btn" class="button button-primary button-large" style="padding: 15px 30px; font-size: 14px;">';
-		inactiveHtml += '<span class="dashicons dashicons-controls-play"></span>';
-		inactiveHtml += 'Continue Here';
-		inactiveHtml += '</button>';
-
-		inactiveHtml += '<p class="description" style="margin-top: 15px; color: #666;">This will move the sync to this tab.</p>';
-		inactiveHtml += '</div>';
-
-		// ⭐ #sync-container now exists in HTML (line 537), no need to create it
 		$('#sync-container').html(inactiveHtml).show();
 
 		// Attach event handler
@@ -727,11 +686,7 @@ jQuery(document).ready(function($) {
 	function takeControl() {
 
 		// ⭐ FIX: Show "Transferring control..." loading state
-		const transferringHtml = '<div style="padding: 40px; text-align: center;">' +
-			'<div class="spinner is-active" style="float: none; margin: 0 auto 20px; width: 40px; height: 40px;"></div>' +
-			'<h3 style="margin: 0 0 12px 0; color: #2271b1; font-size: 20px; font-weight: 600;">Transferring Control</h3>' +
-			'<p style="color: #666; font-size: 15px; margin: 0;">Taking over synchronization from other tab...</p>' +
-			'</div>';
+		const transferringHtml = waitingHtml(T.transferring_control, T.taking_over_sync);
 
 		$('#sync-container').html(transferringHtml).show();
 		$('#sync-modal-content').hide();
@@ -764,14 +719,14 @@ jQuery(document).ready(function($) {
 						processSyncBatch();
 					});
 				} else {
-					alert(DiluxOneOffloadSync.i18n.failed_to_take_control + ' ' + (response.data || DiluxOneOffloadSync.i18n.unknown_error));
+					notify(esc(T.failed_to_take_control + ' ' + (response.data || T.unknown_error)), 'error');
 					// Restore inactive UI
 					$('#sync-container').empty();
 					showInactiveTabUI(response.data.sync_meta || {});
 				}
 			},
 			error: function(xhr, status, error) {
-				alert(DiluxOneOffloadSync.i18n.connection_error_taking_control);
+				notify(esc(T.connection_error_taking_control), 'error');
 				console.error('[DiluxOne Offload Multi-Tab] Take control error:', error);
 				// Restore inactive UI
 				$('#sync-container').empty();
@@ -820,9 +775,8 @@ jQuery(document).ready(function($) {
 		const failed = data.failed_uploads || 0;
 
 		// Update modal progress
-		$('#sync-modal-progress-bar').css('width', percentage + '%');
-		$('#sync-modal-progress-text').text(processed.toLocaleString() + ' / ' + total.toLocaleString() + ' files');
-		$('#sync-modal-progress-percent').text(Math.round(percentage) + '%');
+		$('#sync-modal-progress-bar').css('width', percentage + '%').parent().attr('aria-valuenow', Math.round(percentage));
+		$('#sync-modal-progress-text').text(fmt(T.n_of_total_files, processed.toLocaleString(), total.toLocaleString()) + ' (' + Math.round(percentage) + '%)');
 		$('#sync-modal-stats-processed').text(processed.toLocaleString());
 		$('#sync-modal-stats-successful').text(successful.toLocaleString());
 		$('#sync-modal-stats-failed').text(failed.toLocaleString());
@@ -842,68 +796,33 @@ jQuery(document).ready(function($) {
 
 		// ⭐ DEBUG: Log data to understand what's happening
 
-		// Build completion summary
-		let summaryHtml = '<div class="sync-summary" style="text-align: center; padding: 20px;">';
-
 		// ⭐ FIXED LOGIC: Consider successful if we have successful uploads OR if total equals successful
 		const isSuccess = (data.status === 'completed' && failed === 0) || (successful > 0 && failed === 0) || (total > 0 && successful === total);
 
+		let summaryHtml;
 		if (isSuccess) {
-			// ✅ All successful
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">✅</div>';
-			summaryHtml += '<h3 style="color: #46b450; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.sync_completed_successfully + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.all_files_have_been_synced_to;
-			summaryHtml += '</p>';
+			summaryHtml = outcomeHtml('ok', T.sync_completed_successfully, T.all_files_have_been_synced_to);
 		} else if (failed > 0) {
-			// ⚠️ Some failures
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>';
-			summaryHtml += '<h3 style="color: #f0b849; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.sync_completed_with_errors + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.some_files_could_not_be_synced;
-			summaryHtml += '</p>';
+			summaryHtml = outcomeHtml('warn', T.sync_completed_with_errors, T.some_files_could_not_be_synced);
 		} else {
-			// ❌ Failed completely (no successful uploads and no clear completion status)
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">❌</div>';
-			summaryHtml += '<h3 style="color: #d63638; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.sync_failed + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += (data.message || DiluxOneOffloadSync.i18n.unknown_error);
-			summaryHtml += '</p>';
+			summaryHtml = outcomeHtml('failed', T.sync_failed, data.message || T.unknown_error);
 		}
 
-		// Stats
-		summaryHtml += '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">';
-		summaryHtml += '<div style="margin-bottom: 10px;"><strong>' + DiluxOneOffloadSync.i18n.total_files + '</strong> ' + total.toLocaleString() + '</div>';
-		summaryHtml += '<div style="margin-bottom: 10px; color: #46b450;"><strong>' + DiluxOneOffloadSync.i18n.successful + '</strong> ' + successful.toLocaleString() + '</div>';
+		const rows = [[T.total_files, total.toLocaleString()], [T.successful, successful.toLocaleString(), 'is-ok']];
 		if (failed > 0) {
-			summaryHtml += '<div style="color: #d63638;"><strong>' + DiluxOneOffloadSync.i18n.failed + '</strong> ' + failed.toLocaleString() + '</div>';
+			rows.push([T.failed, failed.toLocaleString(), 'is-failed']);
 		}
-		summaryHtml += '</div>';
+		summaryHtml += kvHtml(rows);
 
-		// ⭐ Action buttons - different based on result
-		summaryHtml += '<div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">';
-
+		summaryHtml += '<div class="diluxone-offload-buttons">';
 		if (isSuccess) {
-			// ✅ SUCCESS: Offer to enable offloading or continue later
-			summaryHtml += '<button id="enable-offloading-btn" class="button button-primary" style="padding: 10px 30px; font-size: 16px;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.enable_offloading;
-			summaryHtml += '</button>';
-			summaryHtml += '<button id="later-btn" class="button button-secondary" style="padding: 10px 30px; font-size: 16px;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.later;
-			summaryHtml += '</button>';
+			summaryHtml += '<button id="enable-offloading-btn" class="button button-primary button-large">' + esc(T.enable_offloading) + '</button>';
+			summaryHtml += '<button id="later-btn" class="button button-large">' + esc(T.later) + '</button>';
 		} else if (failed > 0) {
-			// ⚠️ WITH ERRORS: Just accept and reload
-			summaryHtml += '<button id="accept-errors-btn" class="button button-primary" style="padding: 10px 30px; font-size: 16px;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.accept;
-			summaryHtml += '</button>';
+			summaryHtml += '<button id="accept-errors-btn" class="button button-primary button-large">' + esc(T.accept) + '</button>';
 		} else {
-			// ❌ FAILED: Just close
-			summaryHtml += '<button id="sync-complete-close-btn" class="button button-primary" style="padding: 10px 30px; font-size: 16px;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.close;
-			summaryHtml += '</button>';
+			summaryHtml += '<button id="sync-complete-close-btn" class="button button-primary button-large">' + esc(T.close) + '</button>';
 		}
-
-		summaryHtml += '</div>';
 		summaryHtml += '</div>';
 
 		$('#sync-modal-summary').html(summaryHtml).show();
@@ -1016,10 +935,10 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (response.success) {
-					showNotification('✅ ' + DiluxOneOffloadSync.i18n.offloading_enabled_successfully, 'success');
+					showNotification(esc(T.offloading_enabled_successfully), 'success');
 					setTimeout(() => window.location.reload(), 1000);
 				} else {
-					showNotification('Error: ' + (response.data || 'Unknown error'), 'error');
+					showNotification(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
 					$btn.prop('disabled', false).html(originalHtml);
 				}
 			},
@@ -1053,7 +972,7 @@ jQuery(document).ready(function($) {
 
 		// Show loading modal
 		$('#sync-modal-content').hide();
-		$('#sync-modal-summary').html('<div style="text-align: center; padding: 40px;"><span class="spinner is-active" style="float: none; margin: 0 auto;"></span><p style="margin-top: 20px;">Calculating failed files...</p></div>');
+		$('#sync-modal-summary').html(waitingHtml(T.retry_failed_files, T.calculating_failed_files)).show();
 		$('#sync-modal').show();
 
 		// Get stats for failed files only
@@ -1071,17 +990,7 @@ jQuery(document).ready(function($) {
 				if (response.success && response.data) {
 					const data = response.data;
 
-					// Build retry summary
-					var summaryHtml = '<div class="sync-summary">';
-					summaryHtml += '<h3 style="margin: 0 0 15px 0;">🔄 ' + DiluxOneOffloadSync.i18n.retry_failed_files + '</h3>';
-					summaryHtml += '<div class="summary-stats" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #ffc107;">';
-
-					// ⭐ Calculate total files to retry (old failed + new files found)
-					var total_to_retry = data.pending_files + data.new_files;
-					var total_size_to_retry = data.pending_size + data.new_files_size;
-
-					summaryHtml += '<div style="margin-bottom: 8px; color: #856404;">';
-					// ⭐ Create a helper function to format size in JavaScript
+					// What a retry takes: the failed files, and new ones the scan found.
 					function formatSize(bytes) {
 						if (bytes === 0) return '0 B';
 						var k = 1024;
@@ -1089,42 +998,21 @@ jQuery(document).ready(function($) {
 						var i = Math.floor(Math.log(bytes) / Math.log(k));
 						return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 					}
-					summaryHtml += '<strong>' + DiluxOneOffloadSync.i18n.failed_files_to_retry + '</strong> ' + total_to_retry.toLocaleString() + ' (' + formatSize(total_size_to_retry) + ')';
-					summaryHtml += '</div>';
-
-					// ⭐ Show breakdown if there are new files
+					const totalToRetry = data.pending_files + data.new_files;
+					const rows = [[T.failed_files_to_retry, totalToRetry.toLocaleString() + ' (' + formatSize(data.pending_size + data.new_files_size) + ')', 'is-warn']];
 					if (data.new_files > 0) {
-						summaryHtml += '<div style="font-size: 13px; color: #666; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0;">';
-						summaryHtml += '├ ' + DiluxOneOffloadSync.i18n.previously_failed + ' ' + data.pending_files.toLocaleString() + ' (' + data.pending_size_formatted + ')';
-						summaryHtml += '<br>';
-						summaryHtml += '└ ' + DiluxOneOffloadSync.i18n.new_files_found + ' ' + data.new_files.toLocaleString() + ' (' + data.new_files_size_formatted + ')';
-						summaryHtml += '</div>';
+						rows.push([T.previously_failed, data.pending_files.toLocaleString() + ' (' + data.pending_size_formatted + ')']);
+						rows.push([T.new_files_found, data.new_files.toLocaleString() + ' (' + data.new_files_size_formatted + ')']);
 					}
 
-					summaryHtml += '</div>';
-
-					// Performance Level Selector
-					summaryHtml += '<div style="margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #2196f3; border-radius: 4px;">';
-					summaryHtml += '<label for="retry-concurrency-select" style="display: block; margin-bottom: 10px; font-weight: 600; color: #333;">';
-					summaryHtml += '⚡ ' + DiluxOneOffloadSync.i18n.performance_level;
-					summaryHtml += '</label>';
-					summaryHtml += '<select id="retry-concurrency-select" class="regular-text" style="width: 100%; padding: 8px;">';
-					summaryHtml += '<option value="5" selected>' + DiluxOneOffloadSync.i18n.balanced_5_parallel_recommended + '</option>';
-					summaryHtml += '<option value="20">' + DiluxOneOffloadSync.i18n.fast_20_parallel_more_resources + '</option>';
-					summaryHtml += '<option value="40">' + DiluxOneOffloadSync.i18n.intensive_40_parallel_maximum_speed + '</option>';
-					summaryHtml += '</select>';
-					summaryHtml += '<p class="description" style="margin-top: 8px; font-size: 12px; color: #666;">';
-					summaryHtml += DiluxOneOffloadSync.i18n.higher_values_faster_upload_but_more;
-					summaryHtml += '</p>';
-					summaryHtml += '</div>';
-
-					// Action buttons
-					summaryHtml += '<div style="margin-top: 20px; display: flex; gap: 10px;">';
-					summaryHtml += '<button id="retry-upload-btn" class="button button-primary" style="flex: 1;">';
-					summaryHtml += '🔄 ' + DiluxOneOffloadSync.i18n.retry_upload;
-					summaryHtml += '</button>';
-					summaryHtml += '<button id="sync-modal-cancel" class="button" style="flex: 0;">' + DiluxOneOffloadSync.i18n.cancel + '</button>';
-					summaryHtml += '</div>';
+					let summaryHtml = '<h2><span class="dashicons dashicons-update"></span>' + esc(T.retry_failed_files) + '</h2>';
+					summaryHtml += kvHtml(rows);
+					summaryHtml += concurrencyChoiceHtml('retry-concurrency-select', T.performance_level, [
+						[5, T.balanced_5_parallel_recommended], [20, T.fast_20_parallel_more_resources], [40, T.intensive_40_parallel_maximum_speed]
+					], T.higher_values_faster_upload_but_more);
+					summaryHtml += '<div class="diluxone-offload-modal__footer">';
+					summaryHtml += '<button id="sync-modal-cancel" class="button">' + esc(T.cancel) + '</button>';
+					summaryHtml += '<button id="retry-upload-btn" class="button button-primary"><span class="dashicons dashicons-update"></span>' + esc(T.retry_upload) + '</button>';
 					summaryHtml += '</div>';
 
 					$('#sync-modal-summary').html(summaryHtml);
@@ -1152,35 +1040,14 @@ jQuery(document).ready(function($) {
 		// Hide content modal, show summary
 		$('#sync-modal-content').hide();
 
-		// Show confirmation modal with improved UX/UI
-		var confirmHtml = '<div class="sync-summary" style="padding: 20px;">';
-
-		// Icon and title
-		confirmHtml += '<div style="text-align: center; margin-bottom: 20px;">';
-		confirmHtml += '<div style="font-size: 64px; margin-bottom: 15px;">⚠️</div>';
-		confirmHtml += '<h2 style="margin: 0 0 10px 0; font-size: 24px; color: #d63638;">' + DiluxOneOffloadSync.i18n.confirm_complete_resync + '</h2>';
-		confirmHtml += '</div>';
-
-		// Warning message
-		confirmHtml += '<div style="background: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 25px; border-left: 4px solid #f0b849;">';
-		confirmHtml += '<p style="margin: 0 0 15px 0; color: #856404; line-height: 1.6; font-size: 15px;">';
-		confirmHtml += '<strong>' + DiluxOneOffloadSync.i18n.are_you_sure_you_want_to + '</strong>';
-		confirmHtml += '</p>';
-		confirmHtml += '<ul style="margin: 15px 0; padding-left: 20px; color: #856404; line-height: 1.8;">';
-		confirmHtml += '<li>' + DiluxOneOffloadSync.i18n.all_sync_history_will_be_cleared + '</li>';
-		confirmHtml += '<li>' + DiluxOneOffloadSync.i18n.files_will_be_scanned_from_scratch + '</li>';
-		confirmHtml += '<li>' + DiluxOneOffloadSync.i18n.already_synced_files_will_be_detected + '</li>';
-		confirmHtml += '</ul>';
-		confirmHtml += '<p style="margin: 15px 0 0 0; color: #721c24; font-weight: 600; background: #f8d7da; padding: 12px; border-radius: 4px; border-left: 4px solid #d63638;">';
-		confirmHtml += '⚠️ ' + DiluxOneOffloadSync.i18n.this_action_cannot_be_undone;
-		confirmHtml += '</p>';
-		confirmHtml += '</div>';
-
-		// Action buttons
-		confirmHtml += '<div style="margin-top: 25px; display: flex; gap: 10px; justify-content: center;">';
-		confirmHtml += '<button id="resync-cancel-btn" class="button button-secondary" style="padding: 10px 30px; font-size: 15px;">' + DiluxOneOffloadSync.i18n.cancel + '</button>';
-		confirmHtml += '<button id="resync-confirm-btn" class="button button-primary" style="padding: 10px 30px; font-size: 15px; background: #d63638; border-color: #d63638;">' + DiluxOneOffloadSync.i18n.yes_resync_all_files + '</button>';
-		confirmHtml += '</div>';
+		// The confirmation of a resync from scratch.
+		let confirmHtml = '<h2><span class="dashicons dashicons-warning"></span>' + esc(T.confirm_complete_resync) + '</h2>';
+		confirmHtml += '<div class="notice notice-warning inline"><p><strong>' + esc(T.are_you_sure_you_want_to) + '</strong></p>';
+		confirmHtml += '<ul class="ul-disc"><li>' + esc(T.all_sync_history_will_be_cleared) + '</li><li>' + esc(T.files_will_be_scanned_from_scratch) + '</li><li>' + esc(T.already_synced_files_will_be_detected) + '</li></ul>';
+		confirmHtml += '<p><strong>' + esc(T.this_action_cannot_be_undone) + '</strong></p></div>';
+		confirmHtml += '<div class="diluxone-offload-modal__footer">';
+		confirmHtml += '<button id="resync-cancel-btn" class="button">' + esc(T.cancel) + '</button>';
+		confirmHtml += '<button id="resync-confirm-btn" class="button button-primary diluxone-offload-button-danger">' + esc(T.yes_resync_all_files) + '</button>';
 		confirmHtml += '</div>';
 
 		$('#sync-modal-summary').html(confirmHtml);
@@ -1197,7 +1064,7 @@ jQuery(document).ready(function($) {
 			$btn.prop('disabled', true).text(DiluxOneOffloadSync.i18n.processing);
 
 			// Show loading state
-			$('#sync-modal-summary').html('<div style="text-align: center; padding: 40px;"><span class="spinner is-active" style="float: none; margin: 0 auto;"></span><p style="margin-top: 20px;">' + DiluxOneOffloadSync.i18n.clearing_sync_data + '</p></div>');
+			$('#sync-modal-summary').html(waitingHtml(T.processing, T.clearing_sync_data));
 
 			// Call backend to clear table and set state to CONFIGURED
 			$.ajax({
@@ -1210,7 +1077,7 @@ jQuery(document).ready(function($) {
 				success: function(response) {
 					if (response.success) {
 						// Show success message
-						$('#sync-modal-summary').html('<div style="text-align: center; padding: 40px;"><div style="font-size: 64px; margin-bottom: 20px;">✅</div><h3 style="color: #46b450; margin: 0 0 15px 0;">' + DiluxOneOffloadSync.i18n.sync_data_cleared + '</h3><p style="color: #666;">' + DiluxOneOffloadSync.i18n.reloading_page + '</p></div>');
+						$('#sync-modal-summary').html(outcomeHtml('ok', T.sync_data_cleared, T.reloading_page));
 
 						// Reload page after 1 second to show CONFIGURED state with "Start Sync" button
 						setTimeout(function() {
@@ -1254,15 +1121,15 @@ jQuery(document).ready(function($) {
 				},
 				success: function(response) {
 					if (response.success) {
-						alert(response.data);
-						window.location.reload();
+						notify(esc(response.data), 'success');
+						setTimeout(function() { window.location.reload(); }, 1000);
 					} else {
-						alert('Error: ' + response.data);
+						notify(esc(fmt(T.error_with_reason, response.data)), 'error');
 						button.prop('disabled', false).text(DiluxOneOffloadSync.i18n.clear_list);
 					}
 				},
 				error: function() {
-					alert(DiluxOneOffloadSync.i18n.connection_error);
+					notify(esc(T.connection_error), 'error');
 					button.prop('disabled', false).text(DiluxOneOffloadSync.i18n.clear_list);
 				}
 			});
@@ -1358,7 +1225,7 @@ jQuery(document).ready(function($) {
 		e.stopPropagation();
 
 		// ⭐ Show loading state immediately for better UX
-		showLoadingState('Validating Action', 'Checking sync status...');
+		showLoadingState(T.validating_action, T.checking_sync_status);
 
 		// ⭐ NEW: Verify this tab has control BEFORE allowing cancel
 		$.ajax({
@@ -1386,14 +1253,14 @@ jQuery(document).ready(function($) {
 					$('#cancel-sync-modal').show();
 				} else {
 					console.error('[DiluxOne Offload] Error checking sync state:', response);
-					showNotice('Error checking sync state. Please refresh the page.', 'error');
+					showNotice(esc(T.error_checking_sync_state), 'error');
 				}
 			},
 			error: function(xhr, status, error) {
 				// Hide loading state on error
 				hideLoadingState();
 				console.error('[DiluxOne Offload] AJAX error checking sync state:', error);
-				showNotice('Connection error. Please refresh the page.', 'error');
+				showNotice(esc(T.connection_error_refresh), 'error');
 			}
 		});
 	});
@@ -1407,7 +1274,7 @@ jQuery(document).ready(function($) {
 	$('#confirm-cancel-sync').on('click', function() {
 
 		// ⭐ Show "Resetting..." state inside the modal (better UX)
-		showLoadingState('Resetting Sync', 'Clearing sync data and resetting state...');
+		showLoadingState(T.resetting_sync, T.clearing_and_resetting);
 
 		// Call cancel_sync AJAX to clear DB and reset state
 		$.ajax({
@@ -1427,12 +1294,8 @@ jQuery(document).ready(function($) {
 					console.error('[DiluxOne Offload] Reset blocked by validation:', response.data.reason);
 
 					// Show error in main modal
-					const errorHtml = '<div style="text-align: center; padding: 60px 20px;">' +
-						'<div style="font-size: 60px; color: #dc3232; margin-bottom: 20px;">⚠️</div>' +
-						'<h3 style="margin: 0 0 12px 0; color: #dc3232; font-size: 20px; font-weight: 600;">Cannot Reset</h3>' +
-						'<p style="color: #666; font-size: 15px; margin: 0 0 20px 0;">' + (response.data.message || 'Another tab is currently syncing') + '</p>' +
-						'<button class="button button-primary" onclick="jQuery(\'#sync-modal\').hide(); location.reload();">Refresh Page</button>' +
-						'</div>';
+					const errorHtml = outcomeHtml('warn', T.cannot_reset, response.data.message || T.another_tab_syncing) +
+						'<div class="diluxone-offload-buttons"><button class="button button-primary diluxone-offload-reload">' + esc(T.refresh_page) + '</button></div>';
 
 					$('#sync-container').html(errorHtml).show();
 					return;
@@ -1441,12 +1304,7 @@ jQuery(document).ready(function($) {
 				if (response.success) {
 
 					// Show success message in the main modal
-					const successHtml = '<div style="text-align: center; padding: 60px 20px;">' +
-						'<div style="font-size: 60px; color: #46b450; margin-bottom: 20px;">✓</div>' +
-						'<h3 style="margin: 0 0 12px 0; color: #46b450; font-size: 20px; font-weight: 600;">Success!</h3>' +
-						'<p style="color: #666; font-size: 15px; margin: 0;">' + (response.data.message || DiluxOneOffloadSync.i18n.sync_cancelled_and_reset_to_configured) + '</p>' +
-						'<p style="color: #999; font-size: 13px; margin-top: 15px;">Refreshing page...</p>' +
-						'</div>';
+					const successHtml = outcomeHtml('ok', response.data.message || T.sync_cancelled_and_reset_to_configured, T.reloading_page);
 
 					$('#sync-container').html(successHtml).show();
 
@@ -1458,12 +1316,8 @@ jQuery(document).ready(function($) {
 					console.error('[DiluxOne Offload] Failed to cancel sync:', response);
 
 					// Show error in main modal
-					const errorHtml = '<div style="text-align: center; padding: 60px 20px;">' +
-						'<div style="font-size: 60px; color: #dc3232; margin-bottom: 20px;">✗</div>' +
-						'<h3 style="margin: 0 0 12px 0; color: #dc3232; font-size: 20px; font-weight: 600;">Error</h3>' +
-						'<p style="color: #666; font-size: 15px; margin: 0 0 20px 0;">' + DiluxOneOffloadSync.i18n.failed_to_cancel_sync + ': ' + (response.data.message || response.data || 'Unknown error') + '</p>' +
-						'<button class="button button-primary" onclick="jQuery(\'#sync-modal\').hide();">Close</button>' +
-						'</div>';
+					const errorHtml = outcomeHtml('failed', T.failed_to_cancel_sync, response.data.message || response.data || T.unknown_error) +
+						'<div class="diluxone-offload-buttons"><button class="button button-primary diluxone-offload-modal-close">' + esc(T.close) + '</button></div>';
 
 					$('#sync-container').html(errorHtml).show();
 				}
@@ -1475,12 +1329,8 @@ jQuery(document).ready(function($) {
 				console.error('[DiluxOne Offload] AJAX error cancelling sync:', error);
 
 				// Show error in main modal
-				const errorHtml = '<div style="text-align: center; padding: 60px 20px;">' +
-					'<div style="font-size: 60px; color: #dc3232; margin-bottom: 20px;">✗</div>' +
-					'<h3 style="margin: 0 0 12px 0; color: #dc3232; font-size: 20px; font-weight: 600;">Connection Error</h3>' +
-					'<p style="color: #666; font-size: 15px; margin: 0 0 20px 0;">' + DiluxOneOffloadSync.i18n.connection_error_while_cancelling_sync + '</p>' +
-					'<button class="button button-primary" onclick="jQuery(\'#sync-modal\').hide();">Close</button>' +
-					'</div>';
+				const errorHtml = outcomeHtml('failed', T.connection_error, T.connection_error_while_cancelling_sync) +
+					'<div class="diluxone-offload-buttons"><button class="button button-primary diluxone-offload-modal-close">' + esc(T.close) + '</button></div>';
 
 				$('#sync-container').html(errorHtml).show();
 			}
@@ -1534,8 +1384,8 @@ jQuery(document).ready(function($) {
 				$('#delete-modal-loading').hide();
 				$('#delete-modal-info').show();
 				$('#delete-modal-start').show();
-				$('#delete-modal-total-files').text('Error');
-				$('#delete-modal-total-size').text('Error');
+				$('#delete-modal-total-files').text(T.error);
+				$('#delete-modal-total-size').text(T.error);
 				$('#delete-modal-start').prop('disabled', false);
 			}
 		});
@@ -1562,9 +1412,8 @@ jQuery(document).ready(function($) {
 		failedFilesCount = 0;
 
 		// Reset progress
-		$('#delete-modal-progress-bar').css('width', '0%');
+		$('#delete-modal-progress-bar').css('width', '0%').parent().attr('aria-valuenow', 0);
 		$('#delete-modal-progress-text').text('0 / ' + totalFilesToDelete + ' (0%)');
-		$('#delete-modal-progress-percent').text('0%');
 		$('#delete-modal-stats-processed').text('0');
 		$('#delete-modal-stats-successful').text('0');
 		$('#delete-modal-stats-failed').text('0');
@@ -1587,7 +1436,7 @@ jQuery(document).ready(function($) {
 			},
 			success: function(response) {
 				if (!response.success) {
-					alert('Error: ' + ((response.data && response.data.message) || response.data || 'Unknown error'));
+					showNotification(esc(fmt(T.error_with_reason, (response.data && response.data.message) || response.data || T.unknown_error)), 'error');
 					$('#delete-modal').hide();
 					return;
 				}
@@ -1602,8 +1451,7 @@ jQuery(document).ready(function($) {
 				const percentage = totalFilesToDelete > 0 ? Math.round((processedTotal / totalFilesToDelete) * 100) : 0;
 
 				// Update UI
-				$('#delete-modal-progress-bar').css('width', percentage + '%');
-				$('#delete-modal-progress-percent').text(percentage + '%');
+				$('#delete-modal-progress-bar').css('width', percentage + '%').parent().attr('aria-valuenow', percentage);
 				$('#delete-modal-progress-text').text(processedTotal + ' / ' + totalFilesToDelete + ' (' + percentage + '%)');
 				$('#delete-modal-stats-processed').text(processedTotal.toLocaleString());
 				$('#delete-modal-stats-successful').text(deletedFilesCount.toLocaleString());
@@ -1620,8 +1468,8 @@ jQuery(document).ready(function($) {
 			},
 			error: function(xhr, status, error) {
 				console.error('[DiluxOne Offload Delete] Error:', error);
-				alert(DiluxOneOffloadSync.i18n.connection_error_deletion_interrupted);
 				$('#delete-modal').hide();
+				notify(esc(T.connection_error_deletion_interrupted), 'error');
 			}
 		});
 	}
@@ -1633,41 +1481,15 @@ jQuery(document).ready(function($) {
 
 		const total = successful + failed;
 
-		// Build completion summary
-		let summaryHtml = '<div style="text-align: center; padding: 20px;">';
-
-		if (failed === 0) {
-			// ✅ All successful
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">✅</div>';
-			summaryHtml += '<h3 style="color: #46b450; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.deletion_completed_successfully + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.all_local_files_have_been_deleted;
-			summaryHtml += '</p>';
-		} else {
-			// ⚠️ Some failures
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>';
-			summaryHtml += '<h3 style="color: #f0b849; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.deletion_completed_with_errors + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.some_files_could_not_be_deleted;
-			summaryHtml += '</p>';
-		}
-
-		// Stats
-		summaryHtml += '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">';
-		summaryHtml += '<div style="margin-bottom: 10px;"><strong>' + DiluxOneOffloadSync.i18n.total_files + '</strong> ' + total.toLocaleString() + '</div>';
-		summaryHtml += '<div style="margin-bottom: 10px; color: #46b450;"><strong>' + DiluxOneOffloadSync.i18n.deleted + '</strong> ' + successful.toLocaleString() + '</div>';
+		let summaryHtml = failed === 0
+			? outcomeHtml('ok', T.deletion_completed_successfully, T.all_local_files_have_been_deleted)
+			: outcomeHtml('warn', T.deletion_completed_with_errors, T.some_files_could_not_be_deleted);
+		const rows = [[T.total_files, total.toLocaleString()], [T.deleted, successful.toLocaleString(), 'is-ok']];
 		if (failed > 0) {
-			summaryHtml += '<div style="color: #d63638;"><strong>' + DiluxOneOffloadSync.i18n.failed + '</strong> ' + failed.toLocaleString() + '</div>';
+			rows.push([T.failed, failed.toLocaleString(), 'is-failed']);
 		}
-		summaryHtml += '</div>';
-
-		// Accept button
-		summaryHtml += '<div style="margin-top: 20px;">';
-		summaryHtml += '<button id="delete-accept-btn" class="button button-primary" style="padding: 10px 30px; font-size: 16px;">';
-		summaryHtml += DiluxOneOffloadSync.i18n.accept;
-		summaryHtml += '</button>';
-		summaryHtml += '</div>';
-		summaryHtml += '</div>';
+		summaryHtml += kvHtml(rows);
+		summaryHtml += '<div class="diluxone-offload-buttons"><button id="delete-accept-btn" class="button button-primary button-large">' + esc(T.accept) + '</button></div>';
 
 		$('#delete-modal-summary').html(summaryHtml).show();
 
@@ -1689,7 +1511,13 @@ jQuery(document).ready(function($) {
 	});
 
 	// Close Disconnect modal
-	$('.close-disconnect-modal').on('click', function() {
+	// Delegated: the summary after a download with errors adds its own Close.
+	$(document).on('click', '.close-disconnect-modal', function() {
+		if (!$('#disconnect-confirm-view').length) {
+			// That summary replaced the modal's views: the page shows the new state.
+			window.location.reload();
+			return;
+		}
 		$('#disconnect-modal').hide();
 		// Reset modal to initial view
 		$('#disconnect-confirm-view').show();
@@ -1770,36 +1598,15 @@ jQuery(document).ready(function($) {
 									return;
 								}
 
-								// Build stats HTML for options view
-								var summaryHtml = '';
-								summaryHtml += '<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">';
-								summaryHtml += '<span style="font-weight: 600;">📁 ' + DiluxOneOffloadSync.i18n.total_files_in_cloud + '</span>';
-								summaryHtml += '<span>' + data.total_cloud.toLocaleString() + ' (' + data.total_size_formatted + ')</span>';
-								summaryHtml += '</div>';
-
+								// What the download will do, and how many at once.
+								const rows = [[T.total_files_in_cloud, data.total_cloud.toLocaleString() + ' (' + data.total_size_formatted + ')']];
 								if (data.already_local > 0) {
-									summaryHtml += '<div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #46b450;">';
-									summaryHtml += '<span style="font-weight: 600;">✅ ' + DiluxOneOffloadSync.i18n.already_local + '</span>';
-									summaryHtml += '<span>' + data.already_local.toLocaleString() + ' (' + data.local_size_formatted + ')</span>';
-									summaryHtml += '</div>';
+									rows.push([T.already_local, data.already_local.toLocaleString() + ' (' + data.local_size_formatted + ')', 'is-ok']);
 								}
-
-								summaryHtml += '<div style="display: flex; justify-content: space-between; color: #d63638;">';
-								summaryHtml += '<span style="font-weight: 600;">⬇️ ' + DiluxOneOffloadSync.i18n.pending_download + '</span>';
-								summaryHtml += '<span>' + data.pending.toLocaleString() + ' (' + data.pending_size_formatted + ')</span>';
-								summaryHtml += '</div>';
-
-								// ⭐ Performance Level Selector
-								summaryHtml += '<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">';
-								summaryHtml += '<label for="download-concurrency-select" style="display: block; margin-bottom: 8px; font-weight: 600;">';
-								summaryHtml += '⚡ ' + DiluxOneOffloadSync.i18n.performance_level;
-								summaryHtml += '</label>';
-								summaryHtml += '<select id="download-concurrency-select" class="regular-text" style="width: 100%; padding: 8px;">';
-								summaryHtml += '<option value="5" selected>' + DiluxOneOffloadSync.i18n.balanced_5_parallel + '</option>';
-								summaryHtml += '<option value="20">' + DiluxOneOffloadSync.i18n.fast_20_parallel + '</option>';
-								summaryHtml += '<option value="40">' + DiluxOneOffloadSync.i18n.intensive_40_parallel + '</option>';
-								summaryHtml += '</select>';
-								summaryHtml += '</div>';
+								rows.push([T.pending_download, data.pending.toLocaleString() + ' (' + data.pending_size_formatted + ')', 'is-warn']);
+								const summaryHtml = kvHtml(rows) + concurrencyChoiceHtml('download-concurrency-select', T.performance_level, [
+									[5, T.balanced_5_parallel], [20, T.fast_20_parallel], [40, T.intensive_40_parallel]
+								]);
 
 								// Show options view with stats
 								$('#disconnect-stats').html(summaryHtml);
@@ -1811,28 +1618,28 @@ jQuery(document).ready(function($) {
 							} else {
 								// Show error view
 								$('#disconnect-scanning-view').hide();
-								$('#disconnect-error-message').text('Failed to calculate download requirements');
+								$('#disconnect-error-message').text(T.failed_to_calculate_downloads);
 								$('#disconnect-error-view').show();
 							}
 						},
 						error: function() {
 							// Show error view
 							$('#disconnect-scanning-view').hide();
-							$('#disconnect-error-message').text('Connection error while calculating downloads');
+							$('#disconnect-error-message').text(T.connection_error_calculating_downloads);
 							$('#disconnect-error-view').show();
 						}
 					});
 				} else {
 					// Scan failed - show error
 					$('#disconnect-scanning-view').hide();
-					$('#disconnect-error-message').text(scanResponse.data || 'Failed to scan cloud storage');
+					$('#disconnect-error-message').text(scanResponse.data || T.failed_to_scan_cloud);
 					$('#disconnect-error-view').show();
 				}
 			},
 			error: function() {
 				// Scan error - show error view
 				$('#disconnect-scanning-view').hide();
-				$('#disconnect-error-message').text('Connection error while scanning cloud storage');
+				$('#disconnect-error-message').text(T.connection_error_scanning_cloud);
 				$('#disconnect-error-view').show();
 			}
 		});
@@ -1856,12 +1663,12 @@ jQuery(document).ready(function($) {
 					setTimeout(function() { window.location.reload(); }, 1500);
 				} else {
 					$btn.prop('disabled', false).text(DiluxOneOffloadSync.i18n.force_disconnect_without_sync);
-					alert(response.data || DiluxOneOffloadSync.i18n.failed_to_disconnect);
+					$('#disconnect-error-message').text(response.data || T.failed_to_disconnect);
 				}
 			},
 			error: function() {
 				$btn.prop('disabled', false).text(DiluxOneOffloadSync.i18n.force_disconnect_without_sync);
-				alert(DiluxOneOffloadSync.i18n.connection_error);
+				$('#disconnect-error-message').text(T.connection_error);
 			}
 		});
 	});
@@ -1892,13 +1699,13 @@ jQuery(document).ready(function($) {
 					processReverseBatch();
 				} else {
 					$('#disconnect-progress-view').hide();
-					$('#disconnect-error-message').text('Failed to start download: ' + response.data);
+					$('#disconnect-error-message').text(fmt(T.failed_to_start_download, response.data));
 					$('#disconnect-error-view').show();
 				}
 			},
 			error: function() {
 				$('#disconnect-progress-view').hide();
-				$('#disconnect-error-message').text('Connection error while starting download');
+				$('#disconnect-error-message').text(T.connection_error_starting_download);
 				$('#disconnect-error-view').show();
 			}
 		});
@@ -1926,9 +1733,8 @@ jQuery(document).ready(function($) {
 					const percent = Math.round((downloaded / totalFiles) * 100);
 
 					// ⭐ Update progress bar and percentage
-					$('#disconnect-progress-bar').css('width', percent + '%');
-					$('#disconnect-progress-percent').text(percent + '%');
-					$('#disconnect-progress-text').text(downloaded + ' / ' + totalFiles + ' files (' + percent + '%)');
+					$('#disconnect-progress-bar').css('width', percent + '%').parent().attr('aria-valuenow', percent);
+					$('#disconnect-progress-text').text(fmt(T.n_of_total_files, downloaded.toLocaleString(), totalFiles.toLocaleString()) + ' (' + percent + '%)');
 
 					// Update statistics (same shape as the sync modal).
 					$('#disconnect-stats-downloaded').text(downloaded.toLocaleString());
@@ -1949,13 +1755,13 @@ jQuery(document).ready(function($) {
 					}
 				} else {
 					$('#disconnect-progress-view').hide();
-					$('#disconnect-error-message').text('Download failed: ' + (response.data || 'Unknown error'));
+					$('#disconnect-error-message').text(fmt(T.download_failed, response.data || T.unknown_error));
 					$('#disconnect-error-view').show();
 				}
 			},
 			error: function() {
 				$('#disconnect-progress-view').hide();
-				$('#disconnect-error-message').text('Connection error during download');
+				$('#disconnect-error-message').text(T.connection_error_during_download);
 				$('#disconnect-error-view').show();
 			}
 		});
@@ -1966,7 +1772,7 @@ jQuery(document).ready(function($) {
 
 		// Change button state to "Cancelling..."
 		$('#disconnect-progress-label').text(DiluxOneOffloadSync.i18n.cancelling_download);
-		$('#cancel-disconnect').prop('disabled', true).css('opacity', '0.5');
+		$('#cancel-disconnect').prop('disabled', true);
 
 		// Reload page (esto cancela el polling automáticamente)
 		setTimeout(function() {
@@ -1983,36 +1789,20 @@ jQuery(document).ready(function($) {
 
 		// Check if there were failures
 		if (failed > 0 || skipped > 0) {
-			// ⚠️ Show summary with stats (don't disconnect, don't reload)
-			let summaryHtml = '<div style="text-align: center; padding: 20px;">';
-			summaryHtml += '<div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>';
-			summaryHtml += '<h3 style="color: #f0b849; margin: 0 0 10px 0;">' + DiluxOneOffloadSync.i18n.download_completed_with_errors + '</h3>';
-			summaryHtml += '<p style="font-size: 16px; color: #666; margin: 10px 0;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.some_files_could_not_be_downloaded;
-			summaryHtml += '</p>';
-
-			// Stats
-			summaryHtml += '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">';
-			summaryHtml += '<div style="margin-bottom: 10px;"><strong>' + DiluxOneOffloadSync.i18n.total_files + '</strong> ' + total.toLocaleString() + '</div>';
-			summaryHtml += '<div style="margin-bottom: 10px; color: #46b450;"><strong>' + DiluxOneOffloadSync.i18n.downloaded + '</strong> ' + successful.toLocaleString() + '</div>';
+			// Some files did not come back: say so, and keep offloading on.
+			let summaryHtml = outcomeHtml('warn', T.download_completed_with_errors, T.some_files_could_not_be_downloaded);
+			const rows = [[T.total_files, total.toLocaleString()], [T.downloaded, successful.toLocaleString(), 'is-ok']];
 			if (failed > 0) {
-				summaryHtml += '<div style="margin-bottom: 10px; color: #d63638;"><strong>' + DiluxOneOffloadSync.i18n.failed + '</strong> ' + failed.toLocaleString() + '</div>';
+				rows.push([T.failed, failed.toLocaleString(), 'is-failed']);
 			}
 			if (skipped > 0) {
-				summaryHtml += '<div style="color: #f0b849;"><strong>' + DiluxOneOffloadSync.i18n.skipped + '</strong> ' + skipped.toLocaleString() + '</div>';
+				rows.push([T.skipped, skipped.toLocaleString(), 'is-warn']);
 			}
-			summaryHtml += '</div>';
-
-			// Close button
-			summaryHtml += '<div style="margin-top: 20px;">';
-			summaryHtml += '<button class="button button-primary close-disconnect-modal" style="padding: 10px 30px; font-size: 16px;">';
-			summaryHtml += DiluxOneOffloadSync.i18n.close;
-			summaryHtml += '</button>';
-			summaryHtml += '</div>';
-			summaryHtml += '</div>';
+			summaryHtml += kvHtml(rows);
+			summaryHtml += '<div class="diluxone-offload-buttons"><button class="button button-primary close-disconnect-modal">' + esc(T.close) + '</button></div>';
 
 			// Replace modal content with summary
-			$('.diluxone-offload-modal-content', '#disconnect-modal').html(summaryHtml);
+			$('.diluxone-offload-modal__dialog', '#disconnect-modal').html(summaryHtml);
 		} else {
 			// ✅ All successful - disconnect offloading and show success
 
@@ -2070,7 +1860,7 @@ jQuery(document).ready(function($) {
 					showNotification(DiluxOneOffloadSync.i18n.dev_mode_offloading_enabled_without_sync, 'success');
 					setTimeout(function() { window.location.reload(); }, 1000);
 				} else {
-					showNotification('Error: ' + (response.data || 'Unknown error'), 'error');
+					showNotification(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
 					$btn.prop('disabled', false).html(originalHtml);
 				}
 			},
@@ -2104,7 +1894,7 @@ jQuery(document).ready(function($) {
 					showNotification(DiluxOneOffloadSync.i18n.dev_mode_offloading_disabled_without_sync, 'success');
 					setTimeout(function() { window.location.reload(); }, 1000);
 				} else {
-					showNotification('Error: ' + (response.data || 'Unknown error'), 'error');
+					showNotification(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
 					$btn.prop('disabled', false).html(originalHtml);
 				}
 			},

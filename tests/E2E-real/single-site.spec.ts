@@ -272,7 +272,7 @@ test.describe.serial( 'single site journey', () => {
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( inCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 		expect( ( await ui.bignum( page, 'Offloading since' ) ).value ).not.toBe( '—' );
-		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( '0% cloud only' );
+		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( /All in the cloud · [\d,.]+ still ha(s|ve) a copy here/ );
 		// Disconnect: nothing to bring back yet.
 		await ui.goTab( page, base, 'disconnect' );
 		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( 0 );
@@ -341,7 +341,7 @@ test.describe.serial( 'single site journey', () => {
 		await ui.goTab( page, base, 'offloading' );
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( 0 );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( inCloud );
-		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( '100% cloud only' );
+		await expect( page.locator( '.diluxone-offload-bar-head' ) ).toContainText( 'All in the cloud only' );
 		await ui.goTab( page, base, 'disconnect' );
 		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( inCloud );
 		expect( ( await ui.bignum( page, 'Size to bring back' ) ).value ).not.toMatch( /^0 B$/ );

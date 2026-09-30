@@ -72,7 +72,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 			</div>
 
 			<!-- Azure Config -->
-			<div class="settings-section provider-config" id="azure-config" style="<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 'azure' ? '' : 'display: none;' ); ?>">
+			<div class="settings-section provider-config" id="azure-config"<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 'azure' ? '' : ' hidden' ); ?>>
 				<h3><?php esc_html_e( 'Azure Blob Storage', 'diluxone-offload' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Enter your Azure Storage credentials.', 'diluxone-offload' ); ?></p>
 				<table class="form-table">
@@ -110,14 +110,14 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<?php esc_html_e( 'Test Connection', 'diluxone-offload' ); ?>
 					</button>
 					<div class="connection-result"></div>
-					<p class="test-status-message description" style="margin-top: 8px; color: #d63638; font-weight: 600;">
+					<p class="test-status-message description">
 						<?php esc_html_e( 'You must test the connection successfully before saving credentials.', 'diluxone-offload' ); ?>
 					</p>
 				</div>
 			</div>
 
 			<!-- S3-compatible Config -->
-			<div class="settings-section provider-config" id="s3-config" style="<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 's3' ? '' : 'display: none;' ); ?>">
+			<div class="settings-section provider-config" id="s3-config"<?php echo esc_attr( ( $config['cloud_provider'] ?? '' ) === 's3' ? '' : ' hidden' ); ?>>
 				<h3><?php esc_html_e( 'S3-compatible storage', 'diluxone-offload' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Pick the service; it fills in the endpoint and the public URL, and you can change both.', 'diluxone-offload' ); ?></p>
 				<table class="form-table">
@@ -207,7 +207,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 						<?php esc_html_e( 'Test Connection', 'diluxone-offload' ); ?>
 					</button>
 					<div class="connection-result"></div>
-					<p class="test-status-message description" style="margin-top: 8px; color: #d63638; font-weight: 600;">
+					<p class="test-status-message description">
 						<?php esc_html_e( 'You must test the connection successfully before saving credentials.', 'diluxone-offload' ); ?>
 					</p>
 				</div>
@@ -254,7 +254,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 			</table>
 			<?php if ( $current_state === 'configured' ) : ?>
 			<div class="diluxone-offload-callout">
-				<p style="margin: 0 0 10px 0;">
+				<p>
 					<?php esc_html_e( 'Your cloud provider is configured. Start syncing your media files to the cloud.', 'diluxone-offload' ); ?>
 				</p>
 				<a href="<?php echo esc_url( add_query_arg( 'auto-start', '1', $screen_urls['sync'] ?? '' ) ); ?>" class="button button-primary">
