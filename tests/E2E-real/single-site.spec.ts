@@ -156,6 +156,10 @@ test.describe.serial( 'single site journey', () => {
 			await ui.goTab( page, base, 'sync' );
 			expect( await ui.targetFound( page ) ).toBe( left );
 			await expect( page.locator( '#start-sync-btn' ) ).toBeDisabled();
+			// The way to another target names it as the provider does and opens Delete provider.
+			const change = page.locator( '#diluxone-offload-target-change' );
+			await expect( change ).toHaveText( 'azure' === run.provider ? 'Change container' : 'Change bucket' );
+			await expect( change ).toHaveAttribute( 'href', /tab=credentials#delete-provider$/ );
 
 			expect( await ui.emptyTarget( page, `${ run.container }-not-it` ) ).toMatch( /not the name/ );
 			expect( ( await listKeys( run, 'uploads/' ) ).length, 'a wrong name deletes nothing' ).toBe( left );
@@ -263,8 +267,8 @@ test.describe.serial( 'single site journey', () => {
 		await expect( skipped.locator( 'li code' ) ).toHaveText( [ /\/empty-0b\.txt$/ ] );
 		// Offloading: served from the account, every byte still has a copy here, since when.
 		await ui.goTab( page, base, 'offloading' );
-		expect( ( await ui.bignum( page, 'Served from' ) ).value ).toBe( servedFromHost( run ) );
-		expect( await ui.bignumLines( page, 'Served from' ), 'the hostname fits its card' ).toBeLessThanOrEqual( 3 );
+		expect( await ui.bignumTitle( page, 'Served from' ), 'the whole hostname is in the tooltip' ).toBe( servedFromHost( run ) );
+		expect( await ui.bignumLines( page, 'Served from' ), 'the hostname fits its card' ).toBeLessThanOrEqual( 2 );
 		expect( await ui.bignumCount( page, 'Local copies' ) ).toBe( inCloud );
 		expect( await ui.bignumCount( page, 'Not on this server' ) ).toBe( 0 );
 		expect( ( await ui.bignum( page, 'Offloading since' ) ).value ).not.toBe( '—' );

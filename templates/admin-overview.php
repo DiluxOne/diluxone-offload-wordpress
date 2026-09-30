@@ -257,7 +257,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<span class="spinner is-active"></span>
 					<p><?php esc_html_e( 'Loading storage statistics…', 'diluxone-offload' ); ?></p>
 					<p class="diluxone-offload-loading-hint">
-						<?php esc_html_e( 'Reading your cloud container. On large libraries this can take a few seconds.', 'diluxone-offload' ); ?>
+						<?php esc_html_e( 'Reading your container or bucket. On large libraries this can take a few seconds.', 'diluxone-offload' ); ?>
 					</p>
 				</div>
 

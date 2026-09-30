@@ -1316,7 +1316,7 @@ class Admin {
 				/* translators: 1: the storage service (e.g. Amazon S3), 2: the name of the bucket */
 				\__( 'the %1$s bucket %2$s', 'diluxone-offload' ),
 				// Custom's label names examples, not a service: the family's name reads better.
-				'custom' === ( $config['provider_config']['preset'] ?? '' ) ? \DiluxOneOffload\Factories\CloudStorageFactory::get_provider_label( 's3' ) : \DiluxOneOffload\Providers\S3Presets::label( (string) ( $config['provider_config']['preset'] ?? '' ) ),
+				\DiluxOneOffload\Factories\CloudStorageFactory::get_service_label( $config ),
 				$bucket
 			);
 		} else {
@@ -1434,7 +1434,7 @@ class Admin {
 				$note  = array(
 					'title' => \__( 'What can change here', 'diluxone-offload' ),
 					'body'  => array(
-						\__( 'A new access key is tested against the same account and container before it replaces the saved one; the media in the cloud is not touched.', 'diluxone-offload' ),
+						\__( 'A new access key is tested against the same account and container or bucket before it replaces the saved one; the media in the cloud is not touched.', 'diluxone-offload' ),
 						\__( 'Deleting the provider forgets the credentials and the tracking table. The files stay in the cloud. While offloading is active, disconnect first.', 'diluxone-offload' ),
 					),
 				);
@@ -1567,7 +1567,7 @@ class Admin {
 					'title' => \__( 'What this screen is for', 'diluxone-offload' ),
 					'body'  => array(
 						\__( 'The three cards are the plugin\'s state as a person sees it: whether a provider is connected, whether the library is in the cloud, whether the site serves it from there.', 'diluxone-offload' ),
-						\__( 'Storage Overview shows the last reading of the container, kept for five minutes; Refresh lists it again (a few seconds on a large library).', 'diluxone-offload' ),
+						\__( 'Storage Overview shows the last reading of the container or bucket, kept for five minutes; Refresh lists it again (a few seconds on a large library).', 'diluxone-offload' ),
 					),
 				);
 				$links = array(
@@ -1604,7 +1604,10 @@ class Admin {
 			case '403':
 				return __( 'permission denied', 'diluxone-offload' );
 			case '404':
-				return __( 'container not found', 'diluxone-offload' );
+				// Named as the provider names it: containers on Azure, buckets in the S3 family.
+				return 's3' === ( ConfigManager::get_config()['cloud_provider'] ?? '' )
+					? __( 'bucket not found', 'diluxone-offload' )
+					: __( 'container not found', 'diluxone-offload' );
 			case 'timeout':
 				return __( 'transfer timed out', 'diluxone-offload' );
 			case 'exception':
@@ -1659,7 +1662,7 @@ class Admin {
 
 			case '404':
 				return array(
-					'title'     => __( 'Container Not Found', 'diluxone-offload' ),
+					'title'     => __( 'Container or Bucket Not Found', 'diluxone-offload' ),
 					'detail'    => __( 'The configured container or bucket does not exist on the cloud provider. Check that the name is spelled correctly and that it has been created.', 'diluxone-offload' ),
 					'cta_label' => __( 'Open Cloud Provider Settings', 'diluxone-offload' ),
 				);

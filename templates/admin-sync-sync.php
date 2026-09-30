@@ -338,7 +338,16 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 					<p class="diluxone-offload-target-actions">
 						<button type="button" id="diluxone-offload-target-continue" class="button"><?php esc_html_e( 'Continue with these files', 'diluxone-offload' ); ?></button>
 						<button type="button" id="diluxone-offload-target-empty-open" class="button diluxone-offload-button-danger"><?php esc_html_e( 'Empty it first', 'diluxone-offload' ); ?></button>
-						<a href="<?php echo esc_url( $screen_urls['credentials'] ?? '' ); ?>" class="button button-link"><?php esc_html_e( 'Use another one', 'diluxone-offload' ); ?></a>
+						<a href="<?php echo esc_url( ( $screen_urls['credentials'] ?? '' ) . '#delete-provider' ); ?>" class="button button-link" id="diluxone-offload-target-change">
+							<?php
+							// Named as the provider names it: Azure keeps blobs in containers, the S3 family in buckets.
+							if ( 'azure' === ( \DiluxOneOffload\ConfigManager::get_config()['cloud_provider'] ?? '' ) ) {
+								esc_html_e( 'Change container', 'diluxone-offload' );
+							} else {
+								esc_html_e( 'Change bucket', 'diluxone-offload' );
+							}
+							?>
+						</a>
 					</p>
 					<div id="diluxone-offload-target-empty" hidden>
 						<p>

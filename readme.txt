@@ -219,6 +219,7 @@ Unreleased.
 * The initial sync uses every parallel upload from the start: a library that begins with large files used to send them one at a time, and now sends them alongside small ones, each upload starting as soon as another finishes.
 * A large file's parts (above 10 MB) now go up in parallel, like the other files, instead of one after another while the rest of the sync waited. A part that meets a temporary error from the storage service is sent again instead of failing the file. A very large file no longer has to go up within one request of the sync: the next one takes it up where it was left, sending only the parts the storage service does not have yet.
 * The sync and Disconnect from Cloud reuse their connections to the storage service from one group of files to the next, instead of opening a new one, with its secure handshake, for every file.
+* Status › Health names the storage service in use (Cloudflare R2, Amazon S3, …) and no longer shows a card that repeated the plugin's state. Screens that speak of the storage say "container or bucket", and a hostname too long for its card (Cloudflare R2's public one) is shortened, with the whole name on hover.
 
 = 2.0.0 =
 

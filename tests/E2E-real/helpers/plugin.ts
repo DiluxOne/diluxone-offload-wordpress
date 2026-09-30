@@ -385,6 +385,11 @@ export async function bignum( page: Page, label: string ): Promise< { value: str
 	};
 }
 
+/** The tooltip of a figure's value: the whole of a hostname the card shortens. */
+export async function bignumTitle( page: Page, label: string ): Promise< string > {
+	return ( await figure( page, label ).locator( '.diluxone-offload-bignum__v' ).getAttribute( 'title' ) ) ?? '';
+}
+
 /** How many lines a figure's value takes on the screen. */
 export async function bignumLines( page: Page, label: string ): Promise< number > {
 	return figure( page, label ).locator( '.diluxone-offload-bignum__v' ).evaluate( ( el ) => Math.round( el.getBoundingClientRect().height / parseFloat( getComputedStyle( el ).lineHeight ) ) );

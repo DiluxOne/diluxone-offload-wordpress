@@ -37,14 +37,25 @@ $since           = (int) ( $timestamps['offloading_since'] ?? 0 );
 <?php
 // The figures every state of this screen can show, from the tracking table.
 // A fourth item marks a value that is a hostname, not a number: set smaller, and
-// a long one wraps after its dots rather than mid-label.
-$diluxone_offload_bignums = static function ( array $items ): void {
+// a long one wraps after its dots rather than mid-label. A label longer than an
+// Azure account name can be (24), such as Cloudflare R2's pub-<32 hex>, keeps
+// its start and end around an ellipsis; the whole name is in the tooltip.
+$diluxone_offload_host    = static function ( string $host ): string {
+	$labels = explode( '.', $host );
+	foreach ( $labels as $i => $label ) {
+		if ( strlen( $label ) > 24 ) {
+			$labels[ $i ] = substr( $label, 0, 10 ) . "\u{2026}" . substr( $label, -6 );
+		}
+	}
+	return implode( '.<wbr>', array_map( 'esc_html', $labels ) );
+};
+$diluxone_offload_bignums = static function ( array $items ) use ( $diluxone_offload_host ): void {
 	echo '<div class="diluxone-offload-bignums">';
 	foreach ( $items as $item ) {
 		echo '<div class="diluxone-offload-bignum">';
 		echo '<div class="diluxone-offload-bignum__k">' . esc_html( $item[0] ) . '</div>';
 		if ( ! empty( $item[3] ) ) {
-			echo '<div class="diluxone-offload-bignum__v diluxone-offload-bignum__v--text">' . wp_kses( implode( '.<wbr>', array_map( 'esc_html', explode( '.', $item[1] ) ) ), array( 'wbr' => array() ) ) . '</div>';
+			echo '<div class="diluxone-offload-bignum__v diluxone-offload-bignum__v--text" title="' . esc_attr( $item[1] ) . '">' . wp_kses( $diluxone_offload_host( $item[1] ), array( 'wbr' => array() ) ) . '</div>';
 		} else {
 			echo '<div class="diluxone-offload-bignum__v">' . esc_html( $item[1] ) . '</div>';
 		}

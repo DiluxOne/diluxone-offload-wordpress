@@ -436,6 +436,23 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertSame(PluginState::SYNCING, ConfigManager::get_state(), 'every tab of the screen heals or keeps the state alike');
     }
 
+    /** A 404 names the target as the provider does: a container on Azure, a bucket in the S3 family. */
+    public function test_a_missing_target_is_named_as_the_provider_names_it(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->assertSame('container not found', Admin::pause_reason_short('404'));
+        ConfigManager::save_config(['cloud_provider' => 's3', 'provider_config' => ['preset' => 'aws', 'region' => 'us-east-1', 'endpoint' => 'https://s3.us-east-1.amazonaws.com', 'bucket' => 'b', 'access_key_id' => 'AKID', 'secret_access_key' => 'secret', 'public_url' => 'https://b.s3.amazonaws.com', 'path_style' => false]]);
+        $this->assertSame('bucket not found', Admin::pause_reason_short('404'));
+    }
+
+    /** The service's name: the preset of the S3 family, the family for Custom, Azure's own. */
+    public function test_the_service_label_is_the_preset_not_the_family(): void {
+        $label = [\DiluxOneOffload\Factories\CloudStorageFactory::class, 'get_service_label'];
+        $this->assertSame('Cloudflare R2', $label(['cloud_provider' => 's3', 'provider_config' => ['preset' => 'r2']]));
+        $this->assertSame('S3-compatible storage', $label(['cloud_provider' => 's3', 'provider_config' => ['preset' => 'custom']]));
+        $this->assertSame('S3-compatible storage', $label(['cloud_provider' => 's3', 'provider_config' => ['preset' => 'no-such-preset']]));
+        $this->assertSame('Microsoft Azure Blob Storage', $label(['cloud_provider' => 'azure', 'provider_config' => []]));
+    }
+
     public function test_pause_reason_short_has_a_fallback(): void {
         $this->assertNotSame('', Admin::pause_reason_short('something-new'));
     }
@@ -528,6 +545,52 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringNotContainsString('Plugin State', $html, 'the fourth card repeated the other three');
     }
 
+    /** Health shows three cards (the plugin's state reads in them), and names the service, not the provider family. */
+    public function test_health_has_three_cards_and_names_the_service(): void {
+        ConfigManager::save_config([
+            'cloud_provider'  => 's3',
+            'provider_config' => ['preset' => 'r2', 'endpoint' => 'https://acct.r2.cloudflarestorage.com', 'region' => 'auto', 'bucket' => 'media', 'access_key_id' => 'AKID', 'secret_access_key' => 'secret', 'public_url' => 'https://pub-2ed7f615fd564c1582c133a57508819e.r2.dev', 'path_style' => true],
+        ]);
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        $html = $this->render('health');
+        $this->assertSame(3, substr_count($html, '<div class="state-card">'), 'configuration, offloading, tracking table');
+        $this->assertStringNotContainsString('Plugin State', $html);
+        $this->assertStringContainsString('Provider: <strong>Cloudflare R2</strong>', $html);
+    }
+
+    /** "Use another one" said nothing about where it led: the target is named as the provider names it, and the link opens Delete provider. */
+    public function test_the_target_callout_changes_the_container_or_the_bucket(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        $html = $this->render('sync');
+        $this->assertMatchesRegularExpression('#id="diluxone-offload-target-change"[^>]*>\s*Change container#', str_replace(["\t", "\n"], ' ', preg_replace('#href="[^"]*"\s*#', '', $html)));
+        $this->assertStringContainsString('tab=credentials#delete-provider', $html);
+        $this->assertStringNotContainsString('Use another one', $html);
+
+        ConfigManager::save_config(['cloud_provider' => 's3', 'provider_config' => ['preset' => 'r2', 'endpoint' => 'https://acct.r2.cloudflarestorage.com', 'region' => 'auto', 'bucket' => 'media', 'access_key_id' => 'AKID', 'secret_access_key' => 'secret', 'public_url' => 'https://pub.example.com', 'path_style' => true]]);
+        $this->assertStringContainsString('Change bucket', $this->render('sync'));
+    }
+
+    /** A hostname label longer than an Azure account name (R2's pub-<32 hex>) is shortened around an ellipsis; the whole host is the tooltip. */
+    public function test_a_long_served_from_host_is_shortened_with_the_whole_in_the_tooltip(): void {
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->fake = new FakeCloudClient(self::$server->base_url, 'https://pub-2ed7f615fd564c1582c133a57508819e.r2.dev');
+        add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectFake']);
+        $cache = new \ReflectionProperty(\DiluxOneOffload\CloudStreamWrapper::class, 'cloud_host_cache');
+        if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+        	$cache->setAccessible( true );
+        }
+        $cache->setValue(null, null);
+        try {
+            $html = $this->render('offloading');
+        } finally {
+            $cache->setValue(null, null);
+        }
+        $this->assertStringContainsString('title="pub-2ed7f615fd564c1582c133a57508819e.r2.dev"', $html);
+        $this->assertStringContainsString("pub-2ed7f6\u{2026}08819e.<wbr>r2.<wbr>dev", $html);
+    }
+
     public function test_the_connection_offers_its_actions_as_buttons(): void {
         $this->configure(PluginState::CONFIGURED);
         $this->useFakeClient();
@@ -601,7 +664,7 @@ class AdminRenderTest extends IntegrationTestCase {
     /** @return array<string, array{string,string}> */
     public function pausedStates(): array {
         return [
-            'synced'     => [PluginState::SYNCED, 'is-paused'],
+            'synced'     => [PluginState::SYNCED, 'Paused (permission denied)'],
             'offloading' => [PluginState::OFFLOADING_ACTIVE, 'New uploads are refused until the connection recovers'],
         ];
     }
