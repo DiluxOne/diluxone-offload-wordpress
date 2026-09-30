@@ -13,7 +13,7 @@ class ConnectionMailTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$GLOBALS['_test_wp_options']    = array( 'admin_email' => 'owner@example.com', 'blogname' => 'Demo &amp; Co' );
+		$GLOBALS['_test_wp_options']    = array( 'admin_email' => 'owner@example.com', 'blogname' => 'Demo &amp; Co', 'diluxone_offload_plugin_state' => 'offloading_active' );
 		$GLOBALS['_test_wp_transients'] = array();
 		$GLOBALS['_test_wp_mail']       = array();
 	}
@@ -65,5 +65,40 @@ class ConnectionMailTest extends TestCase {
 		}
 		ConfigManager::record_connection_success();
 		$this->assertSame( array(), $this->mail() );
+	}
+
+	public function test_nothing_is_announced_while_offloading_is_off_since_no_upload_is_refused(): void {
+		$GLOBALS['_test_wp_options']['diluxone_offload_plugin_state'] = 'synced';
+		for ( $i = 0; $i < 4; $i++ ) {
+			ConfigManager::record_connection_failure( '403', 'denied', 'health' );
+		}
+		$this->assertSame( array(), $this->mail() );
+	}
+
+	public function test_a_pause_not_announced_at_the_third_failure_is_announced_at_the_next(): void {
+		ConfigManager::save_plugin_settings( array( 'notify_email' => false ) );
+		for ( $i = 0; $i < 3; $i++ ) {
+			ConfigManager::record_connection_failure( '403', 'denied', 'upload' );
+		}
+		$this->assertSame( array(), $this->mail() );
+		ConfigManager::save_plugin_settings( array( 'notify_email' => true ) );
+		ConfigManager::record_connection_failure( '403', 'denied', 'upload' );
+		$this->assertCount( 1, $this->mail(), 'turned on later, the next failure announces the pause' );
+	}
+
+	public function test_credentials_that_stop_decrypting_at_the_pause_announce_it_once_without_looping(): void {
+		ConfigManager::record_connection_failure( '403', 'denied', 'upload' );
+		ConfigManager::record_connection_failure( '403', 'denied', 'upload' );
+		// Salts changed: the stored key no longer decrypts, and reading the
+		// configuration records that as the failure that pauses uploads.
+		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array(
+			'cloud_provider'  => 'azure',
+			'provider_config' => array( 'storage_account' => 'acct', 'container_name' => 'media', 'access_key' => 'DILUXONEOFFLOADENC1:not-decryptable' ),
+		);
+		ConfigManager::get_config();
+		$health = ConfigManager::get_connection_health();
+		$this->assertSame( 'decrypt_failed', $health['error_code'] );
+		$this->assertSame( 3, $health['consecutive_failures'], 'recorded once, not again and again' );
+		$this->assertCount( 1, $this->mail() );
 	}
 }

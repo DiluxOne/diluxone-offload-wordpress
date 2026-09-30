@@ -1038,12 +1038,24 @@ class ConfigManager {
 		$health['error_source']         = $source;
 		$health['consecutive_failures'] = ( $health['consecutive_failures'] ?? 0 ) + 1;
 
-		// The failure that pauses uploads says so once, by e-mail.
-		if ( self::PAUSE_AFTER_FAILURES === $health['consecutive_failures'] && empty( $health['paused_notified'] ) ) {
-			$health['paused_notified'] = self::notify_admin( 'paused', $health );
+		// A pause is announced once, by e-mail, while offloading is on (only
+		// then are uploads refused). The health is saved as announced before
+		// the message goes, so nothing the mail step triggers can announce it
+		// again; a message wp_mail() could not hand over is tried on the next
+		// failure.
+		$announce = $health['consecutive_failures'] >= self::PAUSE_AFTER_FAILURES
+			&& empty( $health['paused_notified'] )
+			&& PluginState::is_offloading_active( self::get_state() );
+		if ( $announce ) {
+			$health['paused_notified'] = true;
 		}
 
 		update_option( self::HEALTH_OPTION, $health, true );
+
+		if ( $announce && ! self::notify_admin( 'paused', $health ) ) {
+			$health['paused_notified'] = false;
+			update_option( self::HEALTH_OPTION, $health, true );
+		}
 
 		// The configured provider's cached stats are stale now.
 		$stats_transient = self::STATS_TRANSIENTS[ self::get_config()['cloud_provider'] ?? '' ] ?? '';
@@ -1094,7 +1106,10 @@ class ConfigManager {
 	 * @return bool Whether a message was handed to wp_mail().
 	 */
 	private static function notify_admin( string $event, array $health ): bool {
-		if ( ! self::get_plugin_config_dto()->getSettings()->shouldNotifyEmail() ) {
+		// Read without decrypting the credentials: a decrypt failure records
+		// a connection failure, which must never lead back here.
+		$raw = get_option( self::CONFIG_OPTION, self::DEFAULT_CONFIG );
+		if ( ! ( is_array( $raw ) ? (bool) ( $raw['notify_email'] ?? true ) : true ) ) {
 			return false;
 		}
 		$to = (string) get_option( 'admin_email' );
