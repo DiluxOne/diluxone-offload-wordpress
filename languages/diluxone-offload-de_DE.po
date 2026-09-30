@@ -2398,7 +2398,7 @@ msgstr ""
 "Aktiviere dies nur bei der Fehlersuche. Kann die Leistung beeinträchtigen."
 
 #: templates/admin-settings-logging.php:56
-#: templates/admin-settings-serving.php:118
+#: templates/admin-settings-serving.php:123
 #: templates/admin-settings-transfers.php:76
 msgid "Save Settings"
 msgstr "Einstellungen speichern"
@@ -3912,7 +3912,7 @@ msgstr ""
 "ganzen Tag angesehen werden. Nie eine Archivklasse: Medien müssen sofort "
 "lesbar sein."
 
-#: templates/admin-settings-serving.php:108
+#: templates/admin-settings-serving.php:113
 msgid ""
 "Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2. Your storage "
 "service stores new uploads in its default class."
@@ -3925,3 +3925,13 @@ msgstr ""
 msgid "Settings › Serving (Force HTTPS, caching, storage class)"
 msgstr ""
 "Einstellungen › Auslieferung (HTTPS erzwingen, Caching, Speicherklasse)"
+
+#: templates/admin-settings-serving.php:107
+msgid ""
+"On Azure the Cool tier needs a general-purpose v2 or Blob storage account: a"
+" v1 or premium account refuses the uploads, and after three refusals uploads"
+" pause."
+msgstr ""
+"Auf Azure braucht der Cool-Tier ein Speicherkonto vom Typ General-purpose v2"
+" oder Blob: ein v1- oder Premium-Konto lehnt die Uploads ab, und nach drei "
+"Ablehnungen pausieren die Uploads."

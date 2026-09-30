@@ -2389,7 +2389,7 @@ msgstr ""
 "influire sulle prestazioni."
 
 #: templates/admin-settings-logging.php:56
-#: templates/admin-settings-serving.php:118
+#: templates/admin-settings-serving.php:123
 #: templates/admin-settings-transfers.php:76
 msgid "Save Settings"
 msgstr "Salva impostazioni"
@@ -3893,7 +3893,7 @@ msgstr ""
 "sito le cui immagini sono viste tutto il giorno. Mai una classe di "
 "archiviazione: i media devono essere leggibili subito."
 
-#: templates/admin-settings-serving.php:108
+#: templates/admin-settings-serving.php:113
 msgid ""
 "Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2. Your storage "
 "service stores new uploads in its default class."
@@ -3905,3 +3905,13 @@ msgstr ""
 #: includes/class-diluxone-offload-admin.php:1525
 msgid "Settings › Serving (Force HTTPS, caching, storage class)"
 msgstr "Impostazioni › Distribuzione (forza HTTPS, cache, classe di storage)"
+
+#: templates/admin-settings-serving.php:107
+msgid ""
+"On Azure the Cool tier needs a general-purpose v2 or Blob storage account: a"
+" v1 or premium account refuses the uploads, and after three refusals uploads"
+" pause."
+msgstr ""
+"Su Azure il livello Cool richiede un account di archiviazione general-"
+"purpose v2 o Blob: un account v1 o premium rifiuta i caricamenti e, dopo tre"
+" rifiuti, i caricamenti vanno in pausa."

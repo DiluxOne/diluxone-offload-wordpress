@@ -102,6 +102,11 @@ $infrequent_label = 'azure' === $provider
 							<p class="description">
 								<?php esc_html_e( 'The cheaper class costs less per GB stored, but every read is charged and a file is billed for a minimum time (30 days) even if deleted sooner. Worth it for an archive few people open; not for a site whose images are viewed all day. Never an archive class: media must be readable at once.', 'diluxone-offload' ); ?>
 							</p>
+							<?php if ( 'azure' === $provider ) : ?>
+								<p class="description">
+									<?php esc_html_e( 'On Azure the Cool tier needs a general-purpose v2 or Blob storage account: a v1 or premium account refuses the uploads, and after three refusals uploads pause.', 'diluxone-offload' ); ?>
+								</p>
+							<?php endif; ?>
 						<?php else : ?>
 							<input type="hidden" name="storage_class" value="<?php echo esc_attr( $storage_class ); ?>">
 							<p class="description">

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-30T20:04:07+00:00\n"
+"POT-Creation-Date: 2026-09-30T21:10:45+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -2332,7 +2332,7 @@ msgid "Enable this only when troubleshooting issues. May impact performance."
 msgstr ""
 
 #: templates/admin-settings-logging.php:56
-#: templates/admin-settings-serving.php:118
+#: templates/admin-settings-serving.php:123
 #: templates/admin-settings-transfers.php:76
 msgid "Save Settings"
 msgstr ""
@@ -2397,7 +2397,11 @@ msgstr ""
 msgid "The cheaper class costs less per GB stored, but every read is charged and a file is billed for a minimum time (30 days) even if deleted sooner. Worth it for an archive few people open; not for a site whose images are viewed all day. Never an archive class: media must be readable at once."
 msgstr ""
 
-#: templates/admin-settings-serving.php:108
+#: templates/admin-settings-serving.php:107
+msgid "On Azure the Cool tier needs a general-purpose v2 or Blob storage account: a v1 or premium account refuses the uploads, and after three refusals uploads pause."
+msgstr ""
+
+#: templates/admin-settings-serving.php:113
 msgid "Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2. Your storage service stores new uploads in its default class."
 msgstr ""
 

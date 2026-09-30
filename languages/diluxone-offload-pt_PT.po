@@ -2370,7 +2370,7 @@ msgid "Enable this only when troubleshooting issues. May impact performance."
 msgstr "Habilite apenas ao solucionar problemas. Pode afetar o desempenho."
 
 #: templates/admin-settings-logging.php:56
-#: templates/admin-settings-serving.php:118
+#: templates/admin-settings-serving.php:123
 #: templates/admin-settings-transfers.php:76
 msgid "Save Settings"
 msgstr "Guardar definições"
@@ -3870,7 +3870,7 @@ msgstr ""
 " um site cujas imagens são vistas o dia todo. Nunca uma classe de "
 "arquivamento: os ficheiros multimédia têm de poder ser lidos de imediato."
 
-#: templates/admin-settings-serving.php:108
+#: templates/admin-settings-serving.php:113
 msgid ""
 "Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2. Your storage "
 "service stores new uploads in its default class."
@@ -3883,3 +3883,13 @@ msgstr ""
 msgid "Settings › Serving (Force HTTPS, caching, storage class)"
 msgstr ""
 "Configurações › Entrega (forçar HTTPS, cache, classe de armazenamento)"
+
+#: templates/admin-settings-serving.php:107
+msgid ""
+"On Azure the Cool tier needs a general-purpose v2 or Blob storage account: a"
+" v1 or premium account refuses the uploads, and after three refusals uploads"
+" pause."
+msgstr ""
+"No Azure a camada Cool precisa de uma conta de armazenamento general-purpose"
+" v2 ou Blob: uma conta v1 ou premium recusa os carregamentos, e após três "
+"recusas os carregamentos param."
