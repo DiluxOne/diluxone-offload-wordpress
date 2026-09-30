@@ -5,18 +5,18 @@ name: Real-storage suite (Azure)
 # you can merge" for the parts a fake client cannot prove.
 #
 # It runs with the repository's Azure secrets, so it runs only on events the
-# maintainer owns: pull requests from branches of this repository that are
-# not drafts and that change code (the What changed job, on the
-# organisation's `code` list), pushes to main whose tree the pull request's
-# run did not already test, once a week, and the manual button. A
-# pull request from a fork gets every other check and is skipped here on
-# purpose; nothing external ever runs with the key. So is a pull request
-# Dependabot opens: it runs with Dependabot's own secrets, which hold none of
-# these, and a package version just downloaded is code from outside too; the
-# suite runs on main after the merge. A draft (the bot's
-# reproduction pull requests are drafts) runs it once it is marked ready
-# for review. A maintainer who wants this suite on a contributed change
-# brings the branch into the repository first (see CONTRIBUTING.md).
+# maintainer owns: pull requests from branches of this repository that are not
+# drafts and that change code (the What changed job, on the organisation's
+# `code` list), pushes to main whose tree the pull request's run did not
+# already test, once a week, and the manual button. A pull request from a fork
+# gets every other check and is skipped here on purpose; nothing external ever
+# runs with the key. So is a pull request Dependabot opens: it runs with
+# Dependabot's own secrets, which hold none of these, and a package version
+# just downloaded is code from outside too; the suite runs on main after the
+# merge. A draft (the bot's reproduction pull requests are drafts) runs it
+# once it is marked ready for review. A maintainer who wants this suite on a
+# contributed change brings the branch into the repository first (see
+# CONTRIBUTING.md).
 #
 # Each run creates its own containers (e2e-<run id>-single, -network and
 # -php-* for PHPUnit) and deletes them at the end. A run that is cancelled
@@ -89,10 +89,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     # Never with a fork's code or on a Dependabot pull request (the secrets
-    # are the maintainer's), never on a draft (the bot's reproduction pull requests are drafts, and a fix a
-    # person pushes on top runs the suite the moment it is marked ready),
-    # and on a pull request or a push only when the What changed job did
-    # not rule the code out; the weekly run and the button always run.
+    # are the maintainer's), never on a draft (the bot's reproduction pull
+    # requests are drafts, and a fix a person pushes on top runs the suite the
+    # moment it is marked ready), and on a pull request or a push only when
+    # the What changed job did not rule the code out; the weekly run and the
+    # button always run.
     if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
     env:
       AZURE_E2E_ACCOUNT: ${{ secrets.AZURE_E2E_ACCOUNT }}

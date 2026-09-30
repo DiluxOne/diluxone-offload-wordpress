@@ -7,13 +7,13 @@ name: Real-storage suite (S3-compatible)
 # It needs no secret, so unlike the Azure suite it also runs on drafts and on
 # pull requests from forks, whenever the change touches code.
 #
-# Three more jobs run the same journeys against real services, Cloudflare
-# R2, Backblaze B2 and Google Cloud Storage (HMAC keys), with the
-# repository's secrets for each: under the same rules as the Azure suite (no forks, no Dependabot pull requests, no drafts). Each
-# uses one fixed, public bucket, emptied before each journey, so its runs are
-# serialised across the whole repository.
-# A failure on main opens an issue that names the commit, its pull request
-# and its author, and comments on that pull request.
+# Three more jobs run the same journeys against real services, Cloudflare R2,
+# Backblaze B2 and Google Cloud Storage (HMAC keys), with the repository's
+# secrets for each: under the same rules as the Azure suite (no forks, no
+# Dependabot pull requests, no drafts). Each uses one fixed, public bucket,
+# emptied before each journey, so its runs are serialised across the whole
+# repository. A failure on main opens an issue that names the commit, its pull
+# request and its author, and comments on that pull request.
 
 on:
   pull_request:
@@ -193,9 +193,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
-    # Dependabot pull request, never on a draft, and on a pull request or a push only when the change touches
-    # code; the weekly run and the button always run. One run at a time: the
-    # bucket is shared.
+    # Dependabot pull request, never on a draft, and on a pull request or a
+    # push only when the change touches code; the weekly run and the button
+    # always run. One run at a time: the bucket is shared.
     if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
     concurrency:
       group: real-r2-bucket
@@ -315,9 +315,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
-    # Dependabot pull request, never on a draft, and on a pull request or a push only when the change touches
-    # code; the weekly run and the button always run. One run at a time: the
-    # bucket is shared.
+    # Dependabot pull request, never on a draft, and on a pull request or a
+    # push only when the change touches code; the weekly run and the button
+    # always run. One run at a time: the bucket is shared.
     if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
     concurrency:
       group: real-b2-bucket
@@ -437,9 +437,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     # The secrets are the maintainer's: never with a fork's code or on a
-    # Dependabot pull request, never on a draft, and on a pull request or a push only when the change touches
-    # code; the weekly run and the button always run. One run at a time: the
-    # bucket is shared.
+    # Dependabot pull request, never on a draft, and on a pull request or a
+    # push only when the change touches code; the weekly run and the button
+    # always run. One run at a time: the bucket is shared.
     if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.changes.outputs.code != 'false' && (github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]')))) }}
     concurrency:
       group: real-gcs-bucket
