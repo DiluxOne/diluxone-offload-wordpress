@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * What the sync and the provider share while a large file's parts go through
  * the sync's pool: the file, the provider's name for the upload (an S3
- * UploadId; empty for Azure, whose blocks need none) and the tag each part
+ * UploadId; for Azure, the nonce its block ids carry) and the tag each part
  * got back (an S3 ETag, an Azure block id), which the commit lists in order.
  * An upload a request did not finish is taken up by the next one: the row
  * keeps resumeToken(), and the provider tags the parts that already landed.
@@ -165,7 +165,7 @@ class ChunkedUpload {
 	 * @param string|null $token What resumeToken() returned, or null.
 	 * @param int         $size  The file's size now.
 	 * @param int         $mtime The file's modification time now.
-	 * @return string|null The provider's name for the upload ('' for one that needs none); null to start over.
+	 * @return string|null The provider's name for the upload; null to start over.
 	 */
 	public static function resumableUploadId( ?string $token, int $size, int $mtime ): ?string {
 		$fields = explode( '|', (string) $token, 4 );

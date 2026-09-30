@@ -430,6 +430,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$block_ids   = array();
 		$block_index = 0;
+		$nonce       = self::new_nonce();
 		$bytes_read  = 0;
 
 		while ( ! feof( $fp ) ) {
@@ -447,7 +448,7 @@ class AzureProvider implements CloudStorageClientInterface {
 				break;
 			}
 
-			$block_id    = self::block_id( $block_index + 1 );
+			$block_id    = self::block_id( $nonce, $block_index + 1 );
 			$block_ids[] = $block_id;
 
 			$date           = gmdate( 'D, d M Y H:i:s T' );
@@ -1207,11 +1208,12 @@ class AzureProvider implements CloudStorageClientInterface {
 	/**
 	 * A large file goes up as 4 MiB blocks, each a Put Block the sync sends
 	 * through its pool, then one Put Block List. Azure needs no call to
-	 * start: the block ids are the part numbers. To take up an unfinished
-	 * upload, the uncommitted block list says which blocks Azure holds.
+	 * start: the upload's name is a nonce its block ids carry. To take up an
+	 * unfinished upload, the uncommitted block list says which of its blocks
+	 * Azure holds; blocks with another nonce are not this upload's.
 	 *
 	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
-	 * @param string|null          $resume_upload_id '' to take up the blocks already sent, null to start over.
+	 * @param string|null          $resume_upload_id The nonce of the upload to take up, or null to start over.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
 	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array {
@@ -1223,11 +1225,12 @@ class AzureProvider implements CloudStorageClientInterface {
 				'error'   => 'File not found: ' . $local_path,
 			);
 		}
-		$upload = new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE );
-		if ( null !== $resume_upload_id ) {
-			foreach ( $this->uncommitted_blocks( $upload->remotePath() ) as $part => $block_size ) {
+		$resume = null !== $resume_upload_id && 1 === preg_match( '/^[0-9a-f]{8}$/', $resume_upload_id );
+		$upload = new ChunkedUpload( $local_path, ltrim( (string) $file_info['remote_path'], '/' ), $size, self::BLOCK_SIZE, $resume ? (string) $resume_upload_id : self::new_nonce() );
+		if ( $resume ) {
+			foreach ( $this->uncommitted_blocks( $upload->remotePath(), $upload->uploadId() ) as $part => $block_size ) {
 				if ( $part <= $upload->partCount() && $block_size === $upload->length( $part ) ) {
-					$upload->recordTag( $part, self::block_id( $part ) );
+					$upload->recordTag( $part, self::block_id( $upload->uploadId(), $part ) );
 				}
 			}
 		}
@@ -1238,14 +1241,16 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * The blocks Azure holds for a blob and nobody committed yet, by part
-	 * number, with their sizes. Nothing when there are none, when the blob
-	 * does not exist or when Azure cannot be asked: the upload starts over.
+	 * The blocks of one upload Azure holds for a blob and nobody committed
+	 * yet, by part number, with their sizes. Nothing when there are none,
+	 * when the blob does not exist or when Azure cannot be asked: the upload
+	 * starts over.
 	 *
 	 * @param string $remote_path Blob path.
+	 * @param string $nonce       The upload's nonce.
 	 * @return array<int, int>
 	 */
-	private function uncommitted_blocks( string $remote_path ): array {
+	private function uncommitted_blocks( string $remote_path, string $nonce ): array {
 		$url      = "{$this->endpoint}/{$this->container_name}/" . $this->object_path( $remote_path ) . '?blocklisttype=uncommitted&comp=blocklist';
 		$response = $this->send_with_retry(
 			$url,
@@ -1264,11 +1269,11 @@ class AzureProvider implements CloudStorageClientInterface {
 		}
 		$blocks = array();
 		foreach ( $xml->UncommittedBlocks->Block as $block ) {
-			// Our ids are the zero-based index in six digits; anything else is
-			// not a block of this plugin and is left out of the commit.
-			$index = base64_decode( (string) $block->Name, true );
-			if ( false !== $index && 1 === preg_match( '/^\d{6}$/', $index ) ) {
-				$blocks[ (int) $index + 1 ] = (int) $block->Size;
+			// This upload's ids are its nonce and the zero-based index in six
+			// digits; any other block is not its own and is left out.
+			$name = base64_decode( (string) $block->Name, true );
+			if ( false !== $name && 1 === preg_match( '/^' . preg_quote( $nonce, '/' ) . '(\d{6})$/', $name, $m ) ) {
+				$blocks[ (int) $m[1] + 1 ] = (int) $block->Size;
 			}
 		}
 		return $blocks;
@@ -1283,7 +1288,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 */
 	public function prepare_part_handle( ChunkedUpload $upload, int $part ): array {
 		$encoded_path   = $this->object_path( $upload->remotePath() );
-		$block_id       = self::block_id( $part );
+		$block_id       = self::block_id( $upload->uploadId(), $part );
 		$content_length = $upload->length( $part );
 		$date           = gmdate( 'D, d M Y H:i:s T' );
 
@@ -1340,7 +1345,7 @@ class AzureProvider implements CloudStorageClientInterface {
 		if ( 201 !== $status ) {
 			return "Failed to upload block {$part}: HTTP {$status}" . $this->describe_error_body( $body );
 		}
-		$upload->recordTag( $part, self::block_id( $part ) );
+		$upload->recordTag( $part, self::block_id( $upload->uploadId(), $part ) );
 		return null;
 	}
 
@@ -1416,14 +1421,27 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
-	 * A block's id: base64 of the zero-based index, padded so every id of a
-	 * blob has the same length, as Azure requires.
+	 * A block's id: base64 of the upload's nonce and the zero-based index in
+	 * six digits. Every id has the same length, as Azure requires of a blob's
+	 * blocks, and the nonce tells this upload's blocks from any other left
+	 * uncommitted on the same blob (an earlier content of the file, another
+	 * writer), which a resumed upload must never commit.
 	 *
-	 * @param int $part Part number, from 1.
+	 * @param string $nonce The upload's nonce (new_nonce()).
+	 * @param int    $part  Part number, from 1.
 	 * @return string
 	 */
-	private static function block_id( int $part ): string {
-		return base64_encode( str_pad( (string) ( $part - 1 ), 6, '0', STR_PAD_LEFT ) );
+	private static function block_id( string $nonce, int $part ): string {
+		return base64_encode( $nonce . str_pad( (string) ( $part - 1 ), 6, '0', STR_PAD_LEFT ) );
+	}
+
+	/**
+	 * A new upload's nonce: eight hex characters.
+	 *
+	 * @return string
+	 */
+	private static function new_nonce(): string {
+		return bin2hex( random_bytes( 4 ) );
 	}
 
 	/**

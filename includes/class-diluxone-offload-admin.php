@@ -2290,6 +2290,11 @@ class Admin {
 			CloudStreamWrapper::deactivate_offloading();
 			Logger::info( '[DiluxOne Offload] AJAX: Stream wrapper deactivated during provider removal' );
 
+			// Clear the MySQL table while the provider is still configured, so
+			// the uploads its rows left half sent are dropped with its client.
+			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+			DiluxOneOffloadDB::clear_table();
+
 			// ⭐ COMPLETE DELETION: Delete all wp_options entries
 			delete_option( 'diluxone_offload_config' );
 			delete_option( 'diluxone_offload_plugin_state' );
@@ -2300,10 +2305,6 @@ class Admin {
 			delete_option( ConfigManager::TIMESTAMPS_OPTION );
 			delete_option( ConfigManager::LAST_UPLOAD_OPTION );
 			delete_option( ConfigManager::SKIPPED_OPTION );
-
-			// Clear the MySQL table
-			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
-			DiluxOneOffloadDB::clear_table();
 
 			// Clean up all transients
 			foreach ( ConfigManager::STATS_TRANSIENTS as $stats_transient ) {

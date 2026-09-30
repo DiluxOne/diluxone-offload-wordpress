@@ -49,6 +49,9 @@ class ForwardSyncTest extends IntegrationTestCase {
 
     protected function tearDown(): void {
         remove_filter('diluxone_offload_pre_cloud_client', [$this, 'injectClient']);
+        // PHPUnit keeps every test object until the suite ends: what the fake
+        // cloud holds (a 10 MB file among them) goes now.
+        $this->client->blobs = [];
         foreach (array_reverse($this->fixtures) as $f) {
             is_dir($f) ? @rmdir($f) : @unlink($f);
         }

@@ -161,7 +161,7 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $this->assertFalse(self::$provider->file_exists($file['remote_path']), 'an uncommitted block is not a blob');
 
         // A later request: Azure lists block 1 as uncommitted.
-        $upload = self::$provider->begin_chunked_upload($file, '')['upload'];
+        $upload = self::$provider->begin_chunked_upload($file, $first['upload']->uploadId())['upload'];
         $this->assertSame([2, 3], $upload->missingParts());
         foreach ($upload->missingParts() as $part) {
             $this->assertNull(self::sendPart(self::$provider, $upload, $part));
@@ -171,6 +171,17 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $down = $this->tempFile(0);
         $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
         $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** Blocks an earlier upload left on the blob (the file's old content) are never taken up by another one. */
+    public function test_blocks_of_another_upload_are_never_committed(): void {
+        $file = ['local_path' => $this->tempFile(5 * 1048576, 'mp4'), 'remote_path' => 'uploads/2026/09/rewritten.mp4'];
+        $old  = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $old, 1));
+
+        $new = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNotSame($old->uploadId(), $new->uploadId());
+        $this->assertSame([1, 2], self::$provider->begin_chunked_upload($file, $new->uploadId())['upload']->missingParts(), "the old block 1 is not the new upload's");
     }
 
     public function test_the_block_boundary_on_both_sides(): void {
