@@ -170,6 +170,10 @@ What you must do, and never do, in a change:
   dependencies and `vendor/` never ships.
 - **No local fallback.** When the cloud is down an upload fails; nothing is
   written to `uploads/` on the server instead.
+- **Every failure path of a provider call cleans up.** A non-2xx status, a
+  transport error and a `200` with an error body all run the same cleanup
+  (the `on_failure` callback, AbortMultipartUpload), including a commit run
+  later through `curl_multi`; nothing is left stored and billed.
 - **Every user-facing string** goes through a translation function with the
   `diluxone-offload` text domain; input is sanitized, output escaped, SQL
   prepared, credentials never logged.

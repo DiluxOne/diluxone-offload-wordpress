@@ -55,6 +55,7 @@ Maintainers run the same suite locally with `make test-real` (after `make env` a
 - **Input sanitised, output escaped, SQL prepared.** Psalm and PHPCS catch the obvious cases; you catch the rest.
 - **Never log a credential**, even with debug logging on.
 - **No local fallback.** When the cloud is down an upload fails; nothing is written to `uploads/` instead.
+- **Every failure path of a provider call cleans up.** A non-2xx status, a transport error and a `200` with an error body all run the same cleanup (the `on_failure` callback, AbortMultipartUpload), including a commit run later through `curl_multi`; nothing is left stored and billed.
 
 The full list, with the architecture and the review priorities, is in [`docs/architecture.md`](docs/architecture.md).
 
