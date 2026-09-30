@@ -56,18 +56,24 @@ jobs:
   # changed; keys only on this repository's own non-draft, non-Dependabot
   # pull requests), so a skipped one does not hold the review back.
   real-azure:
+    # Pull requests into main only, as the suite's own trigger had it.
+    if: github.event_name != 'pull_request' || github.base_ref == 'main'
     permissions:
       contents: read
       issues: write
       pull-requests: write
+      checks: read # the suite's change detection reads the checks of a merged head
     uses: ./.github/workflows/tests-real-azure.yml
     secrets: inherit
 
   real-s3:
+    # Pull requests into main only, as the suite's own trigger had it.
+    if: github.event_name != 'pull_request' || github.base_ref == 'main'
     permissions:
       contents: read
       issues: write
       pull-requests: write
+      checks: read # the suite's change detection reads the checks of a merged head
     uses: ./.github/workflows/tests-real-s3.yml
     secrets: inherit
 
