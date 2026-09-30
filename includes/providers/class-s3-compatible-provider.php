@@ -93,6 +93,15 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	private $signer;
 
 	/**
+	 * Headers every new object carries besides its type: Cache-Control and
+	 * the storage class (Settings › Serving), when set and, for the class,
+	 * offered by the service.
+	 *
+	 * @var array<string,string>
+	 */
+	private $new_object_headers;
+
+	/**
 	 * The most parts one multipart upload may have on this service
 	 * (S3Presets::max_parts()).
 	 *
@@ -119,13 +128,22 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @param array<string, mixed> $config The saved provider_config, plus `upload_timeout`.
 	 */
 	public function __construct( array $config = array() ) {
-		$this->endpoint         = rtrim( (string) ( $config['endpoint'] ?? '' ), '/' );
-		$this->region           = (string) ( $config['region'] ?? '' );
-		$this->bucket           = (string) ( $config['bucket'] ?? '' );
-		$this->public_url       = rtrim( (string) ( $config['public_url'] ?? '' ), '/' );
-		$this->path_style       = (bool) ( $config['path_style'] ?? true );
-		$this->object_acl       = ! empty( $config['object_acl'] );
-		$this->max_parts        = S3Presets::max_parts( (string) ( $config['preset'] ?? '' ) );
+		$this->endpoint   = rtrim( (string) ( $config['endpoint'] ?? '' ), '/' );
+		$this->region     = (string) ( $config['region'] ?? '' );
+		$this->bucket     = (string) ( $config['bucket'] ?? '' );
+		$this->public_url = rtrim( (string) ( $config['public_url'] ?? '' ), '/' );
+		$this->path_style = (bool) ( $config['path_style'] ?? true );
+		$this->object_acl = ! empty( $config['object_acl'] );
+		$this->max_parts  = S3Presets::max_parts( (string) ( $config['preset'] ?? '' ) );
+
+		$this->new_object_headers = array();
+		$cache_control            = (string) ( $config['cache_control'] ?? '' );
+		if ( '' !== $cache_control ) {
+			$this->new_object_headers['Cache-Control'] = $cache_control;
+		}
+		if ( 'infrequent' === ( $config['storage_class'] ?? '' ) && S3Presets::offers_infrequent( (string) ( $config['preset'] ?? '' ) ) ) {
+			$this->new_object_headers['x-amz-storage-class'] = 'STANDARD_IA';
+		}
 		$this->transfer_timeout = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
 		$this->download_timeout = max( 300, $this->transfer_timeout );
 		$this->signer           = new AwsSignatureV4(
@@ -208,6 +226,17 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 */
 	private function acl_headers(): array {
 		return $this->object_acl ? array( 'x-amz-acl' => 'public-read' ) : array();
+	}
+
+	/**
+	 * What a request that writes a new object from the site's file adds: the
+	 * ACL, Cache-Control and the storage class. Test Connection's probe
+	 * carries them too, so a value the service refuses shows there.
+	 *
+	 * @return array<string,string>
+	 */
+	private function upload_headers(): array {
+		return $this->acl_headers() + $this->new_object_headers;
 	}
 
 	/**
@@ -380,7 +409,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			array(
 				'Content-Type' => 'application/octet-stream',
 				'Content-MD5'  => base64_encode( md5( $body, true ) ),
-			) + $this->acl_headers(),
+			) + $this->upload_headers(),
 			$body
 		);
 		if ( is_wp_error( $put ) ) {
@@ -460,7 +489,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			array(
 				'Content-Type' => $content_type,
 				'Content-MD5'  => base64_encode( md5( $body, true ) ),
-			) + $this->acl_headers(),
+			) + $this->upload_headers(),
 			$body,
 			$this->transfer_timeout
 		);
@@ -578,7 +607,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @return array{0: string}|string The UploadId, or the error line.
 	 */
 	private function create_multipart( string $key, string $content_type ) {
-		$create = $this->request( 'POST', $this->request_url( $key ) . '?uploads=', array( 'Content-Type' => $content_type ) + $this->acl_headers() );
+		$create = $this->request( 'POST', $this->request_url( $key ) . '?uploads=', array( 'Content-Type' => $content_type ) + $this->upload_headers() );
 		if ( is_wp_error( $create ) ) {
 			return 'Upload failed to start: ' . $create->get_error_message();
 		}
@@ -786,6 +815,8 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @return array<string, mixed> ['success' => bool, 'error' => string]
 	 */
 	public function copy_blob( string $source_path, string $dest_path ): array {
+		// The metadata directive copies Cache-Control with the object; the
+		// storage class is not copied, so the new object is told it again.
 		$response = $this->request(
 			'PUT',
 			$this->request_url( ltrim( $dest_path, '/' ) ),
@@ -794,7 +825,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 				'x-amz-metadata-directive' => 'COPY',
 				// A PUT without a body: Google answers 411 unless the length is stated.
 				'Content-Length'           => '0',
-			) + $this->acl_headers(),
+			) + $this->acl_headers() + array_intersect_key( $this->new_object_headers, array( 'x-amz-storage-class' => true ) ),
 			'',
 			$this->transfer_timeout
 		);
@@ -956,7 +987,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			array(
 				'Content-Type' => MimeHelper::get_mime_type( $key ),
 				'Content-MD5'  => base64_encode( $md5 ),
-			) + $this->acl_headers()
+			) + $this->upload_headers()
 		);
 
 		$ch = curl_init();

@@ -1,3 +1,4 @@
+import { configureUnreachableProvider, resetPlugin } from './helpers/wp';
 import { test, expect } from '@playwright/test';
 
 /**
@@ -38,6 +39,54 @@ test.describe('Settings › Logging', () => {
 		await page.goto(LOGGING);
 		await page.getByRole('button', { name: /Save|Guardar/ }).first().click();
 		await expect(page.locator('.notice-success, .updated').first()).toBeVisible();
+	});
+});
+
+test.describe('Settings › Serving', () => {
+	const SERVING = `${ADMIN}?page=diluxone-offload-settings&tab=serving`;
+
+	test('browser caching starts on at one week and its value survives a save', async ({ page }) => {
+		await page.goto(SERVING);
+		const on = page.locator('input[name="cache_control_enabled"]');
+		const value = page.locator('#cache_control');
+		await expect(value).toHaveValue(/max-age=/);
+		const before = { on: await on.isChecked(), value: await value.inputValue() };
+		try {
+			await on.uncheck();
+			await value.fill('public, max-age=3600');
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+			await page.goto(SERVING);
+			await expect(on).not.toBeChecked();
+			await expect(value).toHaveValue('public, max-age=3600');
+		} finally {
+			await page.goto(SERVING);
+			await on.setChecked(before.on);
+			await value.fill(before.value);
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+		}
+	});
+
+	test('with Azure the Cool tier is offered, and the choice survives a save', async ({ page }) => {
+		configureUnreachableProvider();
+		try {
+			await page.goto(SERVING);
+			const select = page.locator('#storage_class');
+			await expect(select.locator('option[value="infrequent"]')).toHaveText(/Cool tier/);
+			await select.selectOption('infrequent');
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+			await page.goto(SERVING);
+			await expect(select).toHaveValue('infrequent');
+			await select.selectOption('standard');
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+		} finally {
+			resetPlugin();
+		}
+	});
+
+	test('without a provider the storage class is not offered, and says where it is', async ({ page }) => {
+		await page.goto(SERVING);
+		await expect(page.locator('#storage_class')).toHaveCount(0);
+		await expect(page.locator('.diluxone-offload-settings')).toContainText('Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2');
 	});
 });
 

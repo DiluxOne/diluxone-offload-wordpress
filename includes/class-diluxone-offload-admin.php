@@ -1879,6 +1879,9 @@ class Admin {
 						array(
 							'enable_debug_logging',
 							'force_https_on_cloud',
+							'cache_control_enabled',
+							'cache_control',
+							'storage_class',
 							'timeout',
 							'max_file_size',
 						)
@@ -1889,9 +1892,10 @@ class Admin {
 					throw new \Exception( 'Failed to save settings to database' );
 				}
 
-				self::flash_notice( 'success', 'Settings saved successfully!' );
+				self::flash_notice( 'success', __( 'Settings saved.', 'diluxone-offload' ) );
 			} catch ( \Exception $e ) {
-				self::flash_notice( 'error', 'Failed to save settings: ' . $e->getMessage() );
+				/* translators: %s: the reason */
+				self::flash_notice( 'error', sprintf( __( 'The settings could not be saved: %s', 'diluxone-offload' ), $e->getMessage() ) );
 			}
 
 			self::redirect_to_screen( 'settings', $tab );
@@ -1919,12 +1923,13 @@ class Admin {
 					}
 
 					delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
-					self::flash_notice( 'success', 'Provider configuration saved successfully!' );
+					self::flash_notice( 'success', __( 'Provider configuration saved.', 'diluxone-offload' ) );
 				} catch ( \InvalidArgumentException $e ) {
 					// Validation error from ProviderConfig::fromPost()
 					self::flash_notice( 'error', $e->getMessage() );
 				} catch ( \Exception $e ) {
-					self::flash_notice( 'error', 'Failed to save configuration: ' . $e->getMessage() );
+					/* translators: %s: the reason */
+					self::flash_notice( 'error', sprintf( __( 'The configuration could not be saved: %s', 'diluxone-offload' ), $e->getMessage() ) );
 				}
 			}
 			// No credentials sent (fields were disabled) — nothing to save.
@@ -1933,7 +1938,7 @@ class Admin {
 
 		} else {
 			// Unknown screen - shouldn't happen
-			self::flash_notice( 'error', 'Invalid save request' );
+			self::flash_notice( 'error', __( 'The save request was not valid. Reload the page and try again.', 'diluxone-offload' ) );
 			self::redirect_to_screen( 'overview' );
 		}
 	}
@@ -1978,7 +1983,9 @@ class Admin {
 				array( 'cloud_provider' => $provider ) + self::posted_fields( \DiluxOneOffload\DTOs\ProviderConfig::FORM_FIELDS[ $provider ] ?? array() )
 			);
 
-			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create( $provider, $tested->getProviderConfig() );
+			// With the settings new uploads follow: the probe carries the same
+			// headers, so a storage class the service refuses fails here.
+			$client = \DiluxOneOffload\Factories\CloudStorageFactory::create( $provider, array_merge( $tested->getProviderConfig(), ConfigManager::client_settings() ) );
 
 			if ( $client === null ) {
 				wp_send_json_error( array( 'message' => esc_html__( 'Could not instantiate cloud client for the selected provider.', 'diluxone-offload' ) ) );
@@ -2116,7 +2123,7 @@ class Admin {
 		Logger::info( '[DiluxOne Offload] Credentials updated by user ID: ' . get_current_user_id() );
 
 		// The page reloads after this; the notice waits for it there.
-		self::flash_notice( 'success', 'Credentials updated successfully' );
+		self::flash_notice( 'success', __( 'Credentials updated.', 'diluxone-offload' ) );
 
 		wp_send_json_success(
 			array(

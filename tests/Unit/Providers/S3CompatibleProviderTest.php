@@ -234,6 +234,48 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertStringContainsString( 'content-md5;content-type;', $put['args']['headers']['Authorization'] );
 	}
 
+	public function test_a_new_object_carries_cache_control_and_the_class_where_the_service_offers_it(): void {
+		$f = $this->tmp( 10 );
+		$this->answer( fn( string $method ) => self::reply( 200, 'PUT' === $method ? '' : '<CopyObjectResult/>' ) );
+
+		self::make( array( 'preset' => 'aws', 'cache_control' => 'public, max-age=604800', 'storage_class' => 'infrequent' ) )->upload_file( $f, 'uploads/a.jpg' );
+		$put = $this->requests()[0]['args']['headers'];
+		$this->assertSame( 'public, max-age=604800', $put['Cache-Control'] );
+		$this->assertSame( 'STANDARD_IA', $put['x-amz-storage-class'] );
+		$this->assertStringContainsString( 'cache-control;', $put['Authorization'] );
+		$this->assertStringContainsString( 'x-amz-storage-class', $put['Authorization'] );
+
+		// A service without the class (Backblaze B2) gets the Cache-Control only.
+		$GLOBALS['_test_wp_http_log'] = array();
+		self::make( array( 'preset' => 'b2', 'cache_control' => 'public, max-age=60', 'storage_class' => 'infrequent' ) )->upload_file( $f, 'uploads/a.jpg' );
+		$put = $this->requests()[0]['args']['headers'];
+		$this->assertSame( 'public, max-age=60', $put['Cache-Control'] );
+		$this->assertArrayNotHasKey( 'x-amz-storage-class', $put );
+
+		// The setting off: neither.
+		$GLOBALS['_test_wp_http_log'] = array();
+		self::make( array( 'preset' => 'aws' ) )->upload_file( $f, 'uploads/a.jpg' );
+		$put = $this->requests()[0]['args']['headers'];
+		$this->assertArrayNotHasKey( 'Cache-Control', $put );
+		$this->assertArrayNotHasKey( 'x-amz-storage-class', $put );
+		unlink( $f );
+	}
+
+	public function test_a_copy_is_told_the_class_again_and_keeps_the_copied_cache_control(): void {
+		$this->answer( fn() => self::reply( 200, '<CopyObjectResult/>' ) );
+		self::make( array( 'preset' => 'r2', 'cache_control' => 'public, max-age=60', 'storage_class' => 'infrequent' ) )->copy_blob( 'uploads/a.jpg', 'uploads/b.jpg' );
+		$copy = $this->requests()[0]['args']['headers'];
+		$this->assertSame( 'STANDARD_IA', $copy['x-amz-storage-class'] );
+		$this->assertArrayNotHasKey( 'Cache-Control', $copy );
+	}
+
+	public function test_the_probe_carries_the_new_upload_headers_so_a_refused_class_shows_there(): void {
+		$this->answer( fn() => self::reply( 400, '<Error><Code>InvalidStorageClass</Code><Message>The storage class you specified is not valid</Message></Error>' ) );
+		$r = self::make( array( 'preset' => 'aws', 'storage_class' => 'infrequent' ) )->test_connection();
+		$this->assertFalse( $r['success'] );
+		$this->assertSame( 'STANDARD_IA', $this->requests()[0]['args']['headers']['x-amz-storage-class'] );
+	}
+
 	public function test_with_the_acl_option_every_object_written_is_public_read_and_signed(): void {
 		$provider = self::make( array( 'object_acl' => true ) );
 		$f        = $this->tmp( 10 );

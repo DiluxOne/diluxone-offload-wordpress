@@ -101,7 +101,7 @@ msgid "Transfers"
 msgstr "Transferencias"
 
 #: includes/class-diluxone-offload-admin.php:95
-#: templates/admin-settings-serving.php:30
+#: templates/admin-settings-serving.php:39
 msgid "Serving"
 msgstr "Entrega"
 
@@ -831,12 +831,12 @@ msgstr "Tipo de archivo no permitido"
 
 #: includes/class-diluxone-offload-admin.php:1201
 #: includes/class-diluxone-offload-admin.php:1862
-#: includes/class-diluxone-offload-admin.php:1961
-#: includes/class-diluxone-offload-admin.php:2053
-#: includes/class-diluxone-offload-admin.php:2153
-#: includes/class-diluxone-offload-admin.php:2228
-#: includes/class-diluxone-offload-admin.php:2285
-#: includes/class-diluxone-offload-admin.php:2322
+#: includes/class-diluxone-offload-admin.php:1966
+#: includes/class-diluxone-offload-admin.php:2060
+#: includes/class-diluxone-offload-admin.php:2160
+#: includes/class-diluxone-offload-admin.php:2235
+#: includes/class-diluxone-offload-admin.php:2292
+#: includes/class-diluxone-offload-admin.php:2329
 msgid "Insufficient permissions"
 msgstr "Permisos insuficientes"
 
@@ -1410,11 +1410,11 @@ msgid "New uploads are refused until the connection recovers."
 msgstr "Las subidas nuevas se rechazan hasta que la conexión se recupere."
 
 #: includes/class-diluxone-offload-admin.php:1857
-#: includes/class-diluxone-offload-admin.php:1956
+#: includes/class-diluxone-offload-admin.php:1961
 msgid "Security check failed"
 msgstr "Falló la verificación de seguridad."
 
-#: includes/class-diluxone-offload-admin.php:1914
+#: includes/class-diluxone-offload-admin.php:1918
 msgid ""
 "Test the connection before saving: only a configuration that passed Test "
 "Connection can be saved."
@@ -1422,19 +1422,19 @@ msgstr ""
 "Prueba la conexión antes de guardar: solo se puede guardar una configuración"
 " que haya pasado Probar conexión."
 
-#: includes/class-diluxone-offload-admin.php:1970
+#: includes/class-diluxone-offload-admin.php:1975
 msgid "Unsupported cloud provider"
 msgstr "Proveedor de nube no compatible"
 
-#: includes/class-diluxone-offload-admin.php:1984
+#: includes/class-diluxone-offload-admin.php:1991
 msgid "Could not instantiate cloud client for the selected provider."
 msgstr "No se pudo crear el cliente para el proveedor elegido."
 
-#: includes/class-diluxone-offload-admin.php:2058
+#: includes/class-diluxone-offload-admin.php:2065
 msgid "Cloud client not available"
 msgstr "El cliente de la nube no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:2084
+#: includes/class-diluxone-offload-admin.php:2091
 #: includes/class-diluxone-offload-plugin-enhanced.php:215
 #: includes/class-diluxone-offload-plugin-enhanced.php:389
 #: includes/class-diluxone-offload-plugin-enhanced.php:414
@@ -1459,50 +1459,50 @@ msgstr "El cliente de la nube no está disponible."
 msgid "Unauthorized"
 msgstr "No autorizado."
 
-#: includes/class-diluxone-offload-admin.php:2090
+#: includes/class-diluxone-offload-admin.php:2097
 msgid "You must test the connection first"
 msgstr "Primero tienes que probar la conexión."
 
-#: includes/class-diluxone-offload-admin.php:2106
+#: includes/class-diluxone-offload-admin.php:2113
 msgid "Credentials do not match tested values. Please test again."
 msgstr ""
 "Las credenciales no coinciden con los valores probados. Probá la conexión "
 "nuevamente."
 
-#: includes/class-diluxone-offload-admin.php:2110
+#: includes/class-diluxone-offload-admin.php:2117
 msgid "Credentials were not saved: the provider configuration is invalid."
 msgstr ""
 "No se guardaron las credenciales: la configuración del proveedor no es "
 "válida."
 
-#: includes/class-diluxone-offload-admin.php:2149
-#: includes/class-diluxone-offload-admin.php:2224
-#: includes/class-diluxone-offload-admin.php:2281
+#: includes/class-diluxone-offload-admin.php:2156
+#: includes/class-diluxone-offload-admin.php:2231
+#: includes/class-diluxone-offload-admin.php:2288
 msgid "Invalid nonce"
 msgstr "Nonce no válido."
 
-#: includes/class-diluxone-offload-admin.php:2170
+#: includes/class-diluxone-offload-admin.php:2177
 msgid "Cannot cancel sync: Another tab is currently syncing"
 msgstr ""
 "No se puede cancelar la sincronización: Otra pestaña está sincronizando "
 "actualmente"
 
-#: includes/class-diluxone-offload-admin.php:2186
+#: includes/class-diluxone-offload-admin.php:2193
 msgid "Sync cancelled successfully"
 msgstr "Sincronización cancelada correctamente"
 
-#: includes/class-diluxone-offload-admin.php:2208
+#: includes/class-diluxone-offload-admin.php:2215
 msgid "Plugin reset to configured state successfully"
 msgstr "Plugin restablecido al estado configurado correctamente"
 
 #. translators: %s: error message
 #: includes/class-diluxone-offload-admin.php:780
-#: includes/class-diluxone-offload-admin.php:2215
+#: includes/class-diluxone-offload-admin.php:2222
 #, php-format
 msgid "Error: %s"
 msgstr "Error: %s"
 
-#: includes/class-diluxone-offload-admin.php:2236
+#: includes/class-diluxone-offload-admin.php:2243
 #: includes/class-diluxone-offload-plugin-enhanced.php:219
 #: includes/class-diluxone-offload-plugin-enhanced.php:393
 #: includes/class-diluxone-offload-plugin-enhanced.php:418
@@ -1518,18 +1518,18 @@ msgstr "Error: %s"
 msgid "Sync manager not available"
 msgstr "El gestor de sincronización no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:2256
+#: includes/class-diluxone-offload-admin.php:2263
 msgid "The sync is not complete"
 msgstr "La sincronización no está completa"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:2272
+#: includes/class-diluxone-offload-admin.php:2279
 #, php-format
 msgid "Error completing sync: %s"
 msgstr "Error al completar la sincronización: %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:2295
+#: includes/class-diluxone-offload-admin.php:2302
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Error al limpiar los archivos fallidos: %s"
@@ -1778,31 +1778,31 @@ msgstr "Microsoft Azure Blob Storage"
 msgid "S3-compatible storage"
 msgstr "Almacenamiento compatible con S3"
 
-#: includes/providers/class-s3-presets.php:50
+#: includes/providers/class-s3-presets.php:53
 msgid "Amazon S3"
 msgstr "Amazon S3"
 
-#: includes/providers/class-s3-presets.php:60
+#: includes/providers/class-s3-presets.php:64
 msgid "Cloudflare R2"
 msgstr "Cloudflare R2"
 
-#: includes/providers/class-s3-presets.php:70
+#: includes/providers/class-s3-presets.php:75
 msgid "Backblaze B2"
 msgstr "Backblaze B2"
 
-#: includes/providers/class-s3-presets.php:80
+#: includes/providers/class-s3-presets.php:85
 msgid "DigitalOcean Spaces"
 msgstr "DigitalOcean Spaces"
 
-#: includes/providers/class-s3-presets.php:90
+#: includes/providers/class-s3-presets.php:95
 msgid "Wasabi"
 msgstr "Wasabi"
 
-#: includes/providers/class-s3-presets.php:100
+#: includes/providers/class-s3-presets.php:105
 msgid "Google Cloud Storage (HMAC keys)"
 msgstr "Google Cloud Storage (claves HMAC)"
 
-#: includes/providers/class-s3-presets.php:171
+#: includes/providers/class-s3-presets.php:176
 msgid "Custom (MinIO, Ceph, …)"
 msgstr "Personalizado (MinIO, Ceph, …)"
 
@@ -2386,27 +2386,27 @@ msgstr ""
 "Habilitar solo cuando resuelvas problemas. Puede impactar el rendimiento."
 
 #: templates/admin-settings-logging.php:56
-#: templates/admin-settings-serving.php:56
+#: templates/admin-settings-serving.php:118
 #: templates/admin-settings-transfers.php:76
 msgid "Save Settings"
 msgstr "Guardar configuración"
 
-#: templates/admin-settings-serving.php:32
+#: templates/admin-settings-serving.php:41
 msgid ""
 "Settings that control how cloud-offloaded media is served to the front-end."
 msgstr ""
 "Opciones que controlan cómo se sirven al frontend los archivos descargados "
 "en la nube."
 
-#: templates/admin-settings-serving.php:37
+#: templates/admin-settings-serving.php:46
 msgid "Cloud URL Scheme"
 msgstr "Esquema de URL de la nube"
 
-#: templates/admin-settings-serving.php:44
+#: templates/admin-settings-serving.php:53
 msgid "Force HTTPS for cloud storage URLs"
 msgstr "Forzar HTTPS para las URLs del almacenamiento en la nube"
 
-#: templates/admin-settings-serving.php:47
+#: templates/admin-settings-serving.php:56
 msgid ""
 "Re-applies https:// to URLs WordPress emits for the cloud storage. Needed "
 "when the site is served over plain http (typical in local dev): WP "
@@ -3375,7 +3375,7 @@ msgstr "Cerrar esta ventana cancelará la sincronización"
 msgid "Syncing files..."
 msgstr "Sincronizando archivos..."
 
-#: includes/class-diluxone-offload-admin.php:2326
+#: includes/class-diluxone-offload-admin.php:2333
 msgid ""
 "The provider can be deleted only before offloading is active; disconnect "
 "first."
@@ -3685,27 +3685,27 @@ msgstr "Por subir · %s"
 msgid "Failed · %s"
 msgstr "Fallidos · %s"
 
-#: includes/providers/class-s3-presets.php:110
+#: includes/providers/class-s3-presets.php:115
 msgid "Hetzner Object Storage"
 msgstr "Hetzner Object Storage"
 
-#: includes/providers/class-s3-presets.php:120
+#: includes/providers/class-s3-presets.php:125
 msgid "Akamai (Linode) Object Storage"
 msgstr "Akamai (Linode) Object Storage"
 
-#: includes/providers/class-s3-presets.php:130
+#: includes/providers/class-s3-presets.php:135
 msgid "Vultr Object Storage"
 msgstr "Vultr Object Storage"
 
-#: includes/providers/class-s3-presets.php:140
+#: includes/providers/class-s3-presets.php:145
 msgid "Scaleway Object Storage"
 msgstr "Scaleway Object Storage"
 
-#: includes/providers/class-s3-presets.php:151
+#: includes/providers/class-s3-presets.php:156
 msgid "OVHcloud Object Storage"
 msgstr "OVHcloud Object Storage"
 
-#: includes/providers/class-s3-presets.php:161
+#: includes/providers/class-s3-presets.php:166
 msgid "IDrive e2"
 msgstr "IDrive e2"
 
@@ -3793,3 +3793,107 @@ msgstr ""
 "lugar del que se completó. La URL pública es la Public Bucket URL del bucket"
 " (Bucket summary); los buckets públicos tienen que estar habilitados en la "
 "cuenta. Probar conexión lo comprueba."
+
+#: includes/class-diluxone-offload-admin.php:1895
+msgid "Settings saved."
+msgstr "Ajustes guardados."
+
+#. translators: %s: the reason
+#: includes/class-diluxone-offload-admin.php:1898
+#, php-format
+msgid "The settings could not be saved: %s"
+msgstr "No se pudieron guardar los ajustes: %s"
+
+#: includes/class-diluxone-offload-admin.php:1926
+msgid "Provider configuration saved."
+msgstr "Configuración del proveedor guardada."
+
+#. translators: %s: the reason
+#: includes/class-diluxone-offload-admin.php:1932
+#, php-format
+msgid "The configuration could not be saved: %s"
+msgstr "No se pudo guardar la configuración: %s"
+
+#: includes/class-diluxone-offload-admin.php:1941
+msgid "The save request was not valid. Reload the page and try again."
+msgstr ""
+"El pedido de guardado no era válido. Recarga la página e inténtalo de nuevo."
+
+#: includes/class-diluxone-offload-admin.php:2126
+msgid "Credentials updated."
+msgstr "Credenciales actualizadas."
+
+#: templates/admin-settings-serving.php:27
+msgid "Cool tier (cheaper to store, charged per read)"
+msgstr "Nivel Cool (más barato de almacenar, cobra cada lectura)"
+
+#: templates/admin-settings-serving.php:28
+msgid "Infrequent access, STANDARD_IA (cheaper to store, charged per read)"
+msgstr ""
+"Acceso infrecuente, STANDARD_IA (más barato de almacenar, cobra cada "
+"lectura)"
+
+#: templates/admin-settings-serving.php:64
+msgid "New uploads"
+msgstr "Subidas nuevas"
+
+#: templates/admin-settings-serving.php:66
+msgid ""
+"Applied to every file uploaded from now on. Files already in the cloud keep "
+"what they were stored with."
+msgstr ""
+"Se aplica a cada archivo que se suba de ahora en más. Los archivos que ya "
+"están en la nube conservan lo que tenían al guardarse."
+
+#: templates/admin-settings-serving.php:71
+msgid "Browser caching"
+msgstr "Caché del navegador"
+
+#: templates/admin-settings-serving.php:78
+msgid "Store a Cache-Control header with each new upload"
+msgstr "Guardar una cabecera Cache-Control con cada subida nueva"
+
+#: templates/admin-settings-serving.php:81
+msgid "Cache-Control value"
+msgstr "Valor de Cache-Control"
+
+#: templates/admin-settings-serving.php:90
+msgid ""
+"Browsers and CDNs keep the file instead of asking the storage again: fewer "
+"requests, faster pages. The default, public, max-age=604800, is one week. A "
+"file you replace under the same name may show its old version for that long."
+msgstr ""
+"Los navegadores y las CDN conservan el archivo en lugar de volver a "
+"pedírselo al almacenamiento: menos pedidos, páginas más rápidas. El valor "
+"predeterminado, public, max-age=604800, es una semana. Un archivo que "
+"reemplaces con el mismo nombre puede mostrar su versión anterior durante ese"
+" tiempo."
+
+#: templates/admin-settings-serving.php:95
+msgid "Storage class"
+msgstr "Clase de almacenamiento"
+
+#: templates/admin-settings-serving.php:99
+msgid "Standard (the service's default)"
+msgstr "Estándar (la predeterminada del servicio)"
+
+#: templates/admin-settings-serving.php:103
+msgid ""
+"The cheaper class costs less per GB stored, but every read is charged and a "
+"file is billed for a minimum time (30 days) even if deleted sooner. Worth it"
+" for an archive few people open; not for a site whose images are viewed all "
+"day. Never an archive class: media must be readable at once."
+msgstr ""
+"La clase más barata cuesta menos por GB almacenado, pero cobra cada lectura "
+"y factura un tiempo mínimo (30 días) aunque el archivo se borre antes. "
+"Conviene para un archivo que poca gente abre; no para un sitio cuyas "
+"imágenes se ven todo el día. Nunca una clase de archivo profundo: los medios"
+" tienen que poder leerse al instante."
+
+#: templates/admin-settings-serving.php:108
+msgid ""
+"Offered for Azure Blob Storage, Amazon S3 and Cloudflare R2. Your storage "
+"service stores new uploads in its default class."
+msgstr ""
+"Disponible para Azure Blob Storage, Amazon S3 y Cloudflare R2. Tu servicio "
+"de almacenamiento guarda las subidas nuevas en su clase predeterminada."

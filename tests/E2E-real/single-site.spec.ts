@@ -309,6 +309,8 @@ test.describe.serial( 'single site journey', () => {
 		const http = await request.newContext();
 		const head = await http.head( url );
 		expect( head.status(), 'the public URL answers' ).toBe( 200 );
+		// Settings › Serving's default: browsers keep a new upload for a week.
+		expect( head.headers()[ 'cache-control' ], 'the upload was stored with its Cache-Control' ).toBe( 'public, max-age=604800' );
 		const front = await http.get( `${ base }/?attachment_id=${ uiUploadId }` );
 		expect( await front.text(), 'the front end links the cloud URL' ).toContain( url );
 		await http.dispose();
