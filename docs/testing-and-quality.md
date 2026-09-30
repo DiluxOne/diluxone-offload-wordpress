@@ -4,7 +4,7 @@ What every quality gate enforces, why, and how to run each one locally.
 
 ## Quality stack at a glance
 
-The pull request checks run from [`.github/workflows/pull-request.yml`](../.github/workflows/pull-request.yml), which calls the shared workflows in [`DiluxOne/.github`](https://github.com/DiluxOne/.github): the **fast** suite first, then the Claude review, with the **slow** suite running alongside it. The replies to `@dilux-bot` run from [`.github/workflows/pull-request-comments.yml`](../.github/workflows/pull-request-comments.yml), which calls the shared `review-reply` workflow.
+The pull request checks run from [`.github/workflows/pull-request.yml`](../.github/workflows/pull-request.yml), which calls the shared workflows in [`DiluxOne/.github`](https://github.com/DiluxOne/.github): the **fast** and the **slow** suites first, then the Claude review, which starts only once both passed (the real-storage suites run in their own workflows and are not waited for). The replies to `@dilux-bot` run from [`.github/workflows/pull-request-comments.yml`](../.github/workflows/pull-request-comments.yml), which calls the shared `review-reply` workflow.
 
 | Layer | Tool | Catches | Suite / workflow | Make target |
 | --- | --- | --- | --- | --- |

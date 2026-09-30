@@ -1,9 +1,9 @@
 name: Pull request
 
 # Every check a change to DiluxOne Offload goes through, from the shared
-# workflows in DiluxOne/.github: conventions, the fast quality gates, then
-# the Claude review and the auto-merge decision, with the slow wp-env suites
-# running alongside the review. The real-storage suites (tests-real-azure.yml,
+# workflows in DiluxOne/.github: conventions, the fast quality gates and the
+# slow wp-env suites, then the Claude review and the auto-merge decision once
+# they all passed. The real-storage suites (tests-real-azure.yml,
 # tests-real-s3.yml) and CodeQL (codeql.yml) are this repository's own.
 #
 # Nothing runs twice for one change: an edit of the title or description is
