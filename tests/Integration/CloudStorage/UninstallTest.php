@@ -3,6 +3,7 @@ namespace Tests\Integration\CloudStorage;
 
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\DiluxOneOffloadDB as DB;
+use Tests\Integration\FakeCloudClient;
 
 /**
  * uninstall.php removes everything the plugin wrote to the database and
@@ -11,12 +12,19 @@ use DiluxOneOffload\DiluxOneOffloadDB as DB;
  */
 class UninstallTest extends IntegrationTestCase {
 
+    private ?FakeCloudClient $client = null;
+
+    public function injectClient(): ?FakeCloudClient {
+        return $this->client;
+    }
+
     protected function tearDown(): void {
+        remove_filter('diluxone_offload_pre_cloud_client', [$this, 'injectClient']);
         DB::create_files_table();
         parent::tearDown();
     }
 
-    public function test_uninstall_drops_the_table_and_every_option_and_transient(): void {
+    public function test_uninstall_cancels_unfinished_uploads_then_drops_the_table_and_every_option_and_transient(): void {
         global $wpdb;
 
         update_option('diluxone_offload_config', ['cloud_provider' => 'azure']);
@@ -28,6 +36,12 @@ class UninstallTest extends IntegrationTestCase {
         set_transient('diluxone_offload_notice_42', ['type' => 'success', 'message' => 'hi'], 60);
         update_option('unrelated_option_stays', 'yes');
         $this->addTestFile('/2026/09/a.jpg');
+        // A multipart upload the table still names: once the table is gone
+        // nobody can finish it, so uninstall cancels it first.
+        $this->addTestFile('/2026/09/big.mp4', 50 * 1048576);
+        DB::set_upload_id('/2026/09/big.mp4', 'v1|' . (50 * 1048576) . '|1700000000|upload-42');
+        $this->client = new FakeCloudClient('http://127.0.0.1:1');
+        add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectClient']);
         $this->assertTrue(DB::table_exists());
 
         if (!defined('WP_UNINSTALL_PLUGIN')) {
@@ -35,6 +49,7 @@ class UninstallTest extends IntegrationTestCase {
         }
         require DILUXONE_OFFLOAD_DIR . 'uninstall.php';
 
+        $this->assertSame(['uploads/2026/09/big.mp4'], $this->client->abandoned, 'the unfinished multipart upload is cancelled');
         $this->assertFalse(get_option('diluxone_offload_config'));
         $this->assertFalse(get_option('diluxone_offload_plugin_state'));
         $this->assertFalse(get_option('diluxone_offload_sync_meta'));
