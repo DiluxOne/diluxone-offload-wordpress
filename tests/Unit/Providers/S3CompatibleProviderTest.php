@@ -83,6 +83,22 @@ class S3CompatibleProviderTest extends TestCase {
 
 	// ── Identity and addressing ─────────────────────────────
 
+	public function test_a_file_too_large_for_the_part_limit_goes_in_larger_parts(): void {
+		$mib = 1048576;
+		$aws = self::make( array( 'preset' => 'aws' ) );
+		$scw = self::make( array( 'preset' => 'scaleway' ) );
+		// Up to the limit, 5 MiB parts everywhere.
+		$this->assertSame( 5 * $mib, $aws->part_size( 100 * $mib ) );
+		$this->assertSame( 5 * $mib, $scw->part_size( 1000 * 5 * $mib ) );
+		// Past it, the smallest whole MiB that keeps the file within 1,000 parts.
+		$this->assertSame( 6 * $mib, $scw->part_size( 1000 * 5 * $mib + 1 ) );
+		$this->assertSame( 7 * $mib, $scw->part_size( 6500 * $mib ) );
+		$this->assertLessThanOrEqual( 1000, (int) ceil( 6500 * $mib / $scw->part_size( 6500 * $mib ) ) );
+		// Amazon's 10,000 parts: 5 MiB up to about 48.8 GiB.
+		$this->assertSame( 5 * $mib, $aws->part_size( 10000 * 5 * $mib ) );
+		$this->assertSame( 6 * $mib, $aws->part_size( 10000 * 5 * $mib + 1 ) );
+	}
+
 	public function test_provider_name(): void {
 		$this->assertSame( 's3', $this->provider->get_provider_name() );
 	}

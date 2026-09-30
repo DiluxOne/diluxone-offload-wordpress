@@ -60,7 +60,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 									<?php esc_html_e( 'Microsoft Azure Blob Storage', 'diluxone-offload' ); ?>
 								</option>
 								<option value="s3" <?php selected( $config['cloud_provider'] ?? '', 's3' ); ?>>
-									<?php esc_html_e( 'S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO, …)', 'diluxone-offload' ); ?>
+									<?php esc_html_e( 'S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)', 'diluxone-offload' ); ?>
 								</option>
 							</select>
 							<p class="description">
@@ -136,6 +136,12 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 								<p class="description" data-preset="spaces" hidden><?php esc_html_e( 'DigitalOcean › API › Spaces Keys. The region is the Space\'s datacenter (for example nyc3). Anyone must be able to read the Space\'s files; Test Connection checks it. The Space\'s CDN endpoint can be the public URL.', 'diluxone-offload' ); ?></p>
 								<p class="description" data-preset="wasabi" hidden><?php esc_html_e( 'Wasabi console › Access Keys. The region is the bucket\'s (for example us-east-1). Anyone must be able to read the bucket\'s objects; Test Connection checks it.', 'diluxone-offload' ); ?></p>
 								<p class="description" data-preset="gcs" hidden><?php esc_html_e( 'Google Cloud console › Cloud Storage › Settings › Interoperability: an HMAC key for a service account with access to the bucket. The bucket must grant allUsers the Storage Object Viewer role.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="hetzner" hidden><?php esc_html_e( 'Hetzner Console › your project › Security › S3 Credentials. The region is the bucket\'s location (fsn1, nbg1 or hel1). Anyone must be able to read the bucket\'s objects: a public bucket, or Object ACL under Advanced; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="linode" hidden><?php esc_html_e( 'Akamai Cloud Manager › Object Storage › Access Keys, with read and write in the bucket\'s region. The region is the first part of the bucket\'s hostname (for example us-east-1 or us-ord-10). Newer endpoints ignore per-object ACLs: let anyone read the bucket with a bucket policy; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="vultr" hidden><?php esc_html_e( 'Vultr console › Object Storage › your subscription: its S3 credentials and hostname. The region is the first part of the hostname (for example ewr1). Anyone must be able to read the objects: a bucket policy, or Object ACL under Advanced; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="scaleway" hidden><?php esc_html_e( 'Scaleway console › IAM › API keys, with the bucket\'s project as the preferred project for Object Storage. The region is the bucket\'s (fr-par, nl-ams, pl-waw or it-mil). Anyone must be able to read the objects: a bucket policy, or Object ACL under Advanced; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="ovh" hidden><?php esc_html_e( 'OVHcloud Control Panel › Public Cloud › Object Storage › Object Storage users: a user linked to the bucket, then View credentials. The region is the bucket\'s, in lower case (for example gra). Anyone must be able to read the objects: turn on Object ACL under Advanced; Test Connection checks it.', 'diluxone-offload' ); ?></p>
+								<p class="description" data-preset="idrive" hidden><?php esc_html_e( 'IDrive e2 dashboard › Access Keys: a key for the bucket\'s region with read and write. If your dashboard shows an endpoint of your own, type it instead of the one filled in. The public URL is the bucket\'s Public Bucket URL (Bucket summary); public buckets must be enabled on the account. Test Connection checks it.', 'diluxone-offload' ); ?></p>
 								<p class="description" data-preset="custom" hidden><?php esc_html_e( 'Any other server that speaks the S3 API (MinIO, Ceph, …): type the endpoint, the region it expects and the public URL browsers load objects from.', 'diluxone-offload' ); ?></p>
 							</div>
 						</td>

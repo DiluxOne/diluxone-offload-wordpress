@@ -10,7 +10,8 @@ WordPress plugin that offloads media files to cloud object storage and
 serves them back transparently. Two providers ship: **Azure Blob
 Storage** and **S3-compatible storage** (Amazon S3, Cloudflare R2,
 Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC
-keys, MinIO), both with your own credentials. The plugin is GPL-2.0-or-later
+keys, Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud, IDrive e2,
+MinIO), both with your own credentials. The plugin is GPL-2.0-or-later
 with no paid tier and no feature held back.
 
 **The plugin's distinguishing technical decision** is the use of a PHP

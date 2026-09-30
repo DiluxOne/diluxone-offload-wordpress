@@ -18,6 +18,11 @@ class S3PresetsTest extends TestCase {
 			'spaces' => array( 'spaces', 'nyc3', 'https://nyc3.digitaloceanspaces.com', 'https://demo.nyc3.digitaloceanspaces.com' ),
 			'wasabi' => array( 'wasabi', 'us-east-1', 'https://s3.us-east-1.wasabisys.com', 'https://s3.us-east-1.wasabisys.com/demo' ),
 			'gcs'    => array( 'gcs', 'auto', 'https://storage.googleapis.com', 'https://storage.googleapis.com/demo' ),
+			'hetzner'  => array( 'hetzner', 'nbg1', 'https://nbg1.your-objectstorage.com', 'https://demo.nbg1.your-objectstorage.com' ),
+			'linode'   => array( 'linode', 'us-ord-10', 'https://us-ord-10.linodeobjects.com', 'https://demo.us-ord-10.linodeobjects.com' ),
+			'vultr'    => array( 'vultr', 'ams1', 'https://ams1.vultrobjects.com', 'https://demo.ams1.vultrobjects.com' ),
+			'scaleway' => array( 'scaleway', 'nl-ams', 'https://s3.nl-ams.scw.cloud', 'https://demo.s3.nl-ams.scw.cloud' ),
+			'ovh'      => array( 'ovh', 'sbg', 'https://s3.sbg.io.cloud.ovh.net', 'https://demo.s3.sbg.io.cloud.ovh.net' ),
 		);
 	}
 
@@ -25,6 +30,33 @@ class S3PresetsTest extends TestCase {
 	public function test_a_preset_derives_the_endpoint_and_the_public_url( string $preset, string $region, string $endpoint, string $public ): void {
 		$this->assertSame( $endpoint, S3Presets::endpoint( $preset, $region ) );
 		$this->assertSame( $public, S3Presets::public_url( $preset, 'demo', $region ) );
+	}
+
+	public function test_idrive_e2_fills_the_endpoint_and_leaves_the_public_url_to_the_user(): void {
+		$this->assertSame( 'https://s3.eu-west-4.idrivee2.com', S3Presets::endpoint( 'idrive', 'eu-west-4' ) );
+		$this->assertSame( '', S3Presets::public_url( 'idrive', 'demo', 'eu-west-4' ) );
+	}
+
+	public function test_the_object_acl_is_offered_only_where_the_service_honours_it(): void {
+		foreach ( array( 'aws', 'spaces', 'wasabi', 'hetzner', 'vultr', 'scaleway', 'ovh' ) as $preset ) {
+			$this->assertTrue( S3Presets::offers_acl( $preset ), $preset );
+		}
+		foreach ( array( 'r2', 'b2', 'gcs', 'linode', 'idrive', 'custom' ) as $preset ) {
+			$this->assertFalse( S3Presets::offers_acl( $preset ), $preset );
+		}
+	}
+
+	public function test_scaleway_allows_1000_parts_and_the_rest_10000(): void {
+		$this->assertSame( 1000, S3Presets::max_parts( 'scaleway' ) );
+		$this->assertSame( 10000, S3Presets::max_parts( 'aws' ) );
+		$this->assertSame( 10000, S3Presets::max_parts( 'dropbox' ) );
+	}
+
+	public function test_every_preset_has_a_hint_on_the_connection_form(): void {
+		$form = (string) file_get_contents( dirname( __DIR__, 3 ) . '/templates/admin-provider-connection.php' );
+		foreach ( array_keys( S3Presets::all() ) as $preset ) {
+			$this->assertStringContainsString( 'data-preset="' . $preset . '"', $form, $preset );
+		}
 	}
 
 	public function test_r2_and_custom_leave_both_urls_to_the_user(): void {

@@ -12,7 +12,7 @@ Move your media to cloud object storage and serve it from there. Replaces /uploa
 
 == Description ==
 
-DiluxOne Offload moves your WordPress media library to Azure Blob Storage or to any S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO) and serves files directly from the cloud — without breaking the Media Library UI, plugins, or existing content.
+DiluxOne Offload moves your WordPress media library to Azure Blob Storage or to any S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud, IDrive e2, MinIO) and serves files directly from the cloud — without breaking the Media Library UI, plugins, or existing content.
 
 The plugin uses a custom PHP stream wrapper to intercept every read and write to `/wp-content/uploads/`, so WordPress, WooCommerce, page builders, image editors, and any plugin that calls standard filesystem functions (`fopen`, `file_get_contents`, `unlink`, etc.) keep working unchanged.
 
@@ -43,7 +43,7 @@ Most offload plugins rewrite media URLs in post content, which breaks when you s
 
 == External services ==
 
-This plugin connects to one cloud storage service, the one you choose: Azure Blob Storage, or an S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, or a server whose address you type). It uses it to store and serve your media files. **Nothing is sent anywhere until you configure it yourself** in the *Cloud Provider* tab, with an account and credentials you supply. The plugin contacts no other service: it sends no telemetry, no usage data and no licence check to the author or to anyone else.
+This plugin connects to one cloud storage service, the one you choose: Azure Blob Storage, or an S3-compatible service (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, Hetzner Object Storage, Akamai (Linode) Object Storage, Vultr Object Storage, Scaleway Object Storage, OVHcloud Object Storage, IDrive e2, or a server whose address you type). It uses it to store and serve your media files. **Nothing is sent anywhere until you configure it yourself** in the *Cloud Provider* tab, with an account and credentials you supply. The plugin contacts no other service: it sends no telemetry, no usage data and no licence check to the author or to anyone else.
 
 = Azure Blob Storage =
 
@@ -72,7 +72,7 @@ This is **your own Azure account**, under your own agreement with Microsoft. Nei
 
 What it is used for: the same as above, on the S3-compatible service you choose.
 
-Where requests go: the endpoint of the service you chose, which the form fills in for each service and you can change: Amazon S3 at `https://s3.REGION.amazonaws.com` (requests address `https://BUCKET.s3.REGION.amazonaws.com`), Cloudflare R2 at `https://ACCOUNT_ID.r2.cloudflarestorage.com`, Backblaze B2 at `https://s3.REGION.backblazeb2.com`, DigitalOcean Spaces at `https://REGION.digitaloceanspaces.com`, Wasabi at `https://s3.REGION.wasabisys.com`, Google Cloud Storage at `https://storage.googleapis.com`, or the address you type under Custom. Browsers load your media from the Public URL you set, which can be the service's own address, a CDN or a custom domain.
+Where requests go: the endpoint of the service you chose, which the form fills in for each service and you can change: Amazon S3 at `https://s3.REGION.amazonaws.com` (requests address `https://BUCKET.s3.REGION.amazonaws.com`), Cloudflare R2 at `https://ACCOUNT_ID.r2.cloudflarestorage.com`, Backblaze B2 at `https://s3.REGION.backblazeb2.com`, DigitalOcean Spaces at `https://REGION.digitaloceanspaces.com`, Wasabi at `https://s3.REGION.wasabisys.com`, Google Cloud Storage at `https://storage.googleapis.com`, Hetzner Object Storage at `https://REGION.your-objectstorage.com`, Akamai (Linode) Object Storage at `https://REGION.linodeobjects.com`, Vultr Object Storage at `https://REGION.vultrobjects.com`, Scaleway Object Storage at `https://s3.REGION.scw.cloud`, OVHcloud Object Storage at `https://s3.REGION.io.cloud.ovh.net`, IDrive e2 at `https://s3.REGION.idrivee2.com` (or the endpoint of your own its dashboard shows), or the address you type under Custom. Browsers load your media from the Public URL you set, which can be the service's own address, a CDN or a custom domain.
 
 What data is sent: your media files themselves, together with their relative path (the object key), size and MIME type, and a signature of each request computed from your secret access key. The secret itself never leaves your server. No personal data about your visitors or your site's users is sent, and nothing at all about your site reaches the plugin's author.
 
@@ -115,6 +115,42 @@ Google Cloud Storage:
 * Service: [Google Cloud Storage](https://cloud.google.com/storage) (https://cloud.google.com/storage)
 * Terms of Service: [Google Cloud Terms of Service](https://cloud.google.com/terms) (https://cloud.google.com/terms)
 * Privacy Policy: [Google Privacy Policy](https://policies.google.com/privacy) (https://policies.google.com/privacy)
+
+Hetzner Object Storage:
+
+* Service: [Hetzner Object Storage](https://www.hetzner.com/storage/object-storage/) (https://www.hetzner.com/storage/object-storage/)
+* Terms of Service: [Hetzner Terms and Conditions](https://www.hetzner.com/legal/terms-and-conditions/) (https://www.hetzner.com/legal/terms-and-conditions/)
+* Privacy Policy: [Hetzner Privacy Policy](https://www.hetzner.com/legal/privacy-policy/) (https://www.hetzner.com/legal/privacy-policy/)
+
+Akamai (Linode) Object Storage:
+
+* Service: [Akamai Object Storage](https://www.linode.com/products/object-storage/) (https://www.linode.com/products/object-storage/)
+* Terms of Service: [Akamai Cloud Master Service Agreement](https://www.linode.com/legal/msa/) (https://www.linode.com/legal/msa/)
+* Privacy Policy: [Akamai Privacy Statement](https://www.akamai.com/legal/privacy-statement) (https://www.akamai.com/legal/privacy-statement)
+
+Vultr Object Storage:
+
+* Service: [Vultr Object Storage](https://www.vultr.com/products/object-storage/) (https://www.vultr.com/products/object-storage/)
+* Terms of Service: [Vultr Terms of Service](https://www.vultr.com/legal/tos/) (https://www.vultr.com/legal/tos/)
+* Privacy Policy: [Vultr Privacy Policy](https://www.vultr.com/legal/privacy/) (https://www.vultr.com/legal/privacy/)
+
+Scaleway Object Storage:
+
+* Service: [Scaleway Object Storage](https://www.scaleway.com/en/object-storage/) (https://www.scaleway.com/en/object-storage/)
+* Terms of Service: [Scaleway Contracts](https://www.scaleway.com/en/contracts/) (https://www.scaleway.com/en/contracts/)
+* Privacy Policy: [Scaleway Privacy Policy](https://www.scaleway.com/en/privacy-policy/) (https://www.scaleway.com/en/privacy-policy/)
+
+OVHcloud Object Storage:
+
+* Service: [OVHcloud Object Storage](https://www.ovhcloud.com/en/public-cloud/object-storage/) (https://www.ovhcloud.com/en/public-cloud/object-storage/)
+* Terms of Service: [OVHcloud Contracts](https://www.ovhcloud.com/en/terms-and-conditions/contracts/) (https://www.ovhcloud.com/en/terms-and-conditions/contracts/)
+* Privacy Policy: [OVHcloud Privacy Policy](https://www.ovhcloud.com/en/terms-and-conditions/privacy-policy/) (https://www.ovhcloud.com/en/terms-and-conditions/privacy-policy/)
+
+IDrive e2:
+
+* Service: [IDrive e2](https://www.idrive.com/s3-storage-e2/) (https://www.idrive.com/s3-storage-e2/)
+* Terms of Service: [IDrive e2 Terms](https://www.idrive.com/s3-storage-e2/terms) (https://www.idrive.com/s3-storage-e2/terms)
+* Privacy Policy: [IDrive Privacy Policy](https://www.idrive.com/privacy) (https://www.idrive.com/privacy)
 
 Custom endpoint: the plugin talks only to the server whose address you typed (MinIO, Ceph or any other that speaks the S3 API). No third party is involved unless that server belongs to one you chose.
 
@@ -221,6 +257,8 @@ Unreleased.
 * The sync and Disconnect from Cloud reuse their connections to the storage service from one group of files to the next, instead of opening a new one, with its secure handshake, for every file.
 * Status › Health names the storage service in use (Cloudflare R2, Amazon S3, …) and no longer shows a card that repeated the plugin's state. Screens that speak of the storage say "container or bucket", and a hostname too long for its card (Cloudflare R2's public one) is shortened, with the whole name on hover.
 * The Sync, Offloading and Disconnect screens and their windows are built on WordPress' own buttons, notices and cards, and take the accent of your admin colour scheme. Offloading's bar shows, in one full bar, the files only in the cloud and, striped, the ones that still have a copy on this server (the disk Delete Local Files can free). While a sync has files pending, the ones that already failed show as a red part of its bar. Messages these screens showed in English only are now translated.
+* Six more services in the S3-compatible provider's Service list: Hetzner Object Storage, Akamai (Linode) Object Storage, Vultr Object Storage, Scaleway Object Storage, OVHcloud Object Storage and IDrive e2. Each fills in the endpoint and, where the service has one, the public URL, and says where its keys come from and how to make the bucket readable.
+* A file too large for the storage service's limit on parts goes up in larger parts instead of failing: past about 5 GB on Scaleway (1,000 parts), past about 48 GB elsewhere.
 
 = 2.0.0 =
 

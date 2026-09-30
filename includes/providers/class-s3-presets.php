@@ -38,13 +38,15 @@ class S3Presets {
 	 * form starts with; `region_fixed` means the service ignores it and the
 	 * field is not editable. `acl` means the service honours a per-object
 	 * `x-amz-acl: public-read`, so the form offers it (off by default: Amazon
-	 * S3 buckets created since April 2023 refuse it).
+	 * S3 buckets created since April 2023 refuse it). `max_parts` is the most
+	 * parts one multipart upload may have, when the service allows fewer than
+	 * Amazon's 10,000 (Scaleway: 1,000); a large file then goes in larger parts.
 	 *
-	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool}>
+	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool, max_parts?: int}>
 	 */
 	public static function all(): array {
 		return array(
-			'aws'    => array(
+			'aws'      => array(
 				'label'        => __( 'Amazon S3', 'diluxone-offload' ),
 				'endpoint'     => 'https://s3.{region}.amazonaws.com',
 				'region'       => 'us-east-1',
@@ -54,7 +56,7 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => true,
 			),
-			'r2'     => array(
+			'r2'       => array(
 				'label'        => __( 'Cloudflare R2', 'diluxone-offload' ),
 				'endpoint'     => '',
 				'region'       => 'auto',
@@ -64,7 +66,7 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => false,
 			),
-			'b2'     => array(
+			'b2'       => array(
 				'label'        => __( 'Backblaze B2', 'diluxone-offload' ),
 				'endpoint'     => 'https://s3.{region}.backblazeb2.com',
 				'region'       => 'us-west-004',
@@ -74,7 +76,7 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => false,
 			),
-			'spaces' => array(
+			'spaces'   => array(
 				'label'        => __( 'DigitalOcean Spaces', 'diluxone-offload' ),
 				'endpoint'     => 'https://{region}.digitaloceanspaces.com',
 				'region'       => 'nyc3',
@@ -84,7 +86,7 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => true,
 			),
-			'wasabi' => array(
+			'wasabi'   => array(
 				'label'        => __( 'Wasabi', 'diluxone-offload' ),
 				'endpoint'     => 'https://s3.{region}.wasabisys.com',
 				'region'       => 'us-east-1',
@@ -94,7 +96,7 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => true,
 			),
-			'gcs'    => array(
+			'gcs'      => array(
 				'label'        => __( 'Google Cloud Storage (HMAC keys)', 'diluxone-offload' ),
 				'endpoint'     => 'https://storage.googleapis.com',
 				'region'       => 'auto',
@@ -104,7 +106,68 @@ class S3Presets {
 				'http'         => false,
 				'acl'          => false,
 			),
-			'custom' => array(
+			'hetzner'  => array(
+				'label'        => __( 'Hetzner Object Storage', 'diluxone-offload' ),
+				'endpoint'     => 'https://{region}.your-objectstorage.com',
+				'region'       => 'fsn1',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => 'https://{bucket}.{region}.your-objectstorage.com',
+				'http'         => false,
+				'acl'          => true,
+			),
+			'linode'   => array(
+				'label'        => __( 'Akamai (Linode) Object Storage', 'diluxone-offload' ),
+				'endpoint'     => 'https://{region}.linodeobjects.com',
+				'region'       => 'us-east-1',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => 'https://{bucket}.{region}.linodeobjects.com',
+				'http'         => false,
+				'acl'          => false,
+			),
+			'vultr'    => array(
+				'label'        => __( 'Vultr Object Storage', 'diluxone-offload' ),
+				'endpoint'     => 'https://{region}.vultrobjects.com',
+				'region'       => 'ewr1',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => 'https://{bucket}.{region}.vultrobjects.com',
+				'http'         => false,
+				'acl'          => true,
+			),
+			'scaleway' => array(
+				'label'        => __( 'Scaleway Object Storage', 'diluxone-offload' ),
+				'endpoint'     => 'https://s3.{region}.scw.cloud',
+				'region'       => 'fr-par',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => 'https://{bucket}.s3.{region}.scw.cloud',
+				'http'         => false,
+				'acl'          => true,
+				'max_parts'    => 1000,
+			),
+			'ovh'      => array(
+				'label'        => __( 'OVHcloud Object Storage', 'diluxone-offload' ),
+				'endpoint'     => 'https://s3.{region}.io.cloud.ovh.net',
+				'region'       => 'gra',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => 'https://{bucket}.s3.{region}.io.cloud.ovh.net',
+				'http'         => false,
+				'acl'          => true,
+			),
+			'idrive'   => array(
+				'label'        => __( 'IDrive e2', 'diluxone-offload' ),
+				'endpoint'     => 'https://s3.{region}.idrivee2.com',
+				'region'       => 'us-east-1',
+				'region_fixed' => false,
+				'path_style'   => true,
+				'public_url'   => '',
+				'http'         => false,
+				'acl'          => false,
+			),
+			'custom'   => array(
 				'label'        => __( 'Custom (MinIO, Ceph, …)', 'diluxone-offload' ),
 				'endpoint'     => '',
 				'region'       => 'us-east-1',
@@ -115,6 +178,17 @@ class S3Presets {
 				'acl'          => false,
 			),
 		);
+	}
+
+	/**
+	 * The most parts one multipart upload may have on the service: 10,000 as
+	 * on Amazon S3 unless the preset says fewer.
+	 *
+	 * @param string $preset Preset key.
+	 * @return int
+	 */
+	public static function max_parts( string $preset ): int {
+		return (int) ( self::all()[ $preset ]['max_parts'] ?? 10000 );
 	}
 
 	/**
@@ -205,8 +279,10 @@ class S3Presets {
 
 	/**
 	 * Whether the service honours a per-object public-read ACL (Amazon S3
-	 * with ACLs enabled, DigitalOcean Spaces, Wasabi). R2, B2 and Google's
-	 * uniform buckets decide public read per bucket; MinIO ignores it.
+	 * with ACLs enabled, DigitalOcean Spaces, Wasabi, Hetzner, Vultr,
+	 * Scaleway, OVHcloud). R2, B2, Google's uniform buckets and IDrive e2
+	 * decide public read per bucket, Akamai's newer endpoints ignore object
+	 * ACLs, and MinIO ignores it.
 	 *
 	 * @param string $preset Preset key.
 	 * @return bool
