@@ -920,11 +920,18 @@ class SyncManager {
 
 	/**
 	 * Upload a round's files as a pool: as many transfers in flight as the
-	 * parallelism allows, and the next file starts the moment one finishes,
-	 * instead of in waves that each wait for their slowest file. Past the
-	 * deadline the first slots still fill, so every request uploads
-	 * something, but no other file starts: the ones left stay pending for the
-	 * next request, untouched. A file's attempt is counted as it starts, so a
+	 * parallelism allows, and the next one starts the moment one finishes,
+	 * instead of in waves that each wait for their slowest file. A file above
+	 * the chunk threshold is started (begin_chunked_upload()) and its parts
+	 * join the pool as transfers of their own, ahead of the next files, then
+	 * its commit once every part landed; a part that meets a temporary error
+	 * (a 5xx, a dropped connection) is sent again, up to three times, and a
+	 * part that fails for good fails its file and drops the upload.
+	 *
+	 * Past the deadline the first slots still fill, so every request uploads
+	 * something, and the parts and commits of files already started go on,
+	 * but no other file starts: the ones left stay pending for the next
+	 * request, untouched. A file's attempt is counted as it starts, so a
 	 * request killed mid-transfer (max_execution_time, a proxy) charges only
 	 * the files in flight, and three such kills retire only them.
 	 *
@@ -933,30 +940,67 @@ class SyncManager {
 	 * @return array<int, array<string, mixed>> Per-file result envelopes, keyed like $batch, for the files that started
 	 */
 	private function sync_files_parallel( $batch, float $deadline ) {
-		$slots   = max( 1, $this->parallel_uploads );
-		$queue   = array_keys( $batch );
-		$active  = array(); // handle id => [index, handle, file handle, on_failure]
-		$results = array();
-		$mh      = curl_multi_init();
-		$first   = true;
+		$slots      = max( 1, $this->parallel_uploads );
+		$queue      = array(); // Tasks: a file to start, a part to send, a commit.
+		$active     = array(); // handle id => [task, handle, file handle, on_failure]
+		$uploads    = array(); // index => ChunkedUpload of a large file under way
+		$parts_left = array(); // index => parts that have not landed yet
+		$tries      = array(); // "index:part" => attempts of that part
+		$results    = array();
+		$mh         = curl_multi_init();
+		$first      = true;
+		foreach ( array_keys( $batch ) as $i ) {
+			$queue[] = array( 'file', $i, 0 );
+		}
 
 		do {
-			// Fill every free slot, while there is time to start one.
-			$free = $first || microtime( true ) < $deadline ? $slots - count( $active ) : 0;
+			$free = $slots - count( $active );
 			while ( $free > 0 && ! empty( $queue ) ) {
-				$i = array_shift( $queue );
-				// Counted before the upload, in case the request dies during it.
-				DiluxOneOffloadDB::increment_error( $batch[ $i ]['path'] );
-				$handle_data = $this->prepare_upload_handle( $batch[ $i ] );
+				list( $kind, $i, $part ) = $queue[0];
+				// Parts and commits belong to files already started and always
+				// go; a new file starts in the first fill or while there is time.
+				if ( 'file' === $kind && ! $first && microtime( true ) >= $deadline ) {
+					break;
+				}
+				array_shift( $queue );
+				if ( isset( $results[ $i ] ) ) {
+					continue; // A part of a file that already failed.
+				}
+
+				if ( 'file' === $kind ) {
+					// Counted before the upload, in case the request dies during it.
+					DiluxOneOffloadDB::increment_error( $batch[ $i ]['path'] );
+					$handle_data = $this->prepare_upload_handle( $batch[ $i ] );
+					if ( isset( $handle_data['upload'] ) ) {
+						$upload           = $handle_data['upload'];
+						$uploads[ $i ]    = $upload;
+						$parts_left[ $i ] = $upload->partCount();
+						$parts            = array();
+						$count            = $upload->partCount();
+						for ( $n = 1; $n <= $count; $n++ ) {
+							$parts[] = array( 'part', $i, $n );
+						}
+						array_unshift( $queue, ...$parts );
+						continue;
+					}
+				} elseif ( 'part' === $kind ) {
+					$handle_data = $this->cloud_client->prepare_part_handle( $uploads[ $i ], $part );
+				} else {
+					$handle_data = $this->cloud_client->prepare_commit_handle( $uploads[ $i ] );
+				}
+
 				if ( empty( $handle_data['success'] ) ) {
 					$results[ $i ] = array(
 						'success' => false,
 						'error'   => $handle_data['error'] ?? 'Unknown error',
 					);
+					if ( isset( $uploads[ $i ] ) ) {
+						$this->cloud_client->abort_chunked_upload( $uploads[ $i ] );
+					}
 					continue;
 				}
 				curl_multi_add_handle( $mh, $handle_data['handle'] );
-				$active[ $this->handle_id( $handle_data['handle'] ) ] = array( $i, $handle_data['handle'], $handle_data['file_handle'] ?? null, $handle_data['on_failure'] ?? null );
+				$active[ $this->handle_id( $handle_data['handle'] ) ] = array( array( $kind, $i, $part ), $handle_data['handle'], $handle_data['file_handle'] ?? null, $handle_data['on_failure'] ?? null );
 				--$free;
 			}
 			$first = false;
@@ -974,9 +1018,16 @@ class SyncManager {
 			while ( false !== $info ) {
 				$id = $this->handle_id( $info['handle'] );
 				if ( isset( $active[ $id ] ) ) {
-					list( $i, $ch, $file_handle, $on_failure ) = $active[ $id ];
-					$transport                                 = 0 === (int) $info['result'] ? '' : curl_strerror( (int) $info['result'] );
-					$results[ $i ]                             = $this->upload_result( $ch, $batch[ $i ], $transport, $on_failure );
+					list( $task, $ch, $file_handle, $on_failure ) = $active[ $id ];
+					list( $kind, $i, $part )                      = $task;
+					$errno                                        = (int) $info['result'];
+					$transport                                    = 0 === $errno ? '' : curl_strerror( $errno );
+					if ( 'part' === $kind ) {
+						$this->part_result( $ch, $i, $part, $errno, $transport, $uploads, $parts_left, $tries, $queue, $results );
+					} else {
+						$results[ $i ] = $this->upload_result( $ch, $batch[ $i ], $transport, $on_failure );
+						unset( $uploads[ $i ] );
+					}
 					curl_multi_remove_handle( $mh, $ch );
 					if ( is_resource( $file_handle ) ) {
 						fclose( $file_handle );
@@ -990,6 +1041,56 @@ class SyncManager {
 		curl_multi_close( $mh );
 		ksort( $results );
 		return $results;
+	}
+
+	/**
+	 * What one finished part means for its file: one part fewer to wait for
+	 * (and the commit queued after the last one), the part queued again after
+	 * a temporary error, or the file failed and its upload dropped.
+	 *
+	 * @param resource                                        $ch         The finished handle (PHPStan reads the PHP 7.4 stubs; PHP 8 hands a CurlHandle).
+	 * @param int                                             $i          The file's index in the round.
+	 * @param int                                             $part       Part number.
+	 * @param int                                             $errno      cURL's error number, 0 when none.
+	 * @param string                                          $transport  cURL's error, '' when none.
+	 * @param array<int, \DiluxOneOffload\DTOs\ChunkedUpload> $uploads    Uploads under way.
+	 * @param array<int, int>                                 $parts_left Parts to wait for, per file.
+	 * @param array<string, int>                              $tries      Attempts per part.
+	 * @param array<int, array{0: string, 1: int, 2: int}>    $queue      The pool's queue.
+	 * @param array<int, array<string, mixed>>                $results    Results per file.
+	 */
+	private function part_result( $ch, int $i, int $part, int $errno, string $transport, array $uploads, array &$parts_left, array &$tries, array &$queue, array &$results ): void {
+		if ( isset( $results[ $i ] ) ) {
+			return; // Its file already failed on another part.
+		}
+		$status  = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$verdict = '' !== $transport
+			? 'Upload failed on part ' . $part . ': ' . $transport
+			: $this->cloud_client->finish_part( $uploads[ $i ], $part, $status, (string) curl_multi_getcontent( $ch ) );
+
+		if ( null === $verdict ) {
+			--$parts_left[ $i ];
+			if ( 0 === $parts_left[ $i ] ) {
+				array_unshift( $queue, array( 'commit', $i, 0 ) );
+			}
+			return;
+		}
+
+		// A timeout already spent its time and a 4xx will not change; a 5xx
+		// or a dropped connection is the service asking to be asked again.
+		$transient     = '' !== $transport ? CURLE_OPERATION_TIMEDOUT !== $errno : $status >= 500 && $status <= 504;
+		$key           = $i . ':' . $part;
+		$tries[ $key ] = ( $tries[ $key ] ?? 1 ) + 1;
+		if ( $transient && $tries[ $key ] <= 3 ) {
+			array_unshift( $queue, array( 'part', $i, $part ) );
+			return;
+		}
+
+		$results[ $i ] = array(
+			'success' => false,
+			'error'   => $verdict,
+		);
+		$this->cloud_client->abort_chunked_upload( $uploads[ $i ] );
 	}
 
 	/**
@@ -1060,18 +1161,12 @@ class SyncManager {
 	}
 
 	/**
-	 * Prepare a cURL handle for uploading a file to cloud storage
-	 * OPTIMIZED: Uses streaming for memory efficiency + chunked upload for large files
-	 *
-	 * @param array $file_info
-	 * @return array ['success' => bool, 'handle' => resource|null, 'error' => string, 'file_handle' => resource|null]
-	 */
-	/**
-	 * Prepare upload handle (delegates to provider)
-	 * Provider-agnostic method that delegates to cloud storage provider
+	 * Start one file's upload through the provider: the handle of a single
+	 * PUT, or, above the chunk threshold, the upload in parts
+	 * (`['upload' => ChunkedUpload]`) whose parts the pool then sends.
 	 *
 	 * @param array<string, mixed> $file_info File information
-	 * @return array<string, mixed> Upload handle data
+	 * @return array<string, mixed> Upload handle data, or the chunked upload
 	 */
 	private function prepare_upload_handle( $file_info ) {
 		$local_path = $file_info['local_path'];
@@ -1086,9 +1181,9 @@ class SyncManager {
 
 		$file_size = filesize( $local_path );
 
-		// OPTIMIZATION: Use chunked upload for files > 10MB
+		// A large file goes up in parts, each a transfer of the pool.
 		if ( $file_size > $this->chunked_threshold ) {
-			return $this->cloud_client->prepare_chunked_upload_handle( $file_info );
+			return $this->cloud_client->begin_chunked_upload( $file_info );
 		}
 
 		// Regular upload for files < 10MB

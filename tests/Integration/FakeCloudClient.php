@@ -1,7 +1,9 @@
 <?php
 namespace Tests\Integration;
 
+use DiluxOneOffload\DTOs\ChunkedUpload;
 use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
+use DiluxOneOffload\Providers\PartUpload;
 
 /**
  * A cloud provider stand-in for integration tests.
@@ -13,6 +15,8 @@ use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
  * status the test chose, so the actual multi loop runs, not a copy of it.
  */
 class FakeCloudClient implements CloudStorageClientInterface {
+
+    use PartUpload;
 
     /** @var array<string, string> remote path => content */
     public array $blobs = [];
@@ -195,15 +199,88 @@ class FakeCloudClient implements CloudStorageClientInterface {
         return ['success' => true, 'handle' => $ch, 'file_handle' => $fh];
     }
 
-    /** @var string[] Remote paths whose failed transfer the engine reported back through on_failure. */
+    /** @var string[] Remote paths whose chunked upload the engine dropped (a failed part or commit). */
     public array $abandoned = [];
 
-    public function prepare_chunked_upload_handle(array $file_info): array {
-        $handle = $this->prepare_batch_upload_handle($file_info);
-        $handle['on_failure'] = function () use ($file_info): void {
-            $this->abandoned[] = ltrim($file_info['remote_path'], '/');
-        };
-        return $handle;
+    /** @var int Bytes per part of a chunked upload. */
+    public int $part_size = 1048576;
+
+    /** @var int HTTP status the local server answers a part with, unless part_statuses says otherwise. */
+    public int $part_status = 201;
+
+    /** @var array<int, int[]> Part number => statuses for its attempts, one each, in order; then part_status. */
+    public array $part_statuses = [];
+
+    /** @var int Parts sent, retries included. */
+    public int $part_requests = 0;
+
+    /** @var array<string, array<int, string>> Bytes of every part that landed, per key and part number. */
+    private array $parts = [];
+
+    public function begin_chunked_upload(array $file_info): array {
+        $size = is_file($file_info['local_path']) ? (int) filesize($file_info['local_path']) : 0;
+        if ($size <= 0) {
+            return ['success' => false, 'error' => 'File not found: ' . $file_info['local_path']];
+        }
+        return ['success' => true, 'upload' => new ChunkedUpload($file_info['local_path'], ltrim($file_info['remote_path'], '/'), $size, $this->part_size, 'fake-upload')];
+    }
+
+    /** A real PUT of the part's bytes, streamed from the file the way the providers do it. */
+    public function prepare_part_handle(ChunkedUpload $upload, int $part): array {
+        ++$this->part_requests;
+        $status = !empty($this->part_statuses[$part]) ? array_shift($this->part_statuses[$part]) : $this->part_status;
+        $ch     = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $this->upload_base_url . '/' . $upload->remotePath() . '?part=' . $part . '&status=' . $status,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $fh = self::stream_part($ch, $upload, $part);
+        if ($status < 300) {
+            $this->parts[$upload->remotePath()][$part] = (string) file_get_contents($upload->localPath(), false, null, $upload->offset($part), $upload->length($part));
+        }
+        return ['success' => true, 'handle' => $ch, 'file_handle' => $fh];
+    }
+
+    public function finish_part(ChunkedUpload $upload, int $part, int $status, string $body): ?string {
+        if ($status < 200 || $status >= 300) {
+            return 'Failed part ' . $part . ': HTTP ' . $status . $this->describe_error_body($body);
+        }
+        $upload->recordTag($part, 'tag-' . $part);
+        return null;
+    }
+
+    public function prepare_commit_handle(ChunkedUpload $upload): array {
+        $tags = $upload->tags();
+        if (null === $tags) {
+            return ['success' => false, 'error' => 'untagged part', 'handle' => null, 'file_handle' => null];
+        }
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $this->upload_base_url . '/' . $upload->remotePath() . '?commit=1&status=' . $this->upload_status,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        if ($this->upload_status < 300) {
+            $landed = $this->parts[$upload->remotePath()] ?? [];
+            ksort($landed);
+            $this->blobs[$upload->remotePath()] = implode('', array_intersect_key($landed, $tags));
+        }
+        return [
+            'success'     => true,
+            'handle'      => $ch,
+            'file_handle' => null,
+            'on_failure'  => function () use ($upload): void {
+                $this->abort_chunked_upload($upload);
+            },
+        ];
+    }
+
+    public function abort_chunked_upload(ChunkedUpload $upload): void {
+        $this->abandoned[] = $upload->remotePath();
+        unset($this->parts[$upload->remotePath()]);
     }
 
     /**

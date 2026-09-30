@@ -8,7 +8,8 @@ namespace Tests\Integration;
  * It answers every request with the status given in ?status=, defaulting
  * to 201, which is what Azure returns for a created block blob. With
  * ?delay=N (or /delay-N/ in the path) it sleeps N seconds first, which is
- * how the timeout tests get a server slower than the setting allows.
+ * how the timeout tests get a server slower than the setting allows. The
+ * ETag of every answer is the MD5 of the body it received.
  */
 class LocalBlobServer {
 
@@ -37,8 +38,9 @@ if ($delay > 0) {
     sleep($delay);
 }
 http_response_code($status);
-// Drain the body so cURL sees a clean upload.
-file_get_contents('php://input');
+// Drain the body so cURL sees a clean upload, and answer with its MD5 as the
+// ETag, so a test can tell which bytes arrived.
+header('ETag: "' . md5((string) file_get_contents('php://input')) . '"');
 echo $status >= 400 ? '<Error><Message>rejected</Message></Error>' : '';
 PHP
         );

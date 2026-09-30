@@ -355,9 +355,9 @@ class ForwardSyncTest extends IntegrationTestCase {
     }
 
     public function test_a_chunked_upload_whose_commit_fails_is_handed_back_to_the_provider(): void {
-        // The provider sent the parts itself; only the engine knows the commit
-        // failed, and it says so through the handle's on_failure, so the
-        // provider can drop the parts instead of leaving them stored and billed.
+        // The parts landed; only the engine knows the commit failed, and it
+        // says so through the handle's on_failure, so the provider can drop
+        // the parts instead of leaving them stored and billed.
         $this->configure(['allowed_file_types' => 'big']);
         $sm            = new SyncManager();
         $thresholdProp = new \ReflectionProperty($sm, 'chunked_threshold');
@@ -374,6 +374,93 @@ class ForwardSyncTest extends IntegrationTestCase {
         // Every attempt the engine made (it retries within the batch) is handed back.
         $this->assertNotEmpty($this->client->abandoned);
         $this->assertSame(['uploads/big/refused.big'], array_values(array_unique($this->client->abandoned)));
+    }
+
+    /** A threshold and part size small enough for a test file to make several parts. */
+    private function chunkedAt(SyncManager $sm, int $threshold, int $partSize): void {
+        $prop = new \ReflectionProperty($sm, 'chunked_threshold');
+        if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+        	$prop->setAccessible( true );
+        }
+        $prop->setValue($sm, $threshold);
+        $this->client->part_size = $partSize;
+    }
+
+    /** The parts go through the pool, each streamed from its offset, and assemble into the file byte for byte. */
+    public function test_a_large_files_parts_go_through_the_pool_and_assemble_byte_for_byte(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $bytes = random_bytes(3500);
+        $this->fixture('prt/video.prt', $bytes);
+        $this->fixture('prt/thumb.prt', 'small');
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $this->chunkedAt($sm, 1000, 1000);
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(4, $this->client->part_requests, 'four parts of 1000 bytes, the last one 500');
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/video.prt']);
+        $this->assertSame('small', $this->client->blobs['uploads/prt/thumb.prt']);
+        $this->assertSame([], $this->client->abandoned);
+    }
+
+    /** A part that meets a 503 goes again; the file is not failed for it. */
+    public function test_a_part_that_meets_a_temporary_error_is_sent_again(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $bytes = random_bytes(3000);
+        $this->fixture('prt/retry.prt', $bytes);
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $this->chunkedAt($sm, 1000, 1000);
+        $this->client->part_statuses = [2 => [503, 500]];
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(5, $this->client->part_requests, 'part 2 three times');
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/retry.prt']);
+    }
+
+    /** A part refused for good, or a part still failing on its third try, fails its file alone and drops its upload. */
+    public function test_a_part_that_fails_for_good_fails_its_file_and_drops_the_upload(): void {
+        global $wpdb;
+        $this->configure(['allowed_file_types' => 'prt']);
+        $this->fixture('prt/denied.prt', random_bytes(3000));
+        $this->fixture('prt/flaky.prt', random_bytes(3000));
+        $this->fixture('prt/fine.prt', 'fine');
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $this->chunkedAt($sm, 1000, 1000);
+        // The larger-first order does not separate two files of one size, so
+        // every part 2 is scripted: a 403 for one, three 500s for the other.
+        $this->client->part_statuses = [2 => [403, 500, 500, 500]];
+        $sm->set_parallel_uploads(10); // Both files' parts and the small file in the first fill.
+
+        $sm->process_batch(0.0);
+        $this->assertSame('fine', $this->client->blobs['uploads/prt/fine.prt'] ?? null, 'the other files of the round go through');
+        $this->assertArrayNotHasKey('uploads/prt/denied.prt', $this->client->blobs);
+        $this->assertArrayNotHasKey('uploads/prt/flaky.prt', $this->client->blobs);
+        $this->assertEqualsCanonicalizing(['uploads/prt/denied.prt', 'uploads/prt/flaky.prt'], $this->client->abandoned);
+        $errors = $wpdb->get_col('SELECT error_message FROM ' . DB::get_table_name() . " WHERE synced = 0 ORDER BY error_message");
+        $this->assertCount(2, $errors);
+        $this->assertStringContainsString('HTTP 403', $errors[0]);
+        $this->assertStringContainsString('HTTP 500', $errors[1]);
+    }
+
+    /** Past the budget no new file starts, but a large file already started finishes: its parts are not left behind. */
+    public function test_a_request_past_its_budget_finishes_the_large_file_it_started(): void {
+        $this->configure(['allowed_file_types' => 'prt']);
+        $bytes = random_bytes(6000);
+        $this->fixture('prt/started.prt', $bytes);
+        for ($i = 0; $i < 6; $i++) {
+            $this->fixture("prt/later{$i}.prt", 'l');
+        }
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        $this->chunkedAt($sm, 1000, 1000);
+
+        $r = $sm->process_batch(0.0);
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/started.prt'] ?? null, 'six parts and the commit, all past the budget');
+        $this->assertSame(1, $r['uploaded_this_batch'], 'its parts took the slots ahead of the small files, which never started');
+        $this->assertSame(6, (int) $GLOBALS['wpdb']->get_var('SELECT COUNT(*) FROM ' . DB::get_table_name() . ' WHERE synced = 0 AND errors = 0'));
     }
 
     public function test_a_small_upload_that_fails_needs_nothing_handed_back(): void {

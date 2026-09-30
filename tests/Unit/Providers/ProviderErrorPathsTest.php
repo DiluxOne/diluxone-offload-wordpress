@@ -61,9 +61,9 @@ class ProviderErrorPathsTest extends TestCase {
 	// ── Chunked (large file) upload ─────────────────────────
 
 	public function test_azure_chunked_upload_of_a_missing_file_fails_cleanly(): void {
-		$r = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => '/nope/x', 'remote_path' => 'x', 'size' => 1 ) );
+		$r = $this->azure()->begin_chunked_upload( array( 'local_path' => '/nope/x', 'remote_path' => 'x', 'size' => 1 ) );
 		$this->assertFalse( $r['success'] );
-		$this->assertNull( $r['file_handle'] );
+		$this->assertStringContainsString( 'File not found', $r['error'] );
 	}
 
 	// ── Azure ───────────────────────────────────────────────
@@ -169,42 +169,72 @@ class ProviderErrorPathsTest extends TestCase {
 		return $p;
 	}
 
-	public function test_azure_chunked_upload_puts_every_block_and_hands_back_the_commit(): void {
-		$GLOBALS['_test_wp_http'] = fn() => self::raw( 201 );
+	/** Nothing is sent to start: the blocks are 4 MiB, the last one the rest. */
+	public function test_azure_chunked_upload_starts_without_a_request_and_cuts_4_mib_blocks(): void {
 		$file = $this->tmp( 5 * 1024 * 1024 );
-		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin', 'size' => filesize( $file ) ) );
-		$this->assertTrue( $r['success'], $r['error'] ?? '' );
-		$this->assertCount( 2, $GLOBALS['_test_wp_http_log'], 'one HTTP API request per 4 MB block' );
-		$this->assertStringContainsString( 'comp=block&', $GLOBALS['_test_wp_http_log'][0]['url'] );
-		$this->assertArrayHasKey( 'Authorization', $GLOBALS['_test_wp_http_log'][0]['args']['headers'] );
-		$this->assertStringContainsString( 'comp=blocklist', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
-		$this->assertNull( $r['file_handle'] );
+		$r    = $this->azure()->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => '/uploads/big.bin' ) );
+		unlink( $file );
+		$this->assertTrue( $r['success'] );
+		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'] );
+		$upload = $r['upload'];
+		$this->assertSame( 'uploads/big.bin', $upload->remotePath() );
+		$this->assertSame( 2, $upload->partCount() );
+		$this->assertSame( array( 4194304, 1048576 ), array( $upload->length( 1 ), $upload->length( 2 ) ) );
+	}
+
+	/** Each block is its own streamed Put Block, sending exactly its bytes. */
+	public function test_azure_a_block_handle_sends_that_block_and_its_id_is_its_tag(): void {
+		$file = tempnam( sys_get_temp_dir(), 'pe' );
+		file_put_contents( $file, random_bytes( 4194304 ) . 'the-last-block' );
+		$p      = $this->azureAt( self::$server->base_url );
+		$upload = $p->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big file.bin' ) )['upload'];
+
+		$r = $p->prepare_part_handle( $upload, 2 );
+		$this->assertTrue( $r['success'] );
+		$this->assertStringContainsString( '/media/uploads/big%20file.bin?comp=block&blockid=' . rawurlencode( base64_encode( '000001' ) ), curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
+		curl_setopt( $r['handle'], CURLOPT_HEADER, true );
+		$answer = (string) curl_exec( $r['handle'] );
+		fclose( $r['file_handle'] );
+		$this->assertStringContainsString( md5( 'the-last-block' ), $answer, 'the server received the last block and nothing else' );
+
+		$this->assertNull( $p->finish_part( $upload, 2, 201, '' ) );
+		$this->assertSame( base64_encode( '000001' ), $upload->tag( 2 ) );
+		$this->assertNull( $upload->tags(), 'the commit waits for block 1' );
 		unlink( $file );
 	}
 
-	public function test_azure_chunked_upload_stops_at_the_first_rejected_block(): void {
-		$GLOBALS['_test_wp_http'] = fn() => self::raw( 500, 'nope' );
-		$file = $this->tmp( 10 );
-		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
-		$this->assertFalse( $r['success'] );
-		$this->assertStringContainsString( 'block 0', $r['error'] );
-		$this->assertStringContainsString( 'HTTP 500', $r['error'] );
-		$this->assertStringNotContainsString( 'nope', $r['error'], 'a body that is not an Azure error document is not quoted back' );
-		unlink( $file );
-	}
-
-	public function test_azure_chunked_upload_quotes_the_error_code_but_never_the_signature(): void {
-		$body = '<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>'
+	public function test_azure_a_rejected_block_quotes_the_error_code_but_never_the_signature(): void {
+		$body   = '<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>'
 			. '<Message>Server failed to authenticate the request.</Message>'
 			. '<AuthenticationErrorDetail>The MAC signature found in the HTTP request \'SECRETMAC==\' is not the same.</AuthenticationErrorDetail></Error>';
-		$GLOBALS['_test_wp_http'] = fn() => self::raw( 403, $body );
-		$file = $this->tmp( 10 );
-		$r    = $this->azure()->prepare_chunked_upload_handle( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin', 'size' => 10 ) );
-		$this->assertFalse( $r['success'] );
-		$this->assertStringContainsString( 'AuthenticationFailed', $r['error'] );
-		$this->assertStringContainsString( 'Server failed to authenticate', $r['error'] );
-		$this->assertStringNotContainsString( 'SECRETMAC', $r['error'], 'the request signature never reaches a log line, the table or the screen' );
+		$file   = $this->tmp( 10 );
+		$p      = $this->azure();
+		$upload = $p->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/small.bin' ) )['upload'];
 		unlink( $file );
+
+		$error = (string) $p->finish_part( $upload, 1, 403, $body );
+		$this->assertStringContainsString( 'block 1', $error );
+		$this->assertStringContainsString( 'AuthenticationFailed', $error );
+		$this->assertStringNotContainsString( 'SECRETMAC', $error, 'the request signature never reaches a log line, the table or the screen' );
+		$this->assertSame( '', $upload->tag( 1 ) );
+		$this->assertStringNotContainsString( 'nope', (string) $p->finish_part( $upload, 1, 500, 'nope' ), 'a body that is not an Azure error document is not quoted back' );
+	}
+
+	public function test_azure_the_commit_lists_the_blocks_once_all_landed(): void {
+		$file   = $this->tmp( 5 * 1024 * 1024 );
+		$p      = $this->azure();
+		$upload = $p->begin_chunked_upload( array( 'local_path' => $file, 'remote_path' => 'uploads/big.bin' ) )['upload'];
+		unlink( $file );
+		$this->assertFalse( $p->prepare_commit_handle( $upload )['success'], 'no commit while a block is missing' );
+
+		$p->finish_part( $upload, 1, 201, '' );
+		$p->finish_part( $upload, 2, 201, '' );
+		$r = $p->prepare_commit_handle( $upload );
+		$this->assertTrue( $r['success'] );
+		$this->assertStringContainsString( 'comp=blocklist', curl_getinfo( $r['handle'], CURLINFO_EFFECTIVE_URL ) );
+		$this->assertIsCallable( $r['on_failure'] );
+		( $r['on_failure'] )();
+		$this->assertSame( array(), $GLOBALS['_test_wp_http_log'], 'uncommitted blocks need no call to go' );
 	}
 
 	public function test_azure_constructor_logs_an_invalid_config_without_throwing(): void {
