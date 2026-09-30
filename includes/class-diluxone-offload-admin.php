@@ -776,7 +776,7 @@ class Admin {
 						'resetting_sync'                   => __( 'Resetting Sync', 'diluxone-offload' ),
 						'clearing_and_resetting'           => __( 'Clearing sync data and resetting state...', 'diluxone-offload' ),
 						'calculating_failed_files'         => __( 'Calculating failed files...', 'diluxone-offload' ),
-						/* translators: %s: the reason the server gave */
+						/* translators: %s: error message */
 						'error_with_reason'                => __( 'Error: %s', 'diluxone-offload' ),
 						'error'                            => __( 'Error', 'diluxone-offload' ),
 						'unexpected_response'              => __( 'Unexpected response from server', 'diluxone-offload' ),
