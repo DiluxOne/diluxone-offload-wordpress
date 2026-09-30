@@ -42,6 +42,51 @@ test.describe('Settings › Logging', () => {
 	});
 });
 
+test.describe('Settings › Transfers and Logging, the new options', () => {
+	const TRANSFERS = `${ADMIN}?page=diluxone-offload-settings&tab=transfers`;
+
+	test('the excluded folders are saved one per line and come back cleaned', async ({ page }) => {
+		await page.goto(TRANSFERS);
+		const box = page.locator('#excluded_folders');
+		const before = await box.inputValue();
+		try {
+			await box.fill('/backups\nwp-content/uploads/cache/\n\n');
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+			await page.goto(TRANSFERS);
+			await expect(box).toHaveValue('backups/\ncache/');
+		} finally {
+			await page.goto(TRANSFERS);
+			await box.fill(before);
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+		}
+	});
+
+	test('the e-mail on pause and recovery starts on, names the address and turns off', async ({ page }) => {
+		await page.goto(LOGGING);
+		const mail = page.locator('input[name="notify_email"]');
+		await expect(mail).toBeChecked();
+		await expect(page.locator('.diluxone-offload-settings')).toContainText(/E-mail \S+@\S+ when uploads to the cloud pause/);
+		try {
+			await mail.uncheck();
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+			await page.goto(LOGGING);
+			await expect(mail).not.toBeChecked();
+		} finally {
+			await mail.check();
+			await page.getByRole('button', { name: /Save Settings/ }).click();
+		}
+	});
+});
+
+test.describe('Tools › Site Health', () => {
+	test('lists the storage test and the plugin\'s Info section', async ({ page }) => {
+		await page.goto('/wp-admin/site-health.php');
+		await expect(page.locator('body')).toContainText(/DiluxOne Offload (has no storage configured yet|reaches its storage|could not reach its storage)/, { timeout: 60_000 });
+		await page.goto('/wp-admin/site-health.php?tab=debug');
+		await expect(page.locator('#health-check-debug')).toContainText('DiluxOne Offload');
+	});
+});
+
 test.describe('Settings › Serving', () => {
 	const SERVING = `${ADMIN}?page=diluxone-offload-settings&tab=serving`;
 

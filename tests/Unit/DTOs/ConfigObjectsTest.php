@@ -434,4 +434,21 @@ class ConfigObjectsTest extends TestCase {
 	public function test_an_unknown_storage_class_is_standard(): void {
 		$this->assertSame( 'standard', PluginSettings::fromArray( array( 'storage_class' => 'GLACIER' ) )->getStorageClass() );
 	}
+
+	public function test_excluded_folders_are_relative_to_uploads_and_end_in_a_slash(): void {
+		$this->assertSame(
+			array( 'backups/', 'cache/tmp/' ),
+			PluginSettings::clean_folders( array( ' /backups ', 'wp-content/uploads/cache//tmp', 'uploads/backups/', '', '../etc', 'a/../b' ) )
+		);
+		$this->assertCount( 50, PluginSettings::clean_folders( array_map( fn( $i ) => "f{$i}", range( 1, 80 ) ) ) );
+	}
+
+	public function test_transfers_saves_the_folders_one_per_line_and_logging_the_email_switch(): void {
+		$s = ( new PluginSettings() )->withPostedGroup( 'transfers', array( 'excluded_folders' => "backups\r\ncache/\n\n" ) );
+		$this->assertSame( array( 'backups/', 'cache/' ), $s->getExcludedFolders() );
+		$this->assertTrue( $s->shouldNotifyEmail(), 'on by default' );
+		$s = $s->withPostedGroup( 'logging', array() );
+		$this->assertFalse( $s->shouldNotifyEmail(), 'an unchecked box is off' );
+		$this->assertSame( array( 'backups/', 'cache/' ), $s->getExcludedFolders(), 'another tab leaves the folders alone' );
+	}
 }

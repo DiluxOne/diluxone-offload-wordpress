@@ -41,6 +41,10 @@ class PluginSettings {
 	private string $cacheControl;
 	/** @var string `standard` or `infrequent`: the storage class or access tier of new uploads. */
 	private string $storageClass;
+	/** @var string[] Folders under uploads/ the initial sync leaves out, each ending in `/`. */
+	private array $excludedFolders;
+	/** @var bool Whether the site's administrator e-mail hears when uploads pause and when they resume. */
+	private bool $notifyEmail;
 
 	/** One week in browsers' and CDNs' caches: what a site's media rarely outlives. */
 	const DEFAULT_CACHE_CONTROL = 'public, max-age=604800';
@@ -51,16 +55,18 @@ class PluginSettings {
 	/**
 	 * Constructor
 	 *
-	 * @param bool   $debugEnabled
-	 * @param bool   $keepLocalFiles
-	 * @param bool   $autoActivateOffloading
-	 * @param bool   $forceHttpsOnCloud
-	 * @param int    $timeout
-	 * @param int    $maxFileSize
-	 * @param string $allowedFileTypes
-	 * @param bool   $cacheControlEnabled
-	 * @param string $cacheControl
-	 * @param string $storageClass
+	 * @param bool     $debugEnabled
+	 * @param bool     $keepLocalFiles
+	 * @param bool     $autoActivateOffloading
+	 * @param bool     $forceHttpsOnCloud
+	 * @param int      $timeout
+	 * @param int      $maxFileSize
+	 * @param string   $allowedFileTypes
+	 * @param bool     $cacheControlEnabled
+	 * @param string   $cacheControl
+	 * @param string   $storageClass
+	 * @param string[] $excludedFolders
+	 * @param bool     $notifyEmail
 	 *
 	 * @throws \InvalidArgumentException When timeout or maxFileSize are negative.
 	 */
@@ -74,7 +80,9 @@ class PluginSettings {
 		string $allowedFileTypes = '*',
 		bool $cacheControlEnabled = true,
 		string $cacheControl = self::DEFAULT_CACHE_CONTROL,
-		string $storageClass = 'standard'
+		string $storageClass = 'standard',
+		array $excludedFolders = array(),
+		bool $notifyEmail = true
 	) {
 		// Validations
 		if ( $timeout <= 0 ) {
@@ -96,6 +104,30 @@ class PluginSettings {
 		$this->cacheControlEnabled = $cacheControlEnabled;
 		$this->cacheControl        = self::clean_cache_control( $cacheControl );
 		$this->storageClass        = in_array( $storageClass, self::STORAGE_CLASSES, true ) ? $storageClass : 'standard';
+		$this->excludedFolders     = self::clean_folders( $excludedFolders );
+		$this->notifyEmail         = $notifyEmail;
+	}
+
+	/**
+	 * Folders as the initial sync compares them: relative to uploads/, no
+	 * leading slash, a trailing one, no `..`, no duplicates, at most 50.
+	 * `backups`, `/backups/` and `uploads/backups` are all `backups/`.
+	 *
+	 * @param array<int|string, mixed> $folders The folders, one per entry.
+	 * @return string[]
+	 */
+	public static function clean_folders( array $folders ): array {
+		$clean = array();
+		foreach ( $folders as $folder ) {
+			$folder = trim( str_replace( '\\', '/', (string) $folder ) );
+			$folder = (string) preg_replace( '#^/*(wp-content/)?uploads/#', '', '/' . ltrim( $folder, '/' ) );
+			$folder = trim( (string) preg_replace( '#/+#', '/', $folder ), '/' );
+			if ( '' === $folder || in_array( '..', explode( '/', $folder ), true ) ) {
+				continue;
+			}
+			$clean[ $folder . '/' ] = true;
+		}
+		return array_slice( array_keys( $clean ), 0, 50 );
 	}
 
 	/**
@@ -128,7 +160,9 @@ class PluginSettings {
 			$config['allowed_file_types'] ?? '*',
 			(bool) ( $config['cache_control_enabled'] ?? true ),
 			(string) ( $config['cache_control'] ?? self::DEFAULT_CACHE_CONTROL ),
-			(string) ( $config['storage_class'] ?? 'standard' )
+			(string) ( $config['storage_class'] ?? 'standard' ),
+			(array) ( $config['excluded_folders'] ?? array() ),
+			(bool) ( $config['notify_email'] ?? true )
 		);
 	}
 
@@ -173,8 +207,9 @@ class PluginSettings {
 			case 'transfers':
 				return $this->merge(
 					array(
-						'timeout'       => max( 30, min( 600, intval( $post['timeout'] ?? $this->timeout ) ) ),
-						'max_file_size' => max( 1, min( 500, intval( $post['max_file_size'] ?? round( $this->maxFileSize / 1048576 ) ) ) ) * 1048576,
+						'timeout'          => max( 30, min( 600, intval( $post['timeout'] ?? $this->timeout ) ) ),
+						'max_file_size'    => max( 1, min( 500, intval( $post['max_file_size'] ?? round( $this->maxFileSize / 1048576 ) ) ) ) * 1048576,
+						'excluded_folders' => isset( $post['excluded_folders'] ) ? preg_split( '/\R/', (string) $post['excluded_folders'] ) : $this->excludedFolders,
 					)
 				);
 			case 'serving':
@@ -187,7 +222,12 @@ class PluginSettings {
 					)
 				);
 			case 'logging':
-				return $this->merge( array( 'debug_enabled' => isset( $post['enable_debug_logging'] ) ) );
+				return $this->merge(
+					array(
+						'debug_enabled' => isset( $post['enable_debug_logging'] ),
+						'notify_email'  => isset( $post['notify_email'] ),
+					)
+				);
 		}
 
 		throw new \InvalidArgumentException( 'Unknown settings group: ' . esc_html( $group ) );
@@ -304,6 +344,24 @@ class PluginSettings {
 	}
 
 	/**
+	 * Folders under uploads/ the initial sync leaves out, each ending in `/`.
+	 *
+	 * @return string[]
+	 */
+	public function getExcludedFolders(): array {
+		return $this->excludedFolders;
+	}
+
+	/**
+	 * Whether the administrator e-mail hears when uploads pause and resume.
+	 *
+	 * @return bool
+	 */
+	public function shouldNotifyEmail(): bool {
+		return $this->notifyEmail;
+	}
+
+	/**
 	 * Convert to array format
 	 *
 	 * @return array<string, mixed>
@@ -321,6 +379,8 @@ class PluginSettings {
 			'cache_control_enabled'    => $this->cacheControlEnabled,
 			'cache_control'            => $this->cacheControl,
 			'storage_class'            => $this->storageClass,
+			'excluded_folders'         => $this->excludedFolders,
+			'notify_email'             => $this->notifyEmail,
 		);
 	}
 

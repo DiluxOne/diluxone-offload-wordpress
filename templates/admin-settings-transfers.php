@@ -68,6 +68,21 @@ $config = $config ?? array();
 						</p>
 					</td>
 				</tr>
+				<tr>
+					<th scope="row">
+						<label for="excluded_folders"><?php esc_html_e( 'Folders the initial sync leaves out', 'diluxone-offload' ); ?></label>
+					</th>
+					<td>
+						<textarea id="excluded_folders"
+								name="excluded_folders"
+								rows="4"
+								class="large-text code"
+								placeholder="backups/&#10;cache/"><?php echo esc_textarea( implode( "\n", (array) ( $config['excluded_folders'] ?? array() ) ) ); ?></textarea>
+						<p class="description">
+							<?php esc_html_e( 'One folder per line, under wp-content/uploads/ (for example backups/ or cache/). The initial sync skips them and lists them on the Sync screen. Files uploaded through the site while offloading is on still go to the cloud.', 'diluxone-offload' ); ?>
+						</p>
+					</td>
+				</tr>
 			</table>
 		</div>
 

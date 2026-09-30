@@ -484,8 +484,9 @@ class Admin {
 				$fields[ $key ] = '';
 				continue;
 			}
+			// A textarea keeps its line breaks (one excluded folder per line).
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by the caller.
-			$fields[ $key ] = sanitize_text_field( (string) wp_unslash( $_POST[ $key ] ) );
+			$fields[ $key ] = 'excluded_folders' === $key ? sanitize_textarea_field( (string) wp_unslash( $_POST[ $key ] ) ) : sanitize_text_field( (string) wp_unslash( $_POST[ $key ] ) );
 		}
 
 		return $fields;
@@ -1166,6 +1167,7 @@ class Admin {
 	public static function skip_reason_label( string $reason ): string {
 		$fixed = array(
 			'empty_file'                  => \__( 'Empty files', 'diluxone-offload' ),
+			'excluded_folder'             => \__( 'In a folder Settings › Transfers leaves out', 'diluxone-offload' ),
 			'path_too_long'               => \__( 'Paths too long for the tracking table', 'diluxone-offload' ),
 			'Cache directories'           => \__( 'Cache directories', 'diluxone-offload' ),
 			'Temporary directories'       => \__( 'Temporary directories', 'diluxone-offload' ),
@@ -1878,6 +1880,8 @@ class Admin {
 					self::posted_fields(
 						array(
 							'enable_debug_logging',
+							'notify_email',
+							'excluded_folders',
 							'force_https_on_cloud',
 							'cache_control_enabled',
 							'cache_control',

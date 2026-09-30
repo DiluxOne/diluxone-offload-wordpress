@@ -99,7 +99,11 @@ class ConfigManager {
 		'error_message'        => '',
 		'error_source'         => '',
 		'consecutive_failures' => 0,
+		'paused_notified'      => false,
 	);
+
+	/** Consecutive failures after which writes are refused (uploads paused) until a check succeeds. */
+	const PAUSE_AFTER_FAILURES = 3;
 
 	/**
 	 * Provider-config field names that hold sensitive credentials and must be
@@ -1034,6 +1038,11 @@ class ConfigManager {
 		$health['error_source']         = $source;
 		$health['consecutive_failures'] = ( $health['consecutive_failures'] ?? 0 ) + 1;
 
+		// The failure that pauses uploads says so once, by e-mail.
+		if ( self::PAUSE_AFTER_FAILURES === $health['consecutive_failures'] && empty( $health['paused_notified'] ) ) {
+			$health['paused_notified'] = self::notify_admin( 'paused', $health );
+		}
+
 		update_option( self::HEALTH_OPTION, $health, true );
 
 		// The configured provider's cached stats are stale now.
@@ -1056,6 +1065,11 @@ class ConfigManager {
 		if ( $health['status'] === 'unhealthy' ) {
 			Logger::info( '[DiluxOne Offload ConfigManager] Connection recovered — marking healthy' );
 		}
+		// The pause was announced: so is its end, once.
+		if ( ! empty( $health['paused_notified'] ) ) {
+			self::notify_admin( 'resumed', $health );
+		}
+		$health['paused_notified'] = false;
 
 		$health['status']               = 'healthy';
 		$health['last_check']           = time();
@@ -1066,6 +1080,59 @@ class ConfigManager {
 		$health['consecutive_failures'] = 0;
 
 		update_option( self::HEALTH_OPTION, $health, true );
+	}
+
+	/**
+	 * E-mail the site's administrator address that uploads paused or resumed
+	 * (Settings › Logging, on by default). One message per transition, never
+	 * one per failure: the caller sends `paused` on the failure that pauses
+	 * uploads and `resumed` on the success after it. The message says what
+	 * failed and where to look; it carries no key or secret.
+	 *
+	 * @param string               $event  `paused` or `resumed`.
+	 * @param array<string, mixed> $health The connection health as recorded.
+	 * @return bool Whether a message was handed to wp_mail().
+	 */
+	private static function notify_admin( string $event, array $health ): bool {
+		if ( ! self::get_plugin_config_dto()->getSettings()->shouldNotifyEmail() ) {
+			return false;
+		}
+		$to = (string) get_option( 'admin_email' );
+		if ( ! is_email( $to ) ) {
+			return false;
+		}
+
+		$site   = wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
+		$health = array_merge( self::DEFAULT_HEALTH, $health );
+		$where  = admin_url( 'admin.php?page=diluxone-offload-status&tab=health' );
+		if ( 'paused' === $event ) {
+			/* translators: %s: the site's name */
+			$subject = sprintf( __( '[%s] Media uploads to the cloud are paused', 'diluxone-offload' ), $site );
+			$body    = implode(
+				"\n\n",
+				array(
+					__( 'DiluxOne Offload could not reach your storage three times in a row, so new uploads are refused until it answers again. Nothing is written on the server instead.', 'diluxone-offload' ),
+					/* translators: 1: an error code such as 403, 2: what the storage service answered */
+					sprintf( __( 'What failed: %1$s %2$s', 'diluxone-offload' ), (string) $health['error_code'], (string) $health['error_message'] ),
+					/* translators: %s: the address of the plugin's Status › Health screen */
+					sprintf( __( 'Status › Health: %s', 'diluxone-offload' ), $where ),
+					__( 'You get one more e-mail when uploads resume. Turn these e-mails off in Settings › Logging.', 'diluxone-offload' ),
+				)
+			);
+		} else {
+			/* translators: %s: the site's name */
+			$subject = sprintf( __( '[%s] Media uploads to the cloud resumed', 'diluxone-offload' ), $site );
+			$body    = implode(
+				"\n\n",
+				array(
+					__( 'DiluxOne Offload reaches your storage again, and new uploads go to the cloud as before.', 'diluxone-offload' ),
+					/* translators: %s: the address of the plugin's Status › Health screen */
+					sprintf( __( 'Status › Health: %s', 'diluxone-offload' ), $where ),
+				)
+			);
+		}
+
+		return (bool) wp_mail( $to, $subject, $body );
 	}
 
 	/**

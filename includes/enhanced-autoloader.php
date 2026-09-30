@@ -40,6 +40,7 @@ function diluxone_offload_autoloader( string $class_name ): void {
 		'Plugin'                                  => 'includes/class-diluxone-offload-plugin-enhanced.php',
 		'ValidationHelper'                        => 'includes/class-diluxone-offload-validation-helper.php',
 		'MimeHelper'                              => 'includes/class-diluxone-offload-mime-helper.php',
+		'SiteHealth'                              => 'includes/class-diluxone-offload-site-health.php',
 
 		// Image Editors
 		'DiluxOneOffload_Image_Editor_Imagick'    => 'includes/class-diluxone-offload-image-editor-imagick.php',

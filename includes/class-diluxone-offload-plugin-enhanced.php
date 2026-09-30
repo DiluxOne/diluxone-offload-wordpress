@@ -111,6 +111,7 @@ class Plugin {
 		// Admin interface
 		if ( is_admin() ) {
 			Admin::init(); // Initialize legacy admin correctly
+			SiteHealth::init();
 
 			// Recursion-based sync endpoints
 			add_action( 'wp_ajax_diluxone_offload_start_sync', array( $this, 'ajax_cs_start_sync' ) );
