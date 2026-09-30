@@ -41,8 +41,11 @@ class S3Presets {
 	 * S3 buckets created since April 2023 refuse it). `max_parts` is the most
 	 * parts one multipart upload may have, when the service allows fewer than
 	 * Amazon's 10,000 (Scaleway: 1,000); a large file then goes in larger parts.
+	 * `infrequent` means the service stores a new object in a cheaper class
+	 * for files read less often when asked with `x-amz-storage-class:
+	 * STANDARD_IA` (Amazon S3, Cloudflare R2), which Settings › Serving offers.
 	 *
-	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool, max_parts?: int}>
+	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool, max_parts?: int, infrequent?: bool}>
 	 */
 	public static function all(): array {
 		return array(
@@ -54,6 +57,7 @@ class S3Presets {
 				'path_style'   => false,
 				'public_url'   => 'https://{bucket}.s3.{region}.amazonaws.com',
 				'http'         => false,
+				'infrequent'   => true,
 				'acl'          => true,
 			),
 			'r2'       => array(
@@ -64,6 +68,7 @@ class S3Presets {
 				'path_style'   => true,
 				'public_url'   => '',
 				'http'         => false,
+				'infrequent'   => true,
 				'acl'          => false,
 			),
 			'b2'       => array(
@@ -189,6 +194,17 @@ class S3Presets {
 	 */
 	public static function max_parts( string $preset ): int {
 		return (int) ( self::all()[ $preset ]['max_parts'] ?? 10000 );
+	}
+
+	/**
+	 * Whether the service offers an infrequent-access class for new objects
+	 * through `x-amz-storage-class: STANDARD_IA`.
+	 *
+	 * @param string $preset Preset key.
+	 * @return bool
+	 */
+	public static function offers_infrequent( string $preset ): bool {
+		return (bool) ( self::all()[ $preset ]['infrequent'] ?? false );
 	}
 
 	/**

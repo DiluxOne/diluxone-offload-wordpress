@@ -112,6 +112,13 @@ class AzureProvider implements CloudStorageClientInterface {
 	private int $download_timeout;
 	/** @var string */
 	private string $endpoint;
+	/**
+	 * Headers a new blob carries besides its type: `x-ms-blob-cache-control`
+	 * and `x-ms-access-tier` (Settings › Serving), when set.
+	 *
+	 * @var array<string,string>
+	 */
+	private array $new_blob_headers = array();
 	// NOTE: use_https removed - HTTPS is always enforced (Azure requirement)
 
 	/**
@@ -130,6 +137,14 @@ class AzureProvider implements CloudStorageClientInterface {
 		// passes the setting under that name and nothing else needs to change.
 		$this->transfer_timeout = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
 		$this->download_timeout = max( 300, $this->transfer_timeout );
+
+		$cache_control = (string) ( $config['cache_control'] ?? '' );
+		if ( '' !== $cache_control ) {
+			$this->new_blob_headers['x-ms-blob-cache-control'] = $cache_control;
+		}
+		if ( 'infrequent' === ( $config['storage_class'] ?? '' ) ) {
+			$this->new_blob_headers['x-ms-access-tier'] = 'Cool';
+		}
 
 		// Build endpoint with HTTPS (Azure requirement - always enforced)
 		$this->endpoint = "https://{$this->storage_account}.blob.core.windows.net";
@@ -518,7 +533,8 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$date           = gmdate( 'D, d M Y H:i:s T' );
 		$content_length = strlen( $block_list_xml );
-		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n{$resource}\ncomp:blocklist";
+		$ms             = $this->commit_ms( $content_type, $date );
+		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\n" . self::canonical_ms( $ms ) . "\n{$resource}\ncomp:blocklist";
 		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
 		$response = $this->send_with_retry(
@@ -526,13 +542,10 @@ class AzureProvider implements CloudStorageClientInterface {
 			array(
 				'method'  => 'PUT',
 				'headers' => array(
-					'Authorization'          => 'SharedKey ' . $this->storage_account . ':' . $signature,
-					'Content-Type'           => 'application/xml',
-					'Content-Length'         => (string) $content_length,
-					'x-ms-blob-content-type' => $content_type,
-					'x-ms-date'              => $date,
-					'x-ms-version'           => '2020-04-08',
-				),
+					'Authorization'  => 'SharedKey ' . $this->storage_account . ':' . $signature,
+					'Content-Type'   => 'application/xml',
+					'Content-Length' => (string) $content_length,
+				) + $ms,
 				'body'    => $block_list_xml,
 				'timeout' => $this->transfer_timeout,
 			)
@@ -776,11 +789,14 @@ class AzureProvider implements CloudStorageClientInterface {
 			// Build canonicalized resource
 			$canonicalized_resource = '/' . $this->storage_account . $parsed_url['path'];
 
-			// Build canonicalized headers (x-ms-* headers sorted alphabetically)
-			// For Copy Blob: x-ms-copy-source comes before x-ms-date
-			$canonicalized_headers  = 'x-ms-copy-source:' . $source_url . "\n";
-			$canonicalized_headers .= 'x-ms-date:' . $date . "\n";
-			$canonicalized_headers .= 'x-ms-version:2020-04-08';
+			// The copy keeps the source's properties (Cache-Control among
+			// them) but not its tier: the new blob is told it again.
+			$ms                    = array(
+				'x-ms-copy-source' => $source_url,
+				'x-ms-date'        => $date,
+				'x-ms-version'     => '2020-04-08',
+			) + array_intersect_key( $this->new_blob_headers, array( 'x-ms-access-tier' => true ) );
+			$canonicalized_headers = self::canonical_ms( $ms );
 
 			// Build string to sign
 			$string_to_sign = "PUT\n" .
@@ -803,12 +819,9 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			// Build headers
 			$headers = array(
-				'Authorization'    => $authorization,
-				'x-ms-date'        => $date,
-				'x-ms-version'     => '2020-04-08',
-				'x-ms-copy-source' => $source_url,
-				'Content-Length'   => '0',
-			);
+				'Authorization'  => $authorization,
+				'Content-Length' => '0',
+			) + $ms;
 
 			// Execute copy request
 			$response = $this->send_with_retry(
@@ -1027,6 +1040,52 @@ class AzureProvider implements CloudStorageClientInterface {
 	}
 
 	/**
+	 * The x-ms-* headers of a request as the string to sign wants them: one
+	 * `name:value` line each, in alphabetical order, no trailing newline.
+	 *
+	 * @param array<string,string> $ms The request's x-ms-* headers.
+	 * @return string
+	 */
+	private static function canonical_ms( array $ms ): string {
+		ksort( $ms );
+		$lines = array();
+		foreach ( $ms as $name => $value ) {
+			$lines[] = $name . ':' . $value;
+		}
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * The same headers as curl wants them.
+	 *
+	 * @param array<string,string> $ms Headers.
+	 * @return string[]
+	 */
+	private static function header_lines( array $ms ): array {
+		$lines = array();
+		foreach ( $ms as $name => $value ) {
+			$lines[] = $name . ': ' . $value;
+		}
+		return $lines;
+	}
+
+	/**
+	 * The x-ms-* headers of a Put Block List: the blob's content type and the
+	 * new-blob headers, which Azure sets on the blob the list commits.
+	 *
+	 * @param string $content_type The blob's content type.
+	 * @param string $date         The request's date.
+	 * @return array<string,string>
+	 */
+	private function commit_ms( string $content_type, string $date ): array {
+		return array(
+			'x-ms-blob-content-type' => $content_type,
+			'x-ms-date'              => $date,
+			'x-ms-version'           => '2020-04-08',
+		) + $this->new_blob_headers;
+	}
+
+	/**
 	 * Generate Azure Blob Storage authentication headers
 	 *
 	 * @param string $method HTTP method
@@ -1063,19 +1122,20 @@ class AzureProvider implements CloudStorageClientInterface {
 			$content_type = 'application/octet-stream';
 		}
 
-		// Build canonicalized headers (x-ms-* headers sorted alphabetically)
-		$canonicalized_headers = '';
-
-		// ⭐ CRITICAL: Include x-ms-blob-content-type in signature for PUT requests
-		// Azure requires ALL x-ms-* headers to be signed in alphabetical order
-		// This fixes 403 errors when using stream_flush() with file_put_contents()
+		// Every x-ms-* header the request sends is signed, in alphabetical
+		// order (canonical_ms()). A PUT with a body is a Put Blob: it carries
+		// the blob's type and content type and the new-blob headers.
+		$ms = array(
+			'x-ms-date'    => $date,
+			'x-ms-version' => '2020-04-08',
+		);
 		if ( $body && $method === 'PUT' ) {
-			$canonicalized_headers .= 'x-ms-blob-content-type:' . $content_type . "\n";  // 'c' comes before 't'
-			$canonicalized_headers .= "x-ms-blob-type:BlockBlob\n";
+			$ms += array(
+				'x-ms-blob-content-type' => $content_type,
+				'x-ms-blob-type'         => 'BlockBlob',
+			) + $this->new_blob_headers;
 		}
-
-		$canonicalized_headers .= 'x-ms-date:' . $date . "\n";
-		$canonicalized_headers .= 'x-ms-version:2020-04-08';
+		$canonicalized_headers = self::canonical_ms( $ms );
 
 		$string_to_sign = $method . "\n" .
 						"\n" . // Content-Encoding
@@ -1096,16 +1156,10 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$authorization = 'SharedKey ' . $this->storage_account . ':' . $signature;
 
-		$headers = array(
-			'Authorization' => $authorization,
-			'x-ms-date'     => $date,
-			'x-ms-version'  => '2020-04-08',
-		);
+		$headers = array( 'Authorization' => $authorization ) + $ms;
 
 		if ( $body && $method === 'PUT' ) {
-			$headers['x-ms-blob-type']         = 'BlockBlob';
-			$headers['Content-Type']           = $content_type;
-			$headers['x-ms-blob-content-type'] = $content_type;  // Set blob metadata Content-Type
+			$headers['Content-Type'] = $content_type;
 			if ( $content_md5 ) {
 				$headers['Content-MD5'] = $content_md5;
 			}
@@ -1153,7 +1207,12 @@ class AzureProvider implements CloudStorageClientInterface {
 
 			// Generate Azure Shared Key signature
 			$date           = gmdate( 'D, d M Y H:i:s T' );
-			$string_to_sign = "PUT\n\n\n{$file_size}\n\n{$content_type}\n\n\n\n\n\n\nx-ms-blob-type:BlockBlob\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}";
+			$ms             = array(
+				'x-ms-blob-type' => 'BlockBlob',
+				'x-ms-date'      => $date,
+				'x-ms-version'   => '2020-04-08',
+			) + $this->new_blob_headers;
+			$string_to_sign = "PUT\n\n\n{$file_size}\n\n{$content_type}\n\n\n\n\n\n\n" . self::canonical_ms( $ms ) . "\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}";
 			$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
 			// OPTIMIZED: Open file as stream instead of reading into memory
@@ -1177,13 +1236,13 @@ class AzureProvider implements CloudStorageClientInterface {
 					CURLOPT_UPLOAD         => true, // Enable upload mode
 					CURLOPT_INFILE         => $file_handle, // STREAMING: Read from file handle
 					CURLOPT_INFILESIZE     => $file_size, // Tell cURL the file size
-					CURLOPT_HTTPHEADER     => array(
-						'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
-						'Content-Type: ' . $content_type,
-						'Content-Length: ' . $file_size,
-						'x-ms-blob-type: BlockBlob',
-						'x-ms-date: ' . $date,
-						'x-ms-version: 2020-04-08',
+					CURLOPT_HTTPHEADER     => array_merge(
+						array(
+							'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
+							'Content-Type: ' . $content_type,
+							'Content-Length: ' . $file_size,
+						),
+						self::header_lines( $ms )
 					),
 					CURLOPT_TIMEOUT        => $this->transfer_timeout,
 					CURLOPT_CONNECTTIMEOUT => 30,
@@ -1380,7 +1439,8 @@ class AzureProvider implements CloudStorageClientInterface {
 		$content_length = strlen( $block_list_xml );
 		$content_type   = MimeHelper::get_mime_type( $upload->remotePath() );
 
-		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\nx-ms-blob-content-type:{$content_type}\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\ncomp:blocklist";
+		$ms             = $this->commit_ms( $content_type, $date );
+		$string_to_sign = "PUT\n\n\n{$content_length}\n\napplication/xml\n\n\n\n\n\n\n" . self::canonical_ms( $ms ) . "\n/{$this->storage_account}/{$this->container_name}/{$encoded_path}\ncomp:blocklist";
 		$signature      = base64_encode( hash_hmac( 'sha256', $string_to_sign, base64_decode( $this->access_key ), true ) );
 
 		$ch = curl_init();
@@ -1391,13 +1451,13 @@ class AzureProvider implements CloudStorageClientInterface {
 				CURLOPT_RETURNTRANSFER => true,
 				CURLOPT_CUSTOMREQUEST  => 'PUT',
 				CURLOPT_POSTFIELDS     => $block_list_xml,
-				CURLOPT_HTTPHEADER     => array(
-					'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
-					'Content-Type: application/xml',
-					'Content-Length: ' . $content_length,
-					'x-ms-blob-content-type: ' . $content_type,
-					'x-ms-date: ' . $date,
-					'x-ms-version: 2020-04-08',
+				CURLOPT_HTTPHEADER     => array_merge(
+					array(
+						'Authorization: SharedKey ' . $this->storage_account . ':' . $signature,
+						'Content-Type: application/xml',
+						'Content-Length: ' . $content_length,
+					),
+					self::header_lines( $ms )
 				),
 				CURLOPT_TIMEOUT        => $this->transfer_timeout,
 				CURLOPT_CONNECTTIMEOUT => 30,

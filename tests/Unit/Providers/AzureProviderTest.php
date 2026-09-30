@@ -183,6 +183,62 @@ class AzureProviderTest extends TestCase {
 
 	// ── upload / delete / exists ────────────────────────────
 
+	public function test_a_new_blob_carries_cache_control_and_the_tier_and_they_are_signed(): void {
+		$provider = new AzureProvider(
+			array(
+				'storage_account' => self::ACCOUNT,
+				'container_name'  => self::CONTAINER,
+				'access_key'      => self::KEY,
+				'cache_control'   => 'public, max-age=604800',
+				'storage_class'   => 'infrequent',
+			)
+		);
+		$tmp = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $tmp, 'hello-blob' );
+		$this->answer( fn() => self::reply( 201 ) );
+
+		$this->assertTrue( $provider->upload_file( $tmp, '2026/01/hello.txt' )['success'] );
+		@unlink( $tmp );
+
+		$req = $this->requests()[0];
+		$h   = $req['args']['headers'];
+		$this->assertSame( 'public, max-age=604800', $h['x-ms-blob-cache-control'] );
+		$this->assertSame( 'Cool', $h['x-ms-access-tier'] );
+		// Every x-ms-* header is signed, in alphabetical order.
+		$sts = "PUT\n\n\n10\n" . $h['Content-MD5'] . "\napplication/octet-stream\n\n\n\n\n\n\n"
+			. "x-ms-access-tier:Cool\nx-ms-blob-cache-control:public, max-age=604800\nx-ms-blob-content-type:application/octet-stream\nx-ms-blob-type:BlockBlob\n"
+			. 'x-ms-date:' . $h['x-ms-date'] . "\nx-ms-version:2020-04-08\n/unitacct/media/2026/01/hello.txt";
+		$this->assertSame( 'SharedKey unitacct:' . base64_encode( hash_hmac( 'sha256', $sts, base64_decode( self::KEY ), true ) ), $h['Authorization'] );
+	}
+
+	public function test_without_the_settings_a_new_blob_carries_neither_header(): void {
+		$tmp = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $tmp, 'hello-blob' );
+		$this->answer( fn() => self::reply( 201 ) );
+		$this->provider->upload_file( $tmp, '2026/01/hello.txt' );
+		@unlink( $tmp );
+		$h = $this->requests()[0]['args']['headers'];
+		$this->assertArrayNotHasKey( 'x-ms-blob-cache-control', $h );
+		$this->assertArrayNotHasKey( 'x-ms-access-tier', $h );
+	}
+
+	public function test_a_copy_is_told_the_tier_again_but_not_the_cache_control_it_copies(): void {
+		$provider = new AzureProvider(
+			array(
+				'storage_account' => self::ACCOUNT,
+				'container_name'  => self::CONTAINER,
+				'access_key'      => self::KEY,
+				'cache_control'   => 'public, max-age=60',
+				'storage_class'   => 'infrequent',
+			)
+		);
+		$this->answer( fn() => self::reply( 202, '', array( 'x-ms-copy-status' => 'success' ) ) );
+		$provider->copy_blob( 'a.jpg', 'b.jpg' );
+		$h = $this->requests()[0]['args']['headers'];
+		$this->assertSame( 'Cool', $h['x-ms-access-tier'] );
+		$this->assertArrayNotHasKey( 'x-ms-blob-cache-control', $h );
+	}
+
 	public function test_upload_sends_a_put_with_the_file_body(): void {
 		$tmp = tempnam( sys_get_temp_dir(), 'az' );
 		file_put_contents( $tmp, 'hello-blob' );

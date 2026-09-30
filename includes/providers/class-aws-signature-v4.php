@@ -66,8 +66,8 @@ class AwsSignatureV4 {
 	 * The headers to send with an S3 request: the caller's, plus Host,
 	 * x-amz-date, x-amz-content-sha256 and Authorization.
 	 *
-	 * Signed: host, every x-amz-* header, and content-type, content-md5 and
-	 * range when present. Any other header the caller passes is sent unsigned,
+	 * Signed: host, every x-amz-* header, and cache-control, content-type,
+	 * content-md5 and range when present. Any other header the caller passes is sent unsigned,
 	 * because a transport may rewrite it (content-length, expect).
 	 *
 	 * @param string               $method       HTTP method.
@@ -85,7 +85,7 @@ class AwsSignatureV4 {
 		$signed = array();
 		foreach ( $headers as $name => $value ) {
 			$lower = strtolower( (string) $name );
-			if ( 'host' === $lower || 0 === strpos( $lower, 'x-amz-' ) || in_array( $lower, array( 'content-type', 'content-md5', 'range' ), true ) ) {
+			if ( 'host' === $lower || 0 === strpos( $lower, 'x-amz-' ) || in_array( $lower, array( 'cache-control', 'content-type', 'content-md5', 'range' ), true ) ) {
 				$signed[ $name ] = (string) $value;
 			}
 		}

@@ -404,4 +404,34 @@ class ConfigObjectsTest extends TestCase {
 		$this->assertSame( 0, $f->getSize() );
 		$this->assertFalse( $f->hasMd5() );
 	}
+
+	public function test_new_uploads_default_to_a_week_of_caching_in_the_standard_class(): void {
+		$s = new PluginSettings();
+		$this->assertTrue( $s->isCacheControlEnabled() );
+		$this->assertSame( 'public, max-age=604800', $s->getCacheControlHeader() );
+		$this->assertSame( 'standard', $s->getStorageClass() );
+		$this->assertSame( $s->toArray(), PluginSettings::fromArray( $s->toArray() )->toArray() );
+	}
+
+	public function test_a_serving_save_sets_caching_and_the_class_and_keeps_the_rest(): void {
+		$s = ( new PluginSettings( false, true, true, true, 90 ) )->withPostedGroup(
+			'serving',
+			array( 'force_https_on_cloud' => '1', 'cache_control' => 'public, max-age=60', 'storage_class' => 'infrequent' )
+		);
+		$this->assertFalse( $s->isCacheControlEnabled(), 'an unchecked box is off' );
+		$this->assertSame( '', $s->getCacheControlHeader() );
+		$this->assertSame( 'public, max-age=60', $s->getCacheControl(), 'the value is kept for when it is turned on again' );
+		$this->assertSame( 'infrequent', $s->getStorageClass() );
+		$this->assertSame( 90, $s->getTimeout() );
+	}
+
+	public function test_a_cache_control_value_keeps_only_what_a_header_may_carry(): void {
+		$this->assertSame( 'public, max-age=60', PluginSettings::clean_cache_control( "public,\r\n max-age=60;\"" ) );
+		$this->assertSame( 'public, max-age=604800', PluginSettings::clean_cache_control( '"";' ) );
+		$this->assertSame( 200, strlen( PluginSettings::clean_cache_control( str_repeat( 'a', 300 ) ) ) );
+	}
+
+	public function test_an_unknown_storage_class_is_standard(): void {
+		$this->assertSame( 'standard', PluginSettings::fromArray( array( 'storage_class' => 'GLACIER' ) )->getStorageClass() );
+	}
 }

@@ -161,6 +161,19 @@ class AdminPostTest extends IntegrationTestCase {
         $this->assertFalse((bool) ConfigManager::get_config()['debug_enabled']);
     }
 
+    public function test_serving_saves_browser_caching_and_the_storage_class(): void {
+        $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'serving', 'force_https_on_cloud' => '1', 'cache_control_enabled' => '1', 'cache_control' => "public, max-age=86400\r\n", 'storage_class' => 'infrequent']);
+        $cfg = ConfigManager::get_config();
+        $this->assertTrue((bool) $cfg['cache_control_enabled']);
+        $this->assertSame('public, max-age=86400', $cfg['cache_control'], 'only what a header may carry');
+        $this->assertSame('infrequent', $cfg['storage_class']);
+
+        $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'serving', 'cache_control' => 'public, max-age=86400', 'storage_class' => 'GLACIER']);
+        $cfg = ConfigManager::get_config();
+        $this->assertFalse((bool) $cfg['cache_control_enabled'], 'unchecked');
+        $this->assertSame('standard', $cfg['storage_class'], 'never an archive class');
+    }
+
     public function test_an_unknown_settings_tab_falls_back_to_transfers(): void {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'settings', 'tab' => 'nope', 'timeout' => '90']);
         $this->assertSame('transfers', $q['tab']);
@@ -198,7 +211,7 @@ class AdminPostTest extends IntegrationTestCase {
         } finally {
             remove_filter('pre_update_option_diluxone_offload_config', [$this, 'keepOldOption'], 10);
         }
-        $this->assertStringContainsString('Failed to save configuration', $q['error']);
+        $this->assertStringContainsString('The configuration could not be saved', $q['error']);
     }
 
     // ── save_config: the Cloud Provider screen ──────────────
@@ -352,7 +365,7 @@ class AdminPostTest extends IntegrationTestCase {
         $q = $this->submit([Admin::class, 'save_config'], 'diluxone_offload_save_config', ['screen' => 'tools']);
         $this->assertSame('diluxone-offload', $q['page']);
         $this->assertArrayNotHasKey('tab', $q);
-        $this->assertStringContainsString('Invalid save request', $q['error']);
+        $this->assertStringContainsString('The save request was not valid', $q['error']);
     }
 }
 

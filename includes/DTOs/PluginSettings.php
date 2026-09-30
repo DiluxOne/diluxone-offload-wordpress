@@ -35,6 +35,18 @@ class PluginSettings {
 	private int $maxFileSize;
 	/** @var string */
 	private string $allowedFileTypes;
+	/** @var bool Whether new uploads carry a Cache-Control header. */
+	private bool $cacheControlEnabled;
+	/** @var string The Cache-Control value new uploads carry. */
+	private string $cacheControl;
+	/** @var string `standard` or `infrequent`: the storage class or access tier of new uploads. */
+	private string $storageClass;
+
+	/** One week in browsers' and CDNs' caches: what a site's media rarely outlives. */
+	const DEFAULT_CACHE_CONTROL = 'public, max-age=604800';
+
+	/** The storage classes a site can choose, by the name the settings store. */
+	const STORAGE_CLASSES = array( 'standard', 'infrequent' );
 
 	/**
 	 * Constructor
@@ -46,6 +58,9 @@ class PluginSettings {
 	 * @param int    $timeout
 	 * @param int    $maxFileSize
 	 * @param string $allowedFileTypes
+	 * @param bool   $cacheControlEnabled
+	 * @param string $cacheControl
+	 * @param string $storageClass
 	 *
 	 * @throws \InvalidArgumentException When timeout or maxFileSize are negative.
 	 */
@@ -56,7 +71,10 @@ class PluginSettings {
 		bool $forceHttpsOnCloud = true,
 		int $timeout = 60,
 		int $maxFileSize = 20971520,
-		string $allowedFileTypes = '*'
+		string $allowedFileTypes = '*',
+		bool $cacheControlEnabled = true,
+		string $cacheControl = self::DEFAULT_CACHE_CONTROL,
+		string $storageClass = 'standard'
 	) {
 		// Validations
 		if ( $timeout <= 0 ) {
@@ -74,6 +92,23 @@ class PluginSettings {
 		$this->timeout          = $timeout;
 		$this->maxFileSize      = $maxFileSize;
 		$this->allowedFileTypes = $allowedFileTypes;
+
+		$this->cacheControlEnabled = $cacheControlEnabled;
+		$this->cacheControl        = self::clean_cache_control( $cacheControl );
+		$this->storageClass        = in_array( $storageClass, self::STORAGE_CLASSES, true ) ? $storageClass : 'standard';
+	}
+
+	/**
+	 * A Cache-Control value as it may travel in a header: the characters its
+	 * directives use (letters, digits, spaces, commas, `=` and `-`), at most
+	 * 200 of them; the default when nothing is left.
+	 *
+	 * @param string $value The value typed on the Serving tab.
+	 * @return string
+	 */
+	public static function clean_cache_control( string $value ): string {
+		$value = trim( (string) preg_replace( '/\s+/', ' ', (string) preg_replace( '/[^A-Za-z0-9 ,=\-]/', '', $value ) ) );
+		return '' === $value ? self::DEFAULT_CACHE_CONTROL : substr( $value, 0, 200 );
 	}
 
 	/**
@@ -90,7 +125,10 @@ class PluginSettings {
 			$config['force_https_on_cloud'] ?? true,
 			$config['timeout'] ?? 60,
 			$config['max_file_size'] ?? 20971520,
-			$config['allowed_file_types'] ?? '*'
+			$config['allowed_file_types'] ?? '*',
+			(bool) ( $config['cache_control_enabled'] ?? true ),
+			(string) ( $config['cache_control'] ?? self::DEFAULT_CACHE_CONTROL ),
+			(string) ( $config['storage_class'] ?? 'standard' )
 		);
 	}
 
@@ -140,7 +178,14 @@ class PluginSettings {
 					)
 				);
 			case 'serving':
-				return $this->merge( array( 'force_https_on_cloud' => isset( $post['force_https_on_cloud'] ) ) );
+				return $this->merge(
+					array(
+						'force_https_on_cloud'  => isset( $post['force_https_on_cloud'] ),
+						'cache_control_enabled' => isset( $post['cache_control_enabled'] ),
+						'cache_control'         => (string) ( $post['cache_control'] ?? $this->cacheControl ),
+						'storage_class'         => (string) ( $post['storage_class'] ?? $this->storageClass ),
+					)
+				);
 			case 'logging':
 				return $this->merge( array( 'debug_enabled' => isset( $post['enable_debug_logging'] ) ) );
 		}
@@ -223,6 +268,42 @@ class PluginSettings {
 	}
 
 	/**
+	 * Whether new uploads carry a Cache-Control header.
+	 *
+	 * @return bool
+	 */
+	public function isCacheControlEnabled(): bool {
+		return $this->cacheControlEnabled;
+	}
+
+	/**
+	 * The Cache-Control value the setting holds, sent or not.
+	 *
+	 * @return string
+	 */
+	public function getCacheControl(): string {
+		return $this->cacheControl;
+	}
+
+	/**
+	 * The Cache-Control header new uploads carry; '' when the setting is off.
+	 *
+	 * @return string
+	 */
+	public function getCacheControlHeader(): string {
+		return $this->cacheControlEnabled ? $this->cacheControl : '';
+	}
+
+	/**
+	 * The storage class of new uploads: `standard` or `infrequent`.
+	 *
+	 * @return string
+	 */
+	public function getStorageClass(): string {
+		return $this->storageClass;
+	}
+
+	/**
 	 * Convert to array format
 	 *
 	 * @return array<string, mixed>
@@ -237,6 +318,9 @@ class PluginSettings {
 			'timeout'                  => $this->timeout,
 			'max_file_size'            => $this->maxFileSize,
 			'allowed_file_types'       => $this->allowedFileTypes,
+			'cache_control_enabled'    => $this->cacheControlEnabled,
+			'cache_control'            => $this->cacheControl,
+			'storage_class'            => $this->storageClass,
 		);
 	}
 

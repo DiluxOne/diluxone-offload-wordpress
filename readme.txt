@@ -259,6 +259,8 @@ Unreleased.
 * The Sync, Offloading and Disconnect screens and their windows are built on WordPress' own buttons, notices and cards, and take the accent of your admin colour scheme. Offloading's bar shows, in one full bar, the files only in the cloud and, striped, the ones that still have a copy on this server (the disk Delete Local Files can free). While a sync has files pending, the ones that already failed show as a red part of its bar. Messages these screens showed in English only are now translated.
 * Six more services in the S3-compatible provider's Service list: Hetzner Object Storage, Akamai (Linode) Object Storage, Vultr Object Storage, Scaleway Object Storage, OVHcloud Object Storage and IDrive e2. Each fills in the endpoint and, where the service has one, the public URL, and says where its keys come from and how to make the bucket readable.
 * A file too large for the storage service's limit on parts goes up in larger parts instead of failing: past about 5 GB on Scaleway (1,000 parts), past about 48 GB elsewhere.
+* Settings › Serving › New uploads: browser caching, on by default, stores `Cache-Control: public, max-age=604800` (one week, editable, or off) with every new upload, so browsers and CDNs keep your media instead of asking the storage again. And a storage class for new uploads: Standard, or the cheaper infrequent-access class (Azure's Cool tier, STANDARD_IA on Amazon S3 and Cloudflare R2), which charges per read and bills a minimum of 30 days. Files already in the cloud keep what they were stored with.
+* The notices after saving settings, the provider or new credentials are translated.
 
 = 2.0.0 =
 

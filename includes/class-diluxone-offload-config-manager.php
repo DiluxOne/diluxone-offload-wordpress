@@ -685,20 +685,32 @@ class ConfigManager {
 		$plugin_config = self::get_plugin_config_dto();
 
 		try {
-			// The provider config carries the credentials; the "Upload Timeout"
-			// from the Settings tab travels with it so the provider's upload
-			// requests honour it.
+			// The provider config carries the credentials; the settings that
+			// shape its requests travel with it (client_settings()).
 			return CloudStorageFactory::create(
 				$plugin_config->getCloudProvider(),
-				array_merge(
-					$plugin_config->getProviderConfig(),
-					array( 'upload_timeout' => $plugin_config->getTimeout() )
-				)
+				array_merge( $plugin_config->getProviderConfig(), self::client_settings() )
 			);
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload ConfigManager] Failed to create cloud client: ' . $e->getMessage() );
 			return null;
 		}
+	}
+
+	/**
+	 * The settings a provider's requests follow, merged into its config:
+	 * the Transfer Timeout, and the Cache-Control header and storage class
+	 * new uploads carry (Settings › Serving).
+	 *
+	 * @return array{upload_timeout: int, cache_control: string, storage_class: string}
+	 */
+	public static function client_settings(): array {
+		$settings = self::get_plugin_config_dto()->getSettings();
+		return array(
+			'upload_timeout' => $settings->getTimeout(),
+			'cache_control'  => $settings->getCacheControlHeader(),
+			'storage_class'  => $settings->getStorageClass(),
+		);
 	}
 
 	/**
