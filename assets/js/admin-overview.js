@@ -35,7 +35,7 @@ jQuery(document).ready(function($) {
 		// instead would collapse the card to the height of a spinner and make
 		// the whole page jump twice per refresh.
 		$wrap.addClass('diluxone-offload-loading').attr('aria-busy', 'true');
-		$('#stats-loading').show();
+		$('#stats-loading').prop('hidden', false);
 
 		$.ajax({
 			url: ajaxurl,
@@ -119,7 +119,7 @@ jQuery(document).ready(function($) {
 			complete: function() {
 				$button.prop('disabled', false);
 				$button.find('.dashicons').removeClass('spin');
-				$('#stats-loading').hide();
+				$('#stats-loading').prop('hidden', true);
 				$wrap.removeClass('diluxone-offload-loading').attr('aria-busy', 'false');
 			}
 		});
