@@ -41,7 +41,8 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make lint-fix` | PHPCBF — auto-fix the violations PHPCS can repair. |
 | `make stan` | PHPStan level 8 (no baseline). |
 | `make psalm` | Psalm taint analysis (XSS / SQLi / RCE). |
-| `make i18n` | `wp i18n make-pot` — extract the translatable strings into `build/diluxone-offload.pot`. |
+| `make i18n` | `wp i18n make-pot`: regenerate `languages/diluxone-offload.pot` from the translatable strings. |
+| `make i18n-check` | The same extraction into `build/`; any make-pot warning fails, as in CI. |
 | `make test` | Run the unit-test suite (the default test target — fast, no WordPress runtime needed). |
 | `make test-integration` | Run the integration-test suite against `wp-env` (must be `make env` first). |
 | `make check` | The fast gates: lint + stan + psalm + unit tests. CI also runs integration, E2E, i18n, Plugin Check and the real-storage suite, once per change: a pull request runs them when it changes code, the push to `main` skips them when its tree is the one the pull request tested, and a weekly run (or *Run workflow*) runs everything. |
@@ -52,7 +53,7 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make plugin-check` | wordpress.org's Plugin Check on the built dist. |
 | `make review-local` | The pull request's conventions, risk floor and Claude review, before the pull request exists (`REVIEW_ARGS="--body-file pr.md"`, `--title`, `--no-claude`). Clones [DiluxOne/.github](https://github.com/DiluxOne/.github) into `build/.dx-central`; `REVIEW_CENTRAL=<path>` uses your own checkout. |
 | `make docs-check` | What CI's docs job checks: relative links in every Markdown file resolve (lychee, the version CI runs) and no retired product name is back. |
-| `make pre-pr` | One after the other: `make check`, `make test-unit-min` (PHP 7.4), `make docs-check`, the integration suite, the end-to-end suite, Plugin Check and `make review-local`. Needs `make env` and `make env-multisite`. |
+| `make pre-pr` | One after the other: `make check`, `make i18n-check`, `make test-unit-min` (PHP 7.4), `make docs-check`, the integration suite, the end-to-end suite, Plugin Check and `make review-local`. Needs `make env` and `make env-multisite`. |
 | `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, stamped like `make dist`, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
 | `make release` | `make check` plus a version-alignment dry-run; fails if the PHP `Version:` header and the `readme.txt` `Stable tag:` would not match at tag time. |
 | `make clean` | Wipe caches and build artefacts. |

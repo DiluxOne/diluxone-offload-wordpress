@@ -47,7 +47,8 @@ paid review and a round of waiting.
    make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
    ```
    One after the other, it runs what a pull request is checked on:
-   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the unit
+   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the
+   string extraction CI fails on any warning of (`make i18n-check`), the unit
    tests again on PHP 7.4, the minimum (`make test-unit-min`), the docs
    check (`make docs-check`: links resolve, no retired product name), the
    integration suite, the end-to-end suite, wordpress.org's Plugin Check,
