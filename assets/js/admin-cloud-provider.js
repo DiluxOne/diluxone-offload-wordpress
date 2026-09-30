@@ -245,11 +245,12 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				$button.prop('disabled', false);
 				$button.html('<span class="dashicons dashicons-admin-links"></span>' + DiluxOneOffloadProvider.i18n.test_connection);
+				// The message comes escaped (esc_html() in Admin::ajax_test_connection()).
 				if (response.success) {
-					$result.html('<div class="notice notice-success inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</div>');
+					$result.html('<div class="notice notice-success inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_successful + '</strong><br>' + (response.data.message || '') + '</p></div>');
 					$('#save-new-credentials').prop('disabled', false);
 				} else {
-					$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</div>');
+					$result.html('<div class="notice notice-error inline"><p><strong>' + DiluxOneOffloadProvider.i18n.connection_failed + '</strong><br>' + (response.data.message || '') + '</p></div>');
 					$('#save-new-credentials').prop('disabled', true);
 				}
 			},

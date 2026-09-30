@@ -4,6 +4,12 @@
    The screen: heading, tab strip, content beside the rail
    ========================================================================== */
 
+/* The hidden attribute hides, also where a class sets display (an overlay's
+   flex, WordPress' inline-block spinner): WordPress has no [hidden] rule. */
+.diluxone-offload-admin [hidden] {
+	display: none;
+}
+
 /* "DiluxOne Offload | Overview": WordPress' own h1, nothing added. */
 .diluxone-offload-admin h1 {
 	margin-bottom: 12px;

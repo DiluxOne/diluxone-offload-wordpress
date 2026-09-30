@@ -544,6 +544,7 @@ jQuery(document).ready(function($) {
 					// ⭐ FIXED: Handle different error response formats
 					const errorMsg = response.data?.message || response.data || T.unexpected_response;
 					console.error('[DiluxOne Offload Sync] Batch error:', errorMsg);
+					// The server sends it escaped (esc_html() in ajax_cs_process_batch()); T.unexpected_response is ours.
 					showNotification(DiluxOneOffloadSync.i18n.error_processing_batch + ' ' + errorMsg, 'error');
 				}
 			},
@@ -1510,7 +1511,13 @@ jQuery(document).ready(function($) {
 	});
 
 	// Close Disconnect modal
-	$('.close-disconnect-modal').on('click', function() {
+	// Delegated: the summary after a download with errors adds its own Close.
+	$(document).on('click', '.close-disconnect-modal', function() {
+		if (!$('#disconnect-confirm-view').length) {
+			// That summary replaced the modal's views: the page shows the new state.
+			window.location.reload();
+			return;
+		}
 		$('#disconnect-modal').hide();
 		// Reset modal to initial view
 		$('#disconnect-confirm-view').show();

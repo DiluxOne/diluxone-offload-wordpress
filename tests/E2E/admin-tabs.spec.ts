@@ -71,6 +71,11 @@ for (const view of VIEWS) {
 			els.map((el) => el.getAttribute('style') ?? '').filter((css) => !/^\s*(width:\s*[\d.]+%;?|background:\s*conic-gradient\(.*)\s*$/.test(css))
 		);
 		expect(styled, 'style attributes that are not data').toEqual([]);
+		// And what is marked hidden is not drawn, even where a class sets display.
+		const shown = await wrap.locator('[hidden]').evaluateAll((els) =>
+			els.filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.id || el.className)
+		);
+		expect(shown, 'elements with the hidden attribute that are drawn').toEqual([]);
 
 		// The screen's own assets were enqueued (shared admin.js/admin.css always).
 		await expect(page.locator('link[id^="diluxone-offload-admin"]').first()).toBeAttached();

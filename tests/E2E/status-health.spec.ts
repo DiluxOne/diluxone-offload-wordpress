@@ -91,6 +91,24 @@ test.describe.serial( 'Sync & Offloading › Offloading with the longest account
 	} );
 } );
 
+test( 'what is marked hidden stays hidden, also where a class sets display', async ( { page } ) => {
+	await page.goto( `${ ADMIN }?page=diluxone-offload` );
+	// The pieces that set display and are shown and hidden with the attribute:
+	// the Overview's loading overlay (flex) and WordPress' spinner (inline-block).
+	const drawn = await page.locator( '.wrap.diluxone-offload-admin' ).evaluate( ( wrap ) =>
+		[ 'diluxone-offload-loading-overlay', 'spinner' ].filter( ( cls ) => {
+			const el = document.createElement( 'div' );
+			el.className = cls;
+			el.hidden = true;
+			wrap.appendChild( el );
+			const display = getComputedStyle( el ).display;
+			el.remove();
+			return display !== 'none';
+		} )
+	);
+	expect( drawn ).toEqual( [] );
+} );
+
 test.describe.serial( 'Buttons with an icon', () => {
 	test.beforeAll( () => {
 		configureUnreachableProvider();
