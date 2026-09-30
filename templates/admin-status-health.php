@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Status › Health. The plugin state as four cards, and the connection health table.
+ * Admin: Status › Health. The plugin state as three cards (configuration, offloading, the tracking table), and the connection health table.
  *
  * Local variables are populated by Admin::render_screen_content() in the
  * calling scope. Suppress the prefix sniff:
@@ -16,7 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use DiluxOneOffload\Admin;
 use DiluxOneOffload\ConfigManager;
-use DiluxOneOffload\Enums\PluginState;
 
 $config        = $config ?? array();
 $health        = $health ?? array();
@@ -24,7 +23,6 @@ $tracking_rows = (int) ( $tracking_rows ?? 0 );
 $screen_urls   = $screen_urls ?? array();
 
 // Get current state
-$current_state = ConfigManager::get_state();
 $is_configured = ConfigManager::is_configured();
 $is_offloading = ConfigManager::is_offloading_enabled();
 $plugin_config = $config;
