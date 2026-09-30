@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-30T17:31:24+00:00\n"
+"POT-Creation-Date: 2026-09-30T18:59:12+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -138,7 +138,7 @@ msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:687
 #: templates/admin-provider-connection.php:110
-#: templates/admin-provider-connection.php:207
+#: templates/admin-provider-connection.php:213
 #: templates/admin-provider-credentials.php:108
 msgid "Test Connection"
 msgstr ""
@@ -319,7 +319,7 @@ msgid "Scan and Complete Sync"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:769
-#: templates/admin-provider-connection.php:262
+#: templates/admin-provider-connection.php:268
 #: templates/partials/sync-modal.php:31
 msgid "Sync Files to Cloud"
 msgstr ""
@@ -1682,25 +1682,25 @@ msgid "Service"
 msgstr ""
 
 #: includes/DTOs/ProviderConfig.php:271
-#: templates/admin-provider-connection.php:157
+#: templates/admin-provider-connection.php:163
 #: templates/admin-provider-credentials.php:54
 msgid "Bucket"
 msgstr ""
 
 #: includes/DTOs/ProviderConfig.php:272
-#: templates/admin-provider-connection.php:150
+#: templates/admin-provider-connection.php:156
 #: templates/admin-provider-credentials.php:55
 msgid "Endpoint"
 msgstr ""
 
 #: includes/DTOs/ProviderConfig.php:273
-#: templates/admin-provider-connection.php:144
+#: templates/admin-provider-connection.php:150
 #: templates/admin-provider-credentials.php:56
 msgid "Region"
 msgstr ""
 
 #: includes/DTOs/ProviderConfig.php:274
-#: templates/admin-provider-connection.php:163
+#: templates/admin-provider-connection.php:169
 #: templates/admin-provider-credentials.php:69
 msgid "Access Key ID"
 msgstr ""
@@ -1749,31 +1749,55 @@ msgstr ""
 msgid "S3-compatible storage"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:48
+#: includes/providers/class-s3-presets.php:50
 msgid "Amazon S3"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:58
+#: includes/providers/class-s3-presets.php:60
 msgid "Cloudflare R2"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:68
+#: includes/providers/class-s3-presets.php:70
 msgid "Backblaze B2"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:78
+#: includes/providers/class-s3-presets.php:80
 msgid "DigitalOcean Spaces"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:88
+#: includes/providers/class-s3-presets.php:90
 msgid "Wasabi"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:98
+#: includes/providers/class-s3-presets.php:100
 msgid "Google Cloud Storage (HMAC keys)"
 msgstr ""
 
-#: includes/providers/class-s3-presets.php:108
+#: includes/providers/class-s3-presets.php:110
+msgid "Hetzner Object Storage"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:120
+msgid "Akamai (Linode) Object Storage"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:130
+msgid "Vultr Object Storage"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:140
+msgid "Scaleway Object Storage"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:151
+msgid "OVHcloud Object Storage"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:161
+msgid "IDrive e2"
+msgstr ""
+
+#: includes/providers/class-s3-presets.php:171
 msgid "Custom (MinIO, Ceph, …)"
 msgstr ""
 
@@ -1973,7 +1997,7 @@ msgid "Select your cloud storage provider and configure the connection settings.
 msgstr ""
 
 #: templates/admin-provider-connection.php:54
-#: templates/admin-provider-connection.php:230
+#: templates/admin-provider-connection.php:236
 msgid "Cloud Storage Provider"
 msgstr ""
 
@@ -1982,7 +2006,7 @@ msgid "Select a provider..."
 msgstr ""
 
 #: templates/admin-provider-connection.php:63
-msgid "S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO, …)"
+msgid "S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
 msgstr ""
 
 #: templates/admin-provider-connection.php:67
@@ -2018,7 +2042,7 @@ msgid "Container name for storing your media files."
 msgstr ""
 
 #: templates/admin-provider-connection.php:114
-#: templates/admin-provider-connection.php:211
+#: templates/admin-provider-connection.php:217
 msgid "You must test the connection successfully before saving credentials."
 msgstr ""
 
@@ -2051,83 +2075,107 @@ msgid "Google Cloud console › Cloud Storage › Settings › Interoperability:
 msgstr ""
 
 #: templates/admin-provider-connection.php:139
+msgid "Hetzner Console › your project › Security › S3 Credentials. The region is the bucket's location (fsn1, nbg1 or hel1). Anyone must be able to read the bucket's objects: a public bucket, or Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:140
+msgid "Akamai Cloud Manager › Object Storage › Access Keys, with read and write in the bucket's region. The region is the first part of the bucket's hostname (for example us-east-1 or us-ord-10). Newer endpoints ignore per-object ACLs: let anyone read the bucket with a bucket policy; Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:141
+msgid "Vultr console › Object Storage › your subscription: its S3 credentials and hostname. The region is the first part of the hostname (for example ewr1). Anyone must be able to read the objects: a bucket policy, or Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:142
+msgid "Scaleway console › IAM › API keys, with the bucket's project as the preferred project for Object Storage. The region is the bucket's (fr-par, nl-ams, pl-waw or it-mil). Anyone must be able to read the objects: a bucket policy, or Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:143
+msgid "OVHcloud Control Panel › Public Cloud › Object Storage › Object Storage users: a user linked to the bucket, then View credentials. The region is the bucket's, in lower case (for example gra). Anyone must be able to read the objects: turn on Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:144
+msgid "IDrive e2 dashboard › Access Keys: a key for the bucket's region with read and write. If your dashboard shows an endpoint of your own, type it instead of the one filled in. The public URL is the bucket's Public Bucket URL (Bucket summary); public buckets must be enabled on the account. Test Connection checks it."
+msgstr ""
+
+#: templates/admin-provider-connection.php:145
 msgid "Any other server that speaks the S3 API (MinIO, Ceph, …): type the endpoint, the region it expects and the public URL browsers load objects from."
 msgstr ""
 
-#: templates/admin-provider-connection.php:153
+#: templates/admin-provider-connection.php:159
 msgid "This endpoint is plain http: requests, and the signature of your key, travel unencrypted. Use it only on a private network."
 msgstr ""
 
-#: templates/admin-provider-connection.php:169
+#: templates/admin-provider-connection.php:175
 msgid "Secret Access Key"
 msgstr ""
 
-#: templates/admin-provider-connection.php:175
+#: templates/admin-provider-connection.php:181
 #: templates/admin-provider-credentials.php:57
 msgid "Public URL"
 msgstr ""
 
-#: templates/admin-provider-connection.php:178
+#: templates/admin-provider-connection.php:184
 msgid "Where browsers load your media from. Use your CDN or custom domain here if you have one."
 msgstr ""
 
-#: templates/admin-provider-connection.php:183
+#: templates/admin-provider-connection.php:189
 msgid "Advanced"
 msgstr ""
 
-#: templates/admin-provider-connection.php:186
+#: templates/admin-provider-connection.php:192
 #: templates/admin-provider-credentials.php:58
 msgid "Object ACL"
 msgstr ""
 
-#: templates/admin-provider-connection.php:188
+#: templates/admin-provider-connection.php:194
 msgid "Make each upload public (public-read ACL)"
 msgstr ""
 
-#: templates/admin-provider-connection.php:189
+#: templates/admin-provider-connection.php:195
 msgid "Only for buckets where public read is set per object. Amazon S3 buckets created since April 2023 have ACLs disabled and refuse it; there, make the bucket readable with a bucket policy instead."
 msgstr ""
 
-#: templates/admin-provider-connection.php:193
+#: templates/admin-provider-connection.php:199
 #: templates/admin-provider-credentials.php:59
 msgid "Addressing"
 msgstr ""
 
-#: templates/admin-provider-connection.php:196
+#: templates/admin-provider-connection.php:202
 msgid "Path-style (endpoint/bucket/key)"
 msgstr ""
 
-#: templates/admin-provider-connection.php:197
+#: templates/admin-provider-connection.php:203
 msgid "Virtual-hosted (bucket.endpoint/key)"
 msgstr ""
 
-#: templates/admin-provider-connection.php:199
+#: templates/admin-provider-connection.php:205
 msgid "Set by the service; editable only under Custom."
 msgstr ""
 
-#: templates/admin-provider-connection.php:219
+#: templates/admin-provider-connection.php:225
 msgid "Save Cloud Provider"
 msgstr ""
 
-#: templates/admin-provider-connection.php:232
+#: templates/admin-provider-connection.php:238
 msgid "Unhealthy"
 msgstr ""
 
-#: templates/admin-provider-connection.php:234
+#: templates/admin-provider-connection.php:240
 msgid "Connected"
 msgstr ""
 
-#: templates/admin-provider-connection.php:239
+#: templates/admin-provider-connection.php:245
 #: templates/admin-status-system.php:125
 msgid "Provider"
 msgstr ""
 
-#: templates/admin-provider-connection.php:250
+#: templates/admin-provider-connection.php:256
 msgid "Connected since"
 msgstr ""
 
 #. translators: %s: a human time difference, e.g. "10 minutes"
-#: templates/admin-provider-connection.php:251
+#: templates/admin-provider-connection.php:257
 #: templates/admin-status-health.php:50
 #: templates/admin-sync-disconnect.php:50
 #: templates/admin-sync-offloading.php:71
@@ -2136,15 +2184,15 @@ msgstr ""
 msgid "%s ago"
 msgstr ""
 
-#: templates/admin-provider-connection.php:258
+#: templates/admin-provider-connection.php:264
 msgid "Your cloud provider is configured. Start syncing your media files to the cloud."
 msgstr ""
 
-#: templates/admin-provider-connection.php:269
+#: templates/admin-provider-connection.php:275
 msgid "Rotate the key"
 msgstr ""
 
-#: templates/admin-provider-connection.php:273
+#: templates/admin-provider-connection.php:279
 #: templates/admin-provider-credentials.php:125
 #: templates/admin-provider-credentials.php:132
 msgid "Delete Cloud Provider"

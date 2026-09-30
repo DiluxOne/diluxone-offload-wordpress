@@ -10,7 +10,8 @@ WordPress plugin that offloads media files to cloud object storage and
 serves them back transparently. Two providers ship: **Azure Blob
 Storage** and **S3-compatible storage** (Amazon S3, Cloudflare R2,
 Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC
-keys, MinIO), both with your own credentials. The plugin is GPL-2.0-or-later
+keys, Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud, IDrive e2,
+MinIO), both with your own credentials. The plugin is GPL-2.0-or-later
 with no paid tier and no feature held back.
 
 **The plugin's distinguishing technical decision** is the use of a PHP
@@ -51,7 +52,7 @@ handles both.
 | `includes/factories/class-cloud-storage-factory.php` | `CloudStorageFactory::create($provider, $config)`. |
 | `includes/providers/class-azure-provider.php` | `AzureProvider` — Azure Blob Storage REST API. |
 | `includes/providers/trait-storage-stats.php` | `StorageStats` — the usage stats every provider computes the same way from its own listing, cached in the transient `ConfigManager::STATS_TRANSIENTS` names for it. |
-| `includes/providers/class-s3-compatible-provider.php` | `S3CompatibleProvider` — the S3 REST API with SigV4, for every S3-compatible service. Path-style or virtual-hosted addressing, parts of 5 MiB, Content-MD5 on every PUT of file bytes (the service verifies it), downloads through the signed endpoint, Test Connection as a probe written, read back anonymously at the Public URL and deleted. |
+| `includes/providers/class-s3-compatible-provider.php` | `S3CompatibleProvider` — the S3 REST API with SigV4, for every S3-compatible service. Path-style or virtual-hosted addressing, parts of 5 MiB, larger in whole MiB for a file past the service's part limit (`part_size()`, `S3Presets::max_parts()`), Content-MD5 on every PUT of file bytes (the service verifies it), downloads through the signed endpoint, Test Connection as a probe written, read back anonymously at the Public URL and deleted. |
 | `includes/providers/class-s3-presets.php` | `S3Presets` — the one table of services (endpoint, region rule, addressing, public URL pattern, whether an object ACL applies), handed as is to the Connection form's JavaScript. |
 | `includes/providers/class-aws-signature-v4.php` | `AwsSignatureV4` — AWS Signature Version 4 for the S3-compatible provider, tested against the vectors AWS publishes (`tests/fixtures/sigv4/`). |
 | `includes/Enums/class-plugin-state.php` | `Enums\PluginState` (string constants, NOT PHP 8.1 enum — PHP 7.4 minimum). |

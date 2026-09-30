@@ -61,7 +61,7 @@ msgid "Cloud Provider"
 msgstr "Proveedor en la nube"
 
 #: includes/class-diluxone-offload-admin.php:77
-#: includes/class-diluxone-offload-admin.php:1490
+#: includes/class-diluxone-offload-admin.php:1493
 msgid "Connection"
 msgstr "Conexión"
 
@@ -74,19 +74,19 @@ msgid "Sync & Offloading"
 msgstr "Sincronización y descarga"
 
 #: includes/class-diluxone-offload-admin.php:85
-#: includes/class-diluxone-offload-admin.php:1520
+#: includes/class-diluxone-offload-admin.php:1523
 msgid "Sync"
 msgstr "Sincronización"
 
 #: includes/class-diluxone-offload-admin.php:86
-#: includes/class-diluxone-offload-admin.php:1506
+#: includes/class-diluxone-offload-admin.php:1509
 #: templates/admin-overview.php:200 templates/admin-status-health.php:124
 #: templates/admin-sync-offloading.php:80 templates/admin-sync-sync.php:491
 msgid "Offloading"
 msgstr "Descarga"
 
 #: includes/class-diluxone-offload-admin.php:87
-#: includes/class-diluxone-offload-admin.php:1521
+#: includes/class-diluxone-offload-admin.php:1524
 #: templates/admin-sync-sync.php:492
 msgid "Disconnect"
 msgstr "Desconectar"
@@ -115,7 +115,7 @@ msgid "Status"
 msgstr "Estado"
 
 #: includes/class-diluxone-offload-admin.php:103
-#: includes/class-diluxone-offload-admin.php:1604
+#: includes/class-diluxone-offload-admin.php:1607
 msgid "Health"
 msgstr "Salud"
 
@@ -144,7 +144,7 @@ msgstr "Probando..."
 
 #: includes/class-diluxone-offload-admin.php:687
 #: templates/admin-provider-connection.php:110
-#: templates/admin-provider-connection.php:207
+#: templates/admin-provider-connection.php:213
 #: templates/admin-provider-credentials.php:108
 msgid "Test Connection"
 msgstr "Probar conexión"
@@ -325,7 +325,7 @@ msgid "Scan and Complete Sync"
 msgstr "Escanear y completar sincronización"
 
 #: includes/class-diluxone-offload-admin.php:769
-#: templates/admin-provider-connection.php:262
+#: templates/admin-provider-connection.php:268
 #: templates/partials/sync-modal.php:31
 msgid "Sync Files to Cloud"
 msgstr "Sincronizar archivos a la nube"
@@ -830,13 +830,13 @@ msgid "File type not allowed"
 msgstr "Tipo de archivo no permitido"
 
 #: includes/class-diluxone-offload-admin.php:1201
-#: includes/class-diluxone-offload-admin.php:1859
-#: includes/class-diluxone-offload-admin.php:1958
-#: includes/class-diluxone-offload-admin.php:2050
-#: includes/class-diluxone-offload-admin.php:2150
-#: includes/class-diluxone-offload-admin.php:2225
-#: includes/class-diluxone-offload-admin.php:2282
-#: includes/class-diluxone-offload-admin.php:2319
+#: includes/class-diluxone-offload-admin.php:1862
+#: includes/class-diluxone-offload-admin.php:1961
+#: includes/class-diluxone-offload-admin.php:2053
+#: includes/class-diluxone-offload-admin.php:2153
+#: includes/class-diluxone-offload-admin.php:2228
+#: includes/class-diluxone-offload-admin.php:2285
+#: includes/class-diluxone-offload-admin.php:2322
 msgid "Insufficient permissions"
 msgstr "Permisos insuficientes"
 
@@ -847,7 +847,7 @@ msgstr ""
 "No hay ningún proveedor conectado, así que no hay conexión que revisar."
 
 #: includes/class-diluxone-offload-admin.php:1236
-#: includes/class-diluxone-offload-admin.php:1698
+#: includes/class-diluxone-offload-admin.php:1701
 msgid "Stored Credentials Unreadable"
 msgstr "No se pueden leer las credenciales guardadas"
 
@@ -874,7 +874,7 @@ msgstr ""
 "sincronización) se conserva."
 
 #: includes/class-diluxone-offload-admin.php:1241
-#: includes/class-diluxone-offload-admin.php:1700
+#: includes/class-diluxone-offload-admin.php:1703
 #: templates/admin-overview.php:116 templates/admin-status-health.php:107
 msgid "Re-enter Credentials"
 msgstr "Volver a ingresar las credenciales"
@@ -918,35 +918,35 @@ msgstr "Volvé a esta pantalla para sincronizar los archivos"
 
 #. translators: 1: the storage service (e.g. Amazon S3), 2: the name of the
 #. bucket
-#: includes/class-diluxone-offload-admin.php:1365
+#: includes/class-diluxone-offload-admin.php:1368
 #, php-format
 msgid "the %1$s bucket %2$s"
 msgstr "el bucket de %1$s %2$s"
 
 #. translators: %s: the name of the storage container
-#: includes/class-diluxone-offload-admin.php:1373
+#: includes/class-diluxone-offload-admin.php:1376
 #, php-format
 msgid "the Azure Blob Storage container %s"
 msgstr "el contenedor de Azure Blob Storage %s"
 
-#: includes/class-diluxone-offload-admin.php:1374
+#: includes/class-diluxone-offload-admin.php:1377
 #: templates/admin-provider-connection.php:76
 msgid "Azure Blob Storage"
 msgstr "Azure Blob Storage"
 
-#: includes/class-diluxone-offload-admin.php:1380
+#: includes/class-diluxone-offload-admin.php:1383
 msgid "No cloud provider is connected. Media is served from this server."
 msgstr ""
 "No hay ningún proveedor de nube conectado. Los medios se sirven desde este "
 "servidor."
 
-#: includes/class-diluxone-offload-admin.php:1382
+#: includes/class-diluxone-offload-admin.php:1385
 msgid "Off"
 msgstr "Apagado"
 
 #. translators: 1: short reason for the pause, 2: number of consecutive
 #. failures
-#: includes/class-diluxone-offload-admin.php:1389
+#: includes/class-diluxone-offload-admin.php:1392
 #, php-format
 msgid ""
 "Paused (%1$s): %2$d consecutive failures. Uploads are refused until the next"
@@ -955,27 +955,27 @@ msgstr ""
 "En pausa (%1$s): %2$d fallos consecutivos. Las subidas se rechazan hasta la "
 "próxima conexión exitosa."
 
-#: includes/class-diluxone-offload-admin.php:1394
-#: includes/class-diluxone-offload-admin.php:1447
+#: includes/class-diluxone-offload-admin.php:1397
+#: includes/class-diluxone-offload-admin.php:1450
 msgid "Pending"
 msgstr "Pendiente"
 
 #. translators: 1: number of files synced, 2: where they are, 3: number of
 #. files that still have a local copy
-#: includes/class-diluxone-offload-admin.php:1401
+#: includes/class-diluxone-offload-admin.php:1404
 #, php-format
 msgid "%1$s files synced to %2$s; %3$s still have a copy on this server."
 msgstr ""
 "%1$s archivos sincronizados en %2$s; %3$s todavía tienen una copia en este "
 "servidor."
 
-#: includes/class-diluxone-offload-admin.php:1407
+#: includes/class-diluxone-offload-admin.php:1410
 #: templates/admin-overview.php:202 templates/admin-status-health.php:128
 msgid "Active"
 msgstr "Activo"
 
 #. translators: 1: number of files synced, 2: where they are
-#: includes/class-diluxone-offload-admin.php:1414
+#: includes/class-diluxone-offload-admin.php:1417
 #, php-format
 msgid ""
 "%1$s files synced to %2$s; still served from this server until offloading is"
@@ -984,30 +984,30 @@ msgstr ""
 "%1$s archivos sincronizados en %2$s; se siguen sirviendo desde este servidor"
 " hasta que se active el offloading."
 
-#: includes/class-diluxone-offload-admin.php:1419
+#: includes/class-diluxone-offload-admin.php:1422
 #: includes/Enums/class-plugin-state.php:55 templates/admin-overview.php:154
 #: templates/admin-sync-sync.php:137
 msgid "Synced"
 msgstr "Sincronizado"
 
-#: includes/class-diluxone-offload-admin.php:1420
+#: includes/class-diluxone-offload-admin.php:1423
 msgid "offloading off"
 msgstr "offloading apagado"
 
 #. translators: 1: number of files synced so far, 2: number of files pending
-#: includes/class-diluxone-offload-admin.php:1426
+#: includes/class-diluxone-offload-admin.php:1429
 #, php-format
 msgid "A sync is in progress: %1$s files done, %2$s pending."
 msgstr ""
 "Hay una sincronización en curso: %1$s archivos listos, %2$s pendientes."
 
-#: includes/class-diluxone-offload-admin.php:1431
+#: includes/class-diluxone-offload-admin.php:1434
 msgid "Syncing"
 msgstr "Sincronizando"
 
 #. translators: 1: where the files go, 2: number of files synced so far, 3:
 #. number pending
-#: includes/class-diluxone-offload-admin.php:1439
+#: includes/class-diluxone-offload-admin.php:1442
 #, php-format
 msgid ""
 "Configured for %1$s. A sync was interrupted: %2$s files done, %3$s pending."
@@ -1016,24 +1016,24 @@ msgstr ""
 "listos, %3$s pendientes."
 
 #. translators: %s: where the files go
-#: includes/class-diluxone-offload-admin.php:1445
+#: includes/class-diluxone-offload-admin.php:1448
 #, php-format
 msgid "Configured for %s. Nothing synced yet."
 msgstr "Configurado para %s. Todavía no se sincronizó nada."
 
-#: includes/class-diluxone-offload-admin.php:1448
+#: includes/class-diluxone-offload-admin.php:1451
 msgid "not synced"
 msgstr "sin sincronizar"
 
-#: includes/class-diluxone-offload-admin.php:1460
+#: includes/class-diluxone-offload-admin.php:1463
 msgid "Support forum"
 msgstr "Foro de soporte"
 
-#: includes/class-diluxone-offload-admin.php:1467
+#: includes/class-diluxone-offload-admin.php:1470
 msgid "Where the keys come from"
 msgstr "De dónde salen las claves"
 
-#: includes/class-diluxone-offload-admin.php:1469
+#: includes/class-diluxone-offload-admin.php:1472
 msgid ""
 "Azure: portal › your storage account › Access keys. The container must allow"
 " anonymous read of blobs (public access level Blob); a private container is "
@@ -1043,7 +1043,7 @@ msgstr ""
 "contenedor debe permitir la lectura anónima de blobs (nivel de acceso "
 "público Blob); un contenedor privado se rechaza."
 
-#: includes/class-diluxone-offload-admin.php:1470
+#: includes/class-diluxone-offload-admin.php:1473
 msgid ""
 "S3-compatible: the keys come from the service's console (the form says where"
 " for each one), and the bucket must let anyone read its objects."
@@ -1052,7 +1052,7 @@ msgstr ""
 "formulario indica dónde para cada una), y el bucket debe permitir que "
 "cualquiera lea sus objetos."
 
-#: includes/class-diluxone-offload-admin.php:1471
+#: includes/class-diluxone-offload-admin.php:1474
 msgid ""
 "Test Connection checks the credentials and that browsers can read what is "
 "stored. Both must pass before Save is enabled."
@@ -1060,27 +1060,27 @@ msgstr ""
 "Probar conexión verifica las credenciales y que los navegadores puedan leer "
 "lo que está almacenado. Ambas deben pasar antes de que se habilite Guardar."
 
-#: includes/class-diluxone-offload-admin.php:1475
+#: includes/class-diluxone-offload-admin.php:1478
 msgid "Credentials: rotate the key, or remove the provider"
 msgstr "Credenciales: rotar la clave o quitar el proveedor"
 
-#: includes/class-diluxone-offload-admin.php:1476
-#: includes/class-diluxone-offload-admin.php:1491
-#: includes/class-diluxone-offload-admin.php:1507
-#: includes/class-diluxone-offload-admin.php:1624
+#: includes/class-diluxone-offload-admin.php:1479
+#: includes/class-diluxone-offload-admin.php:1494
+#: includes/class-diluxone-offload-admin.php:1510
+#: includes/class-diluxone-offload-admin.php:1627
 msgid "Status › Health"
 msgstr "Estado › Salud"
 
-#: includes/class-diluxone-offload-admin.php:1477
-#: includes/class-diluxone-offload-admin.php:1522
+#: includes/class-diluxone-offload-admin.php:1480
+#: includes/class-diluxone-offload-admin.php:1525
 msgid "Settings › Serving (Force HTTPS)"
 msgstr "Ajustes › Entrega (forzar HTTPS)"
 
-#: includes/class-diluxone-offload-admin.php:1483
+#: includes/class-diluxone-offload-admin.php:1486
 msgid "What can change here"
 msgstr "Qué se puede cambiar acá"
 
-#: includes/class-diluxone-offload-admin.php:1486
+#: includes/class-diluxone-offload-admin.php:1489
 msgid ""
 "Deleting the provider forgets the credentials and the tracking table. The "
 "files stay in the cloud. While offloading is active, disconnect first."
@@ -1088,16 +1088,16 @@ msgstr ""
 "Borrar el proveedor olvida las credenciales y la tabla de seguimiento. Los "
 "archivos se quedan en la nube. Con el offloading activo, primero desconectá."
 
-#: includes/class-diluxone-offload-admin.php:1492
+#: includes/class-diluxone-offload-admin.php:1495
 #: templates/admin-provider-credentials.php:140
 msgid "Sync & Offloading › Disconnect"
 msgstr "Sincronización y offloading › Desconectar"
 
-#: includes/class-diluxone-offload-admin.php:1498
+#: includes/class-diluxone-offload-admin.php:1501
 msgid "How the sync runs"
 msgstr "Cómo corre la sincronización"
 
-#: includes/class-diluxone-offload-admin.php:1500
+#: includes/class-diluxone-offload-admin.php:1503
 msgid ""
 "The initial sync runs in this browser tab and stops if you close it; it "
 "resumes where it left off. Files already in the cloud are skipped, files "
@@ -1107,7 +1107,7 @@ msgstr ""
 "si la cerrás; retoma donde quedó. Los archivos que ya están en la nube se "
 "saltean; los que superan el límite de tamaño quedan afuera."
 
-#: includes/class-diluxone-offload-admin.php:1501
+#: includes/class-diluxone-offload-admin.php:1504
 msgid ""
 "A file that fails is listed with its error and can be retried; the rest of "
 "the library is not held back by it."
@@ -1115,15 +1115,15 @@ msgstr ""
 "Un archivo que falla queda listado con su error y se puede reintentar; el "
 "resto de la biblioteca no se frena por él."
 
-#: includes/class-diluxone-offload-admin.php:1505
+#: includes/class-diluxone-offload-admin.php:1508
 msgid "Settings › Transfers (size limit, timeout)"
 msgstr "Ajustes › Transferencias (límite de tamaño, tiempo de espera)"
 
-#: includes/class-diluxone-offload-admin.php:1513
+#: includes/class-diluxone-offload-admin.php:1516
 msgid "What it changes"
 msgstr "Qué cambia"
 
-#: includes/class-diluxone-offload-admin.php:1515
+#: includes/class-diluxone-offload-admin.php:1518
 msgid ""
 "With offloading on, WordPress hands out the cloud address for every file and"
 " new uploads go straight to the cloud. Nothing in your posts or your "
@@ -1133,7 +1133,7 @@ msgstr ""
 "cada archivo y las subidas nuevas van directo a la nube. Nada cambia en tus "
 "entradas ni en tu base de datos."
 
-#: includes/class-diluxone-offload-admin.php:1516
+#: includes/class-diluxone-offload-admin.php:1519
 msgid ""
 "Deleting the local copies frees the disk; the files keep being served from "
 "the cloud. Disconnect brings them back."
@@ -1141,11 +1141,11 @@ msgstr ""
 "Borrar las copias locales libera el disco; los archivos se siguen sirviendo "
 "desde la nube. Desconectar los trae de vuelta."
 
-#: includes/class-diluxone-offload-admin.php:1528
+#: includes/class-diluxone-offload-admin.php:1531
 msgid "What a disconnect does"
 msgstr "Qué hace una desconexión"
 
-#: includes/class-diluxone-offload-admin.php:1530
+#: includes/class-diluxone-offload-admin.php:1533
 msgid ""
 "Every file is downloaded from the cloud back to this server, then offloading"
 " is turned off. The files in the cloud are left as they are."
@@ -1153,7 +1153,7 @@ msgstr ""
 "Cada archivo se descarga de la nube de vuelta a este servidor y después se "
 "apaga el offloading. Los archivos en la nube quedan como están."
 
-#: includes/class-diluxone-offload-admin.php:1531
+#: includes/class-diluxone-offload-admin.php:1534
 msgid ""
 "It needs enough free disk for the whole library; Status › System shows what "
 "is free."
@@ -1161,24 +1161,24 @@ msgstr ""
 "Necesita disco libre suficiente para toda la biblioteca; Estado › Sistema "
 "muestra cuánto hay libre."
 
-#: includes/class-diluxone-offload-admin.php:1535
-#: includes/class-diluxone-offload-admin.php:1574
+#: includes/class-diluxone-offload-admin.php:1538
+#: includes/class-diluxone-offload-admin.php:1577
 msgid "Status › System"
 msgstr "Estado › Sistema"
 
-#: includes/class-diluxone-offload-admin.php:1536
+#: includes/class-diluxone-offload-admin.php:1539
 msgid "Cloud Provider › Credentials (delete the provider afterwards)"
 msgstr "Proveedor de nube › Credenciales (borrar el proveedor después)"
 
-#: includes/class-diluxone-offload-admin.php:1542
-#: includes/class-diluxone-offload-admin.php:1555
-#: includes/class-diluxone-offload-admin.php:1568
-#: includes/class-diluxone-offload-admin.php:1598
-#: includes/class-diluxone-offload-admin.php:1615
+#: includes/class-diluxone-offload-admin.php:1545
+#: includes/class-diluxone-offload-admin.php:1558
+#: includes/class-diluxone-offload-admin.php:1571
+#: includes/class-diluxone-offload-admin.php:1601
+#: includes/class-diluxone-offload-admin.php:1618
 msgid "What this screen is for"
 msgstr "Para qué sirve esta pantalla"
 
-#: includes/class-diluxone-offload-admin.php:1544
+#: includes/class-diluxone-offload-admin.php:1547
 msgid ""
 "The size limit decides which files the initial sync takes; the timeout "
 "decides how long each transfer request may take. Both apply to every "
@@ -1188,16 +1188,16 @@ msgstr ""
 "tiempo de espera decide cuánto puede tardar cada solicitud de transferencia."
 " Los dos aplican a cualquier proveedor."
 
-#: includes/class-diluxone-offload-admin.php:1548
-#: includes/class-diluxone-offload-admin.php:1623
+#: includes/class-diluxone-offload-admin.php:1551
+#: includes/class-diluxone-offload-admin.php:1626
 msgid "Sync & Offloading › Sync"
 msgstr "Sincronización y offloading › Sincronización"
 
-#: includes/class-diluxone-offload-admin.php:1549
+#: includes/class-diluxone-offload-admin.php:1552
 msgid "Status › System (PHP limits)"
 msgstr "Estado › Sistema (límites de PHP)"
 
-#: includes/class-diluxone-offload-admin.php:1557
+#: includes/class-diluxone-offload-admin.php:1560
 msgid ""
 "How the media is handed out once it is in the cloud. Force HTTPS keeps the "
 "cloud URLs on https even when the site itself runs on http."
@@ -1205,16 +1205,16 @@ msgstr ""
 "Cómo se entregan los medios una vez que están en la nube. Forzar HTTPS "
 "mantiene las URL de la nube en https aunque el sitio corra en http."
 
-#: includes/class-diluxone-offload-admin.php:1561
-#: includes/class-diluxone-offload-admin.php:1622
+#: includes/class-diluxone-offload-admin.php:1564
+#: includes/class-diluxone-offload-admin.php:1625
 msgid "Cloud Provider › Connection"
 msgstr "Proveedor de nube › Conexión"
 
-#: includes/class-diluxone-offload-admin.php:1562
+#: includes/class-diluxone-offload-admin.php:1565
 msgid "Sync & Offloading › Offloading"
 msgstr "Sincronización y offloading › Offloading"
 
-#: includes/class-diluxone-offload-admin.php:1570
+#: includes/class-diluxone-offload-admin.php:1573
 msgid ""
 "The plugin is quiet by default. Debug logging writes one line per operation "
 "to the PHP error log while you troubleshoot; credentials are never logged."
@@ -1223,11 +1223,11 @@ msgstr ""
 "línea por operación en el log de errores de PHP mientras diagnosticás; las "
 "credenciales nunca se registran."
 
-#: includes/class-diluxone-offload-admin.php:1581
+#: includes/class-diluxone-offload-admin.php:1584
 msgid "How health works"
 msgstr "Cómo funciona la salud"
 
-#: includes/class-diluxone-offload-admin.php:1583
+#: includes/class-diluxone-offload-admin.php:1586
 msgid ""
 "Every upload and every check of the connection records a success or a "
 "failure. After three consecutive failures the plugin refuses new uploads "
@@ -1239,16 +1239,16 @@ msgstr ""
 " vez de escribirlas en otro lado, y lo dice en todas las pantallas hasta el "
 "siguiente éxito."
 
-#: includes/class-diluxone-offload-admin.php:1587
+#: includes/class-diluxone-offload-admin.php:1590
 #: templates/admin-sync-disconnect.php:101
 msgid "Cloud Provider › Credentials"
 msgstr "Proveedor de nube › Credenciales"
 
-#: includes/class-diluxone-offload-admin.php:1589
+#: includes/class-diluxone-offload-admin.php:1592
 msgid "Tools › Site Health"
 msgstr "Herramientas › Salud del sitio"
 
-#: includes/class-diluxone-offload-admin.php:1600
+#: includes/class-diluxone-offload-admin.php:1603
 msgid ""
 "The environment the plugin runs in, as a support request wants it: "
 "WordPress, PHP, the plugin build and the provider. Copy it into a report."
@@ -1256,11 +1256,11 @@ msgstr ""
 "El entorno en el que corre el plugin, como lo pide una consulta de soporte: "
 "WordPress, PHP, la build del plugin y el proveedor. Copialo en un reporte."
 
-#: includes/class-diluxone-offload-admin.php:1606
+#: includes/class-diluxone-offload-admin.php:1609
 msgid "Report an issue on GitHub"
 msgstr "Reportar un problema en GitHub"
 
-#: includes/class-diluxone-offload-admin.php:1617
+#: includes/class-diluxone-offload-admin.php:1620
 msgid ""
 "The three cards are the plugin's state as a person sees it: whether a "
 "provider is connected, whether the library is in the cloud, whether the site"
@@ -1270,31 +1270,31 @@ msgstr ""
 "hay un proveedor conectado, si la biblioteca está en la nube y si el sitio "
 "la sirve desde allí."
 
-#: includes/class-diluxone-offload-admin.php:1650
+#: includes/class-diluxone-offload-admin.php:1653
 msgid "credentials unreadable"
 msgstr "credenciales ilegibles"
 
-#: includes/class-diluxone-offload-admin.php:1653
+#: includes/class-diluxone-offload-admin.php:1656
 msgid "permission denied"
 msgstr "permiso denegado"
 
-#: includes/class-diluxone-offload-admin.php:1658
+#: includes/class-diluxone-offload-admin.php:1661
 msgid "container not found"
 msgstr "no se encontró el contenedor"
 
-#: includes/class-diluxone-offload-admin.php:1660
+#: includes/class-diluxone-offload-admin.php:1663
 msgid "transfer timed out"
 msgstr "transferencia agotó el tiempo de espera"
 
-#: includes/class-diluxone-offload-admin.php:1662
+#: includes/class-diluxone-offload-admin.php:1665
 msgid "connection error"
 msgstr "error de conexión"
 
-#: includes/class-diluxone-offload-admin.php:1664
+#: includes/class-diluxone-offload-admin.php:1667
 msgid "cloud unreachable"
 msgstr "no se llega a la nube"
 
-#: includes/class-diluxone-offload-admin.php:1699
+#: includes/class-diluxone-offload-admin.php:1702
 msgid ""
 "Your saved cloud credentials cannot be decrypted. This usually means the "
 "WordPress salts (AUTH_KEY / SECURE_AUTH_KEY) changed since these credentials"
@@ -1306,11 +1306,11 @@ msgstr ""
 "guardaron; por ejemplo, después de restaurar una base de otro entorno. Volvé"
 " a ingresarlas para resolverlo."
 
-#: includes/class-diluxone-offload-admin.php:1706
+#: includes/class-diluxone-offload-admin.php:1709
 msgid "Cloud Permission Denied"
 msgstr "La nube denegó el permiso"
 
-#: includes/class-diluxone-offload-admin.php:1707
+#: includes/class-diluxone-offload-admin.php:1710
 msgid ""
 "The cloud provider rejected the credentials: the key is wrong, expired, or "
 "lacks permission. Verify the credentials and re-enter them."
@@ -1319,11 +1319,11 @@ msgstr ""
 "expiró o no tiene permiso. Verifica las credenciales y vuelve a "
 "introducirlas."
 
-#: includes/class-diluxone-offload-admin.php:1708
+#: includes/class-diluxone-offload-admin.php:1711
 msgid "Update Credentials"
 msgstr "Actualizar las credenciales"
 
-#: includes/class-diluxone-offload-admin.php:1714
+#: includes/class-diluxone-offload-admin.php:1717
 msgid ""
 "The configured container or bucket does not exist on the cloud provider. "
 "Check that the name is spelled correctly and that it has been created."
@@ -1331,16 +1331,16 @@ msgstr ""
 "El contenedor o bucket configurado no existe en el proveedor. Fijate que el "
 "nombre esté bien escrito y que esté creado."
 
-#: includes/class-diluxone-offload-admin.php:1715
+#: includes/class-diluxone-offload-admin.php:1718
 msgid "Open Cloud Provider Settings"
 msgstr "Abrir los ajustes del proveedor"
 
-#: includes/class-diluxone-offload-admin.php:1720
+#: includes/class-diluxone-offload-admin.php:1723
 msgid "Cloud Transfer Timed Out"
 msgstr "Transferencia a la nube agotó el tiempo de espera"
 
 #. translators: %d: the Transfer Timeout setting, in seconds
-#: includes/class-diluxone-offload-admin.php:1723
+#: includes/class-diluxone-offload-admin.php:1726
 #, php-format
 msgid ""
 "A transfer to the cloud took longer than allowed: the Transfer Timeout (%d "
@@ -1354,26 +1354,26 @@ msgstr ""
 "las transferencias funcionaban con este valor, revisa la conexión con el "
 "proveedor."
 
-#: includes/class-diluxone-offload-admin.php:1726
+#: includes/class-diluxone-offload-admin.php:1729
 msgid "Open Settings"
 msgstr "Abrir Configuración"
 
-#: includes/class-diluxone-offload-admin.php:1732
-#: includes/class-diluxone-offload-admin.php:1742
+#: includes/class-diluxone-offload-admin.php:1735
+#: includes/class-diluxone-offload-admin.php:1745
 msgid "Cloud Connection Error"
 msgstr "Error de conexion con la nube"
 
-#: includes/class-diluxone-offload-admin.php:1735
+#: includes/class-diluxone-offload-admin.php:1738
 msgid "An unexpected error occurred while talking to the cloud provider."
 msgstr "Hubo un error inesperado al hablar con el proveedor."
 
-#: includes/class-diluxone-offload-admin.php:1736
-#: includes/class-diluxone-offload-admin.php:1744
+#: includes/class-diluxone-offload-admin.php:1739
+#: includes/class-diluxone-offload-admin.php:1747
 msgid "Update your credentials in the Cloud Provider tab"
 msgstr "Actualiza tus credenciales en la pestana Proveedor Cloud"
 
 #. translators: %d: number of minutes
-#: includes/class-diluxone-offload-admin.php:1773
+#: includes/class-diluxone-offload-admin.php:1776
 #: templates/admin-overview.php:381
 #, php-format
 msgid "%d minute ago"
@@ -1382,7 +1382,7 @@ msgstr[0] "hace %d minuto"
 msgstr[1] "hace %d minutos"
 
 #. translators: %d: number of hours
-#: includes/class-diluxone-offload-admin.php:1777
+#: includes/class-diluxone-offload-admin.php:1780
 #: templates/admin-overview.php:385
 #, php-format
 msgid "%d hour ago"
@@ -1391,7 +1391,7 @@ msgstr[0] "hace %d hora"
 msgstr[1] "hace %d horas"
 
 #. translators: %d: number of days
-#: includes/class-diluxone-offload-admin.php:1781
+#: includes/class-diluxone-offload-admin.php:1784
 #, php-format
 msgid "%d day ago"
 msgid_plural "%d days ago"
@@ -1399,22 +1399,22 @@ msgstr[0] "hace %d día"
 msgstr[1] "hace %d días"
 
 #. translators: %s: human-readable time, e.g. "5 minutes ago"
-#: includes/class-diluxone-offload-admin.php:1792
+#: includes/class-diluxone-offload-admin.php:1795
 #, php-format
 msgid "Last successful connection: %s"
 msgstr "Ultima conexion exitosa: %s"
 
-#: includes/class-diluxone-offload-admin.php:1797
+#: includes/class-diluxone-offload-admin.php:1800
 #: templates/admin-overview.php:217 templates/admin-status-health.php:145
 msgid "New uploads are refused until the connection recovers."
 msgstr "Las subidas nuevas se rechazan hasta que la conexión se recupere."
 
-#: includes/class-diluxone-offload-admin.php:1854
-#: includes/class-diluxone-offload-admin.php:1953
+#: includes/class-diluxone-offload-admin.php:1857
+#: includes/class-diluxone-offload-admin.php:1956
 msgid "Security check failed"
 msgstr "Falló la verificación de seguridad."
 
-#: includes/class-diluxone-offload-admin.php:1911
+#: includes/class-diluxone-offload-admin.php:1914
 msgid ""
 "Test the connection before saving: only a configuration that passed Test "
 "Connection can be saved."
@@ -1422,19 +1422,19 @@ msgstr ""
 "Prueba la conexión antes de guardar: solo se puede guardar una configuración"
 " que haya pasado Probar conexión."
 
-#: includes/class-diluxone-offload-admin.php:1967
+#: includes/class-diluxone-offload-admin.php:1970
 msgid "Unsupported cloud provider"
 msgstr "Proveedor de nube no compatible"
 
-#: includes/class-diluxone-offload-admin.php:1981
+#: includes/class-diluxone-offload-admin.php:1984
 msgid "Could not instantiate cloud client for the selected provider."
 msgstr "No se pudo crear el cliente para el proveedor elegido."
 
-#: includes/class-diluxone-offload-admin.php:2055
+#: includes/class-diluxone-offload-admin.php:2058
 msgid "Cloud client not available"
 msgstr "El cliente de la nube no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:2081
+#: includes/class-diluxone-offload-admin.php:2084
 #: includes/class-diluxone-offload-plugin-enhanced.php:215
 #: includes/class-diluxone-offload-plugin-enhanced.php:389
 #: includes/class-diluxone-offload-plugin-enhanced.php:414
@@ -1459,51 +1459,50 @@ msgstr "El cliente de la nube no está disponible."
 msgid "Unauthorized"
 msgstr "No autorizado."
 
-#: includes/class-diluxone-offload-admin.php:2087
+#: includes/class-diluxone-offload-admin.php:2090
 msgid "You must test the connection first"
 msgstr "Primero tienes que probar la conexión."
 
-#: includes/class-diluxone-offload-admin.php:2103
+#: includes/class-diluxone-offload-admin.php:2106
 msgid "Credentials do not match tested values. Please test again."
 msgstr ""
 "Las credenciales no coinciden con los valores probados. Probá la conexión "
 "nuevamente."
 
-#: includes/class-diluxone-offload-admin.php:2107
+#: includes/class-diluxone-offload-admin.php:2110
 msgid "Credentials were not saved: the provider configuration is invalid."
 msgstr ""
 "No se guardaron las credenciales: la configuración del proveedor no es "
 "válida."
 
-#: includes/class-diluxone-offload-admin.php:2146
-#: includes/class-diluxone-offload-admin.php:2221
-#: includes/class-diluxone-offload-admin.php:2278
+#: includes/class-diluxone-offload-admin.php:2149
+#: includes/class-diluxone-offload-admin.php:2224
+#: includes/class-diluxone-offload-admin.php:2281
 msgid "Invalid nonce"
 msgstr "Nonce no válido."
 
-#: includes/class-diluxone-offload-admin.php:2167
+#: includes/class-diluxone-offload-admin.php:2170
 msgid "Cannot cancel sync: Another tab is currently syncing"
 msgstr ""
 "No se puede cancelar la sincronización: Otra pestaña está sincronizando "
 "actualmente"
 
-#: includes/class-diluxone-offload-admin.php:2183
+#: includes/class-diluxone-offload-admin.php:2186
 msgid "Sync cancelled successfully"
 msgstr "Sincronización cancelada correctamente"
 
-#: includes/class-diluxone-offload-admin.php:2205
+#: includes/class-diluxone-offload-admin.php:2208
 msgid "Plugin reset to configured state successfully"
 msgstr "Plugin restablecido al estado configurado correctamente"
 
-#. translators: %s: the reason the server gave
 #. translators: %s: error message
 #: includes/class-diluxone-offload-admin.php:780
-#: includes/class-diluxone-offload-admin.php:2212
+#: includes/class-diluxone-offload-admin.php:2215
 #, php-format
 msgid "Error: %s"
 msgstr "Error: %s"
 
-#: includes/class-diluxone-offload-admin.php:2233
+#: includes/class-diluxone-offload-admin.php:2236
 #: includes/class-diluxone-offload-plugin-enhanced.php:219
 #: includes/class-diluxone-offload-plugin-enhanced.php:393
 #: includes/class-diluxone-offload-plugin-enhanced.php:418
@@ -1519,18 +1518,18 @@ msgstr "Error: %s"
 msgid "Sync manager not available"
 msgstr "El gestor de sincronización no está disponible."
 
-#: includes/class-diluxone-offload-admin.php:2253
+#: includes/class-diluxone-offload-admin.php:2256
 msgid "The sync is not complete"
 msgstr "La sincronización no está completa"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:2269
+#: includes/class-diluxone-offload-admin.php:2272
 #, php-format
 msgid "Error completing sync: %s"
 msgstr "Error al completar la sincronización: %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-admin.php:2292
+#: includes/class-diluxone-offload-admin.php:2295
 #, php-format
 msgid "Error clearing failed files: %s"
 msgstr "Error al limpiar los archivos fallidos: %s"
@@ -1715,25 +1714,25 @@ msgid "Service"
 msgstr "Servicio"
 
 #: includes/DTOs/ProviderConfig.php:271
-#: templates/admin-provider-connection.php:157
+#: templates/admin-provider-connection.php:163
 #: templates/admin-provider-credentials.php:54
 msgid "Bucket"
 msgstr "Bucket"
 
 #: includes/DTOs/ProviderConfig.php:272
-#: templates/admin-provider-connection.php:150
+#: templates/admin-provider-connection.php:156
 #: templates/admin-provider-credentials.php:55
 msgid "Endpoint"
 msgstr "Endpoint"
 
 #: includes/DTOs/ProviderConfig.php:273
-#: templates/admin-provider-connection.php:144
+#: templates/admin-provider-connection.php:150
 #: templates/admin-provider-credentials.php:56
 msgid "Region"
 msgstr "Región"
 
 #: includes/DTOs/ProviderConfig.php:274
-#: templates/admin-provider-connection.php:163
+#: templates/admin-provider-connection.php:169
 #: templates/admin-provider-credentials.php:69
 msgid "Access Key ID"
 msgstr "ID de clave de acceso"
@@ -1779,31 +1778,31 @@ msgstr "Microsoft Azure Blob Storage"
 msgid "S3-compatible storage"
 msgstr "Almacenamiento compatible con S3"
 
-#: includes/providers/class-s3-presets.php:48
+#: includes/providers/class-s3-presets.php:50
 msgid "Amazon S3"
 msgstr "Amazon S3"
 
-#: includes/providers/class-s3-presets.php:58
+#: includes/providers/class-s3-presets.php:60
 msgid "Cloudflare R2"
 msgstr "Cloudflare R2"
 
-#: includes/providers/class-s3-presets.php:68
+#: includes/providers/class-s3-presets.php:70
 msgid "Backblaze B2"
 msgstr "Backblaze B2"
 
-#: includes/providers/class-s3-presets.php:78
+#: includes/providers/class-s3-presets.php:80
 msgid "DigitalOcean Spaces"
 msgstr "DigitalOcean Spaces"
 
-#: includes/providers/class-s3-presets.php:88
+#: includes/providers/class-s3-presets.php:90
 msgid "Wasabi"
 msgstr "Wasabi"
 
-#: includes/providers/class-s3-presets.php:98
+#: includes/providers/class-s3-presets.php:100
 msgid "Google Cloud Storage (HMAC keys)"
 msgstr "Google Cloud Storage (claves HMAC)"
 
-#: includes/providers/class-s3-presets.php:108
+#: includes/providers/class-s3-presets.php:171
 msgid "Custom (MinIO, Ceph, …)"
 msgstr "Personalizado (MinIO, Ceph, …)"
 
@@ -2002,21 +2001,13 @@ msgstr ""
 " de conexión."
 
 #: templates/admin-provider-connection.php:54
-#: templates/admin-provider-connection.php:230
+#: templates/admin-provider-connection.php:236
 msgid "Cloud Storage Provider"
 msgstr "Proveedor de almacenamiento en la nube"
 
 #: templates/admin-provider-connection.php:58
 msgid "Select a provider..."
 msgstr "Selecciona un proveedor..."
-
-#: templates/admin-provider-connection.php:63
-msgid ""
-"S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean "
-"Spaces, Wasabi, Google Cloud Storage, MinIO, …)"
-msgstr ""
-"Almacenamiento compatible con S3 (Amazon S3, Cloudflare R2, Backblaze B2, "
-"DigitalOcean Spaces, Wasabi, Google Cloud Storage, MinIO, …)"
 
 #: templates/admin-provider-connection.php:67
 msgid ""
@@ -2058,7 +2049,7 @@ msgid "Container name for storing your media files."
 msgstr "Nombre del contenedor donde se guardarán los archivos multimedia."
 
 #: templates/admin-provider-connection.php:114
-#: templates/admin-provider-connection.php:211
+#: templates/admin-provider-connection.php:217
 msgid "You must test the connection successfully before saving credentials."
 msgstr ""
 "Debes probar la conexión correctamente antes de guardar las credenciales."
@@ -2139,7 +2130,7 @@ msgstr ""
 " una clave HMAC para una cuenta de servicio con acceso al bucket. El bucket "
 "debe otorgarle a allUsers el rol Storage Object Viewer."
 
-#: templates/admin-provider-connection.php:139
+#: templates/admin-provider-connection.php:145
 msgid ""
 "Any other server that speaks the S3 API (MinIO, Ceph, …): type the endpoint,"
 " the region it expects and the public URL browsers load objects from."
@@ -2148,7 +2139,7 @@ msgstr ""
 "endpoint, la región que espera y la URL pública desde la que los navegadores"
 " cargan los objetos."
 
-#: templates/admin-provider-connection.php:153
+#: templates/admin-provider-connection.php:159
 msgid ""
 "This endpoint is plain http: requests, and the signature of your key, travel"
 " unencrypted. Use it only on a private network."
@@ -2156,16 +2147,16 @@ msgstr ""
 "Este endpoint es http simple: las solicitudes, y la firma de tu clave, "
 "viajan sin cifrar. Úsalo solo en una red privada."
 
-#: templates/admin-provider-connection.php:169
+#: templates/admin-provider-connection.php:175
 msgid "Secret Access Key"
 msgstr "Clave de acceso secreta"
 
-#: templates/admin-provider-connection.php:175
+#: templates/admin-provider-connection.php:181
 #: templates/admin-provider-credentials.php:57
 msgid "Public URL"
 msgstr "URL pública"
 
-#: templates/admin-provider-connection.php:178
+#: templates/admin-provider-connection.php:184
 msgid ""
 "Where browsers load your media from. Use your CDN or custom domain here if "
 "you have one."
@@ -2173,20 +2164,20 @@ msgstr ""
 "Desde dónde los navegadores cargan tus archivos multimedia. Usa aquí tu CDN "
 "o dominio personalizado si tienes uno."
 
-#: templates/admin-provider-connection.php:183
+#: templates/admin-provider-connection.php:189
 msgid "Advanced"
 msgstr "Avanzado"
 
-#: templates/admin-provider-connection.php:186
+#: templates/admin-provider-connection.php:192
 #: templates/admin-provider-credentials.php:58
 msgid "Object ACL"
 msgstr "ACL del objeto"
 
-#: templates/admin-provider-connection.php:188
+#: templates/admin-provider-connection.php:194
 msgid "Make each upload public (public-read ACL)"
 msgstr "Hacer pública cada subida (ACL public-read)"
 
-#: templates/admin-provider-connection.php:189
+#: templates/admin-provider-connection.php:195
 msgid ""
 "Only for buckets where public read is set per object. Amazon S3 buckets "
 "created since April 2023 have ACLs disabled and refuse it; there, make the "
@@ -2197,53 +2188,53 @@ msgstr ""
 " rechazan; en ese caso, haz el bucket legible con una política de bucket en "
 "su lugar."
 
-#: templates/admin-provider-connection.php:193
+#: templates/admin-provider-connection.php:199
 #: templates/admin-provider-credentials.php:59
 msgid "Addressing"
 msgstr "Direccionamiento"
 
-#: templates/admin-provider-connection.php:196
+#: templates/admin-provider-connection.php:202
 msgid "Path-style (endpoint/bucket/key)"
 msgstr "Estilo de ruta (endpoint/bucket/key)"
 
-#: templates/admin-provider-connection.php:197
+#: templates/admin-provider-connection.php:203
 msgid "Virtual-hosted (bucket.endpoint/key)"
 msgstr "Alojamiento virtual (bucket.endpoint/key)"
 
-#: templates/admin-provider-connection.php:199
+#: templates/admin-provider-connection.php:205
 msgid "Set by the service; editable only under Custom."
 msgstr "Lo define el servicio; solo editable en Personalizado."
 
-#: templates/admin-provider-connection.php:219
+#: templates/admin-provider-connection.php:225
 msgid "Save Cloud Provider"
 msgstr "Guardar proveedor en la nube"
 
-#: templates/admin-provider-connection.php:232
+#: templates/admin-provider-connection.php:238
 msgid "Unhealthy"
 msgstr "Con problemas"
 
-#: templates/admin-provider-connection.php:234
+#: templates/admin-provider-connection.php:240
 msgid "Connected"
 msgstr "Conectado"
 
-#: templates/admin-provider-connection.php:239
+#: templates/admin-provider-connection.php:245
 #: templates/admin-status-system.php:125
 msgid "Provider"
 msgstr "Proveedor"
 
-#: templates/admin-provider-connection.php:250
+#: templates/admin-provider-connection.php:256
 msgid "Connected since"
 msgstr "Conectado desde"
 
 #. translators: %s: a human time difference, e.g. "10 minutes"
-#: templates/admin-provider-connection.php:251
+#: templates/admin-provider-connection.php:257
 #: templates/admin-status-health.php:50 templates/admin-sync-disconnect.php:50
 #: templates/admin-sync-offloading.php:71 templates/admin-sync-sync.php:54
 #, php-format
 msgid "%s ago"
 msgstr "hace %s"
 
-#: templates/admin-provider-connection.php:258
+#: templates/admin-provider-connection.php:264
 msgid ""
 "Your cloud provider is configured. Start syncing your media files to the "
 "cloud."
@@ -2251,11 +2242,11 @@ msgstr ""
 "Tu proveedor en la nube está configurado. Comienza a sincronizar tus "
 "archivos multimedia."
 
-#: templates/admin-provider-connection.php:269
+#: templates/admin-provider-connection.php:275
 msgid "Rotate the key"
 msgstr "Rotar la clave"
 
-#: templates/admin-provider-connection.php:273
+#: templates/admin-provider-connection.php:279
 #: templates/admin-provider-credentials.php:125
 #: templates/admin-provider-credentials.php:132
 msgid "Delete Cloud Provider"
@@ -3385,7 +3376,7 @@ msgstr "Cerrar esta ventana cancelará la sincronización"
 msgid "Syncing files..."
 msgstr "Sincronizando archivos..."
 
-#: includes/class-diluxone-offload-admin.php:2323
+#: includes/class-diluxone-offload-admin.php:2326
 msgid ""
 "The provider can be deleted only before offloading is active; disconnect "
 "first."
@@ -3393,7 +3384,7 @@ msgstr ""
 "El proveedor sólo se puede eliminar antes de activar la descarga; desconecta"
 " primero."
 
-#: includes/class-diluxone-offload-admin.php:1657
+#: includes/class-diluxone-offload-admin.php:1660
 msgid "bucket not found"
 msgstr "bucket no encontrado"
 
@@ -3405,7 +3396,7 @@ msgstr "Cambiar contenedor"
 msgid "Change bucket"
 msgstr "Cambiar bucket"
 
-#: includes/class-diluxone-offload-admin.php:1485
+#: includes/class-diluxone-offload-admin.php:1488
 msgid ""
 "A new access key is tested against the same account and container or bucket "
 "before it replaces the saved one; the media in the cloud is not touched."
@@ -3414,7 +3405,7 @@ msgstr ""
 "contenedor o bucket antes de reemplazar la guardada; los medios en la nube "
 "no se tocan."
 
-#: includes/class-diluxone-offload-admin.php:1618
+#: includes/class-diluxone-offload-admin.php:1621
 msgid ""
 "Storage Overview shows the last reading of the container or bucket, kept for"
 " five minutes; Refresh lists it again (a few seconds on a large library)."
@@ -3423,7 +3414,7 @@ msgstr ""
 " guardada cinco minutos; Actualizar lo vuelve a listar (unos segundos en una"
 " biblioteca grande)."
 
-#: includes/class-diluxone-offload-admin.php:1713
+#: includes/class-diluxone-offload-admin.php:1716
 msgid "Container or Bucket Not Found"
 msgstr "No se encontró el contenedor o bucket"
 
@@ -3694,3 +3685,112 @@ msgstr "Por subir · %s"
 #, php-format
 msgid "Failed · %s"
 msgstr "Fallidos · %s"
+
+#: includes/providers/class-s3-presets.php:110
+msgid "Hetzner Object Storage"
+msgstr "Hetzner Object Storage"
+
+#: includes/providers/class-s3-presets.php:120
+msgid "Akamai (Linode) Object Storage"
+msgstr "Akamai (Linode) Object Storage"
+
+#: includes/providers/class-s3-presets.php:130
+msgid "Vultr Object Storage"
+msgstr "Vultr Object Storage"
+
+#: includes/providers/class-s3-presets.php:140
+msgid "Scaleway Object Storage"
+msgstr "Scaleway Object Storage"
+
+#: includes/providers/class-s3-presets.php:151
+msgid "OVHcloud Object Storage"
+msgstr "OVHcloud Object Storage"
+
+#: includes/providers/class-s3-presets.php:161
+msgid "IDrive e2"
+msgstr "IDrive e2"
+
+#: templates/admin-provider-connection.php:63
+msgid ""
+"S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud "
+"Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
+msgstr ""
+"Almacenamiento compatible con S3 (Amazon S3, Cloudflare R2, Backblaze B2, "
+"Google Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
+
+#: templates/admin-provider-connection.php:139
+msgid ""
+"Hetzner Console › your project › Security › S3 Credentials. The region is "
+"the bucket's location (fsn1, nbg1 or hel1). Anyone must be able to read the "
+"bucket's objects: a public bucket, or Object ACL under Advanced; Test "
+"Connection checks it."
+msgstr ""
+"Hetzner Console › tu proyecto › Security › S3 Credentials. La región es la "
+"ubicación del bucket (fsn1, nbg1 o hel1). Cualquiera tiene que poder leer "
+"los objetos del bucket: un bucket público, o ACL del objeto en Avanzado; "
+"Probar conexión lo comprueba."
+
+#: templates/admin-provider-connection.php:140
+msgid ""
+"Akamai Cloud Manager › Object Storage › Access Keys, with read and write in "
+"the bucket's region. The region is the first part of the bucket's hostname "
+"(for example us-east-1 or us-ord-10). Newer endpoints ignore per-object "
+"ACLs: let anyone read the bucket with a bucket policy; Test Connection "
+"checks it."
+msgstr ""
+"Akamai Cloud Manager › Object Storage › Access Keys, con lectura y escritura"
+" en la región del bucket. La región es la primera parte del nombre de host "
+"del bucket (por ejemplo us-east-1 o us-ord-10). Los endpoints nuevos ignoran"
+" las ACL por objeto: deja que cualquiera lea el bucket con una bucket "
+"policy; Probar conexión lo comprueba."
+
+#: templates/admin-provider-connection.php:141
+msgid ""
+"Vultr console › Object Storage › your subscription: its S3 credentials and "
+"hostname. The region is the first part of the hostname (for example ewr1). "
+"Anyone must be able to read the objects: a bucket policy, or Object ACL "
+"under Advanced; Test Connection checks it."
+msgstr ""
+"Consola de Vultr › Object Storage › tu suscripción: sus credenciales S3 y su"
+" hostname. La región es la primera parte del hostname (por ejemplo ewr1). "
+"Cualquiera tiene que poder leer los objetos: una bucket policy, o ACL del "
+"objeto en Avanzado; Probar conexión lo comprueba."
+
+#: templates/admin-provider-connection.php:142
+msgid ""
+"Scaleway console › IAM › API keys, with the bucket's project as the "
+"preferred project for Object Storage. The region is the bucket's (fr-par, "
+"nl-ams, pl-waw or it-mil). Anyone must be able to read the objects: a bucket"
+" policy, or Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+"Consola de Scaleway › IAM › API keys, con el proyecto del bucket como "
+"proyecto preferido para Object Storage. La región es la del bucket (fr-par, "
+"nl-ams, pl-waw o it-mil). Cualquiera tiene que poder leer los objetos: una "
+"bucket policy, o ACL del objeto en Avanzado; Probar conexión lo comprueba."
+
+#: templates/admin-provider-connection.php:143
+msgid ""
+"OVHcloud Control Panel › Public Cloud › Object Storage › Object Storage "
+"users: a user linked to the bucket, then View credentials. The region is the"
+" bucket's, in lower case (for example gra). Anyone must be able to read the "
+"objects: turn on Object ACL under Advanced; Test Connection checks it."
+msgstr ""
+"Panel de OVHcloud › Public Cloud › Object Storage › Object Storage users: un"
+" usuario vinculado al bucket, y después View credentials. La región es la "
+"del bucket, en minúsculas (por ejemplo gra). Cualquiera tiene que poder leer"
+" los objetos: activa ACL del objeto en Avanzado; Probar conexión lo "
+"comprueba."
+
+#: templates/admin-provider-connection.php:144
+msgid ""
+"IDrive e2 dashboard › Access Keys: a key for the bucket's region with read "
+"and write. If your dashboard shows an endpoint of your own, type it instead "
+"of the one filled in. The public URL is the bucket's Public Bucket URL "
+"(Bucket summary); public buckets must be enabled on the account. Test "
+"Connection checks it."
+msgstr ""
+"Panel de IDrive e2 › Access Keys: una clave para la región del bucket, con "
+"lectura y escritura. Si tu panel muestra un endpoint propio, escríbelo en "
+"lugar del que se completó. La URL pública es la Public Bucket URL del bucket"
+" (Bucket summary); los buckets públicos tienen que estar habilitados en la "
+"cuenta. Probar conexión lo comprueba."

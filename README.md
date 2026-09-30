@@ -16,7 +16,7 @@ A free WordPress plugin by [**Pablo Di Loreto**](https://diluxone.com). This pag
 
 ## What it does
 
-DiluxOne Offload moves `/wp-content/uploads/` to Azure Blob Storage, Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, DigitalOcean Spaces, Wasabi or any server that speaks the S3 API, and serves it from there. It works through a PHP stream wrapper, so your posts, your database and your other plugins keep working as they are. Free, complete, on your own account and keys.
+DiluxOne Offload moves `/wp-content/uploads/` to Azure Blob Storage, Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, DigitalOcean Spaces, Wasabi, Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud, IDrive e2 or any server that speaks the S3 API, and serves it from there. It works through a PHP stream wrapper, so your posts, your database and your other plugins keep working as they are. Free, complete, on your own account and keys.
 
 It is for:
 
@@ -31,8 +31,9 @@ It is for:
 | **Cloudflare R2** | preset: account endpoint and the bucket's public URL | ✅ |
 | **Google Cloud Storage** (HMAC keys) | preset | ✅ |
 | **Backblaze B2** | preset | ✅ |
-| **Amazon S3**, **DigitalOcean Spaces**, **Wasabi** | presets: region and bucket fill in the rest | not yet |
-| **Anything else that speaks S3**: MinIO, Ceph, Hetzner, Akamai/Linode, Vultr, Scaleway, OVHcloud, IDrive e2, Oracle Cloud, … | *Custom*: endpoint, region and public URL; path-style or virtual-hosted | an S3 server (RustFS) started in CI, on every pull request |
+| **Amazon S3**, **DigitalOcean Spaces**, **Wasabi**, **Hetzner**, **Akamai (Linode)**, **Vultr**, **Scaleway**, **OVHcloud** | presets: region and bucket fill in the rest | not yet |
+| **IDrive e2** | preset: region fills in the endpoint; the bucket's public URL is typed | not yet |
+| **Anything else that speaks S3**: MinIO, Ceph, Oracle Cloud, … | *Custom*: endpoint, region and public URL; path-style or virtual-hosted | an S3 server (RustFS) started in CI, on every pull request |
 
 The **Public URL** is its own field, so a CDN or a custom domain goes right there. **Test Connection** writes a small probe, reads it back without credentials and deletes it: a bucket browsers cannot read is refused before anything is saved.
 

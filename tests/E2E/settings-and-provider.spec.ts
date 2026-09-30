@@ -162,6 +162,31 @@ test.describe('Cloud Provider › Connection, S3-compatible', () => {
 		await expect(page.locator('#s3_path_style')).toBeEnabled();
 	});
 
+	for (const service of [
+		{ preset: 'hetzner', region: 'fsn1', endpoint: 'https://fsn1.your-objectstorage.com', publicUrl: 'https://demo.fsn1.your-objectstorage.com', acl: true },
+		{ preset: 'linode', region: 'us-east-1', endpoint: 'https://us-east-1.linodeobjects.com', publicUrl: 'https://demo.us-east-1.linodeobjects.com', acl: false },
+		{ preset: 'vultr', region: 'ewr1', endpoint: 'https://ewr1.vultrobjects.com', publicUrl: 'https://demo.ewr1.vultrobjects.com', acl: true },
+		{ preset: 'scaleway', region: 'fr-par', endpoint: 'https://s3.fr-par.scw.cloud', publicUrl: 'https://demo.s3.fr-par.scw.cloud', acl: true },
+		{ preset: 'ovh', region: 'gra', endpoint: 'https://s3.gra.io.cloud.ovh.net', publicUrl: 'https://demo.s3.gra.io.cloud.ovh.net', acl: true },
+		{ preset: 'idrive', region: 'us-east-1', endpoint: 'https://s3.us-east-1.idrivee2.com', publicUrl: '', acl: false },
+	]) {
+		test(`${service.preset} fills in its default region, the endpoint and the public URL, and shows its hint`, async ({ page }) => {
+			await page.locator('#s3_preset').selectOption(service.preset);
+			await page.locator('#s3_bucket').fill('demo');
+			await expect(page.locator('#s3_region')).toHaveValue(service.region);
+			await expect(page.locator('#s3_endpoint')).toHaveValue(service.endpoint);
+			await expect(page.locator('#s3_public_url')).toHaveValue(service.publicUrl);
+			await expect(page.locator(`.diluxone-offload-s3-hints [data-preset="${service.preset}"]`)).toBeVisible();
+			await expect(page.locator('.diluxone-offload-s3-hints [data-preset="aws"]')).toBeHidden();
+			await page.locator('.diluxone-offload-s3-advanced summary').click();
+			if (service.acl) {
+				await expect(page.locator('.diluxone-offload-s3-acl-row')).toBeVisible();
+			} else {
+				await expect(page.locator('.diluxone-offload-s3-acl-row')).toBeHidden();
+			}
+		});
+	}
+
 	test('an empty required field is blocked, and Save stays disabled without a test', async ({ page }) => {
 		await expect(page.locator('#submit')).toBeDisabled();
 		await page.locator('#s3-config .test-connection-btn').click();

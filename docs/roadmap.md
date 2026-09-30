@@ -4,10 +4,10 @@ What DiluxOne Offload does, what is paid, what comes next and what it will not d
 
 ## What it does today (free, in the plugin)
 
-- Moves the media library to **Azure Blob Storage** or to **S3-compatible storage** (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC keys, MinIO and any other server that speaks the S3 API) and serves it from there, through a PHP stream wrapper on `/wp-content/uploads/`: no URL rewriting, no database migration.
+- Moves the media library to **Azure Blob Storage** or to **S3-compatible storage** (Amazon S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Google Cloud Storage with HMAC keys, Hetzner, Akamai (Linode), Vultr, Scaleway, OVHcloud, IDrive e2, MinIO and any other server that speaks the S3 API) and serves it from there, through a PHP stream wrapper on `/wp-content/uploads/`: no URL rewriting, no database migration.
 - Sync with cancel, resume and retry; optional deletion of the local copies once synced; **Disconnect from Cloud** brings everything back.
 - Connection health: when the cloud is unreachable an upload fails with a clear error and nothing is written elsewhere.
-- Streaming transfers (downloads to disk, uploads in blocks of at most 5 MiB), so large files do not need large memory.
+- Streaming transfers (downloads to disk, uploads in blocks: 4 MiB on Azure, 5 MiB parts on S3, larger only for a file past the service's part limit), so large files do not need large memory.
 - Multisite with per-site configuration, "Force HTTPS for cloud storage URLs", credentials encrypted at rest, quiet logging, clean uninstall.
 
 ## Paid, outside the plugin

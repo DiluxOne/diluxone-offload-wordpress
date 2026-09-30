@@ -63,8 +63,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	/**
 	 * Bytes per part of a multipart upload, and the largest file sent in a
 	 * single PUT. 5 MiB is the smallest part every listed service accepts,
-	 * and a fixed size satisfies R2's rule that every part but the last be
-	 * the same size. It is also the most of a file this class holds at once.
+	 * and one size per file satisfies R2's rule that every part but the last
+	 * be the same size. A file too large for the service's part limit at this
+	 * size goes in larger parts (part_size()).
 	 */
 	const PART_SIZE = 5242880;
 
@@ -92,6 +93,14 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	private $signer;
 
 	/**
+	 * The most parts one multipart upload may have on this service
+	 * (S3Presets::max_parts()).
+	 *
+	 * @var int
+	 */
+	private $max_parts;
+
+	/**
 	 * Seconds one transfer of file data may take: the "Transfer Timeout"
 	 * setting, as in AzureProvider. Control requests keep short fixed ones.
 	 *
@@ -116,6 +125,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		$this->public_url       = rtrim( (string) ( $config['public_url'] ?? '' ), '/' );
 		$this->path_style       = (bool) ( $config['path_style'] ?? true );
 		$this->object_acl       = ! empty( $config['object_acl'] );
+		$this->max_parts        = S3Presets::max_parts( (string) ( $config['preset'] ?? '' ) );
 		$this->transfer_timeout = max( 30, (int) ( $config['upload_timeout'] ?? 60 ) );
 		$this->download_timeout = max( 300, $this->transfer_timeout );
 		$this->signer           = new AwsSignatureV4(
@@ -123,6 +133,21 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			(string) ( $config['secret_access_key'] ?? '' ),
 			$this->region
 		);
+	}
+
+	/**
+	 * Bytes per part for a file of this size: PART_SIZE, or the smallest
+	 * whole number of MiB that keeps the file within the service's part
+	 * limit (a 6 GB video on Scaleway, whose limit is 1,000 parts, goes in
+	 * parts of 6 MiB). The same for every part of the file, and the same on
+	 * every request, so an upload taken up later splits the file the same way.
+	 *
+	 * @param int $size File size in bytes.
+	 * @return int<1, max>
+	 */
+	public function part_size( int $size ): int {
+		$mib = 1048576;
+		return max( self::PART_SIZE, (int) ceil( $size / $this->max_parts / $mib ) * $mib );
 	}
 
 	// ── Addressing ──────────────────────────────────────────
@@ -490,11 +515,12 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			return 'Could not open local file: ' . $local_path;
 		}
 
-		$etags = array();
-		$read  = 0;
-		$part  = 0;
+		$etags     = array();
+		$read      = 0;
+		$part      = 0;
+		$part_size = $this->part_size( $size );
 		while ( ! feof( $fp ) ) {
-			$chunk = fread( $fp, self::PART_SIZE );
+			$chunk = fread( $fp, $part_size );
 			if ( false === $chunk ) {
 				fclose( $fp );
 				$this->abort( $url, $upload_id );
@@ -984,7 +1010,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 				return self::no_handle( 'Could not ask for the unfinished upload of ' . $key . ( is_string( $landed ) ? ': ' . $landed : '' ) . '; it is taken up next time' );
 			}
 			if ( null !== $landed && is_string( $upload_id ) ) {
-				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id );
+				$upload = new ChunkedUpload( $local_path, $key, $size, $this->part_size( $size ), $upload_id );
 				foreach ( $landed as $part => $landed_part ) {
 					if ( $part <= $upload->partCount() && $landed_part['size'] === $upload->length( $part ) ) {
 						$upload->recordTag( $part, $landed_part['etag'] );
@@ -1005,7 +1031,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 
 		return array(
 			'success' => true,
-			'upload'  => new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $upload_id[0] ),
+			'upload'  => new ChunkedUpload( $local_path, $key, $size, $this->part_size( $size ), $upload_id[0] ),
 		);
 	}
 
