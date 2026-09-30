@@ -1041,8 +1041,9 @@ class ConfigManager {
 		// A pause is announced once, by e-mail, while offloading is on (only
 		// then are uploads refused). The health is saved as announced before
 		// the message goes, so nothing the mail step triggers can announce it
-		// again; a message wp_mail() could not hand over is tried on the next
-		// failure.
+		// again. A pause the switch kept quiet is announced at the next failure
+		// once it is on; a message the mail server refused is not retried (a
+		// slow SMTP attempt on every refused upload would be worse).
 		$announce = $health['consecutive_failures'] >= self::PAUSE_AFTER_FAILURES
 			&& empty( $health['paused_notified'] )
 			&& PluginState::is_offloading_active( self::get_state() );
@@ -1103,7 +1104,8 @@ class ConfigManager {
 	 *
 	 * @param string               $event  `paused` or `resumed`.
 	 * @param array<string, mixed> $health The connection health as recorded.
-	 * @return bool Whether a message was handed to wp_mail().
+	 * @return bool Whether the message was attempted: false only when the
+	 *              switch is off or there is no valid address to send to.
 	 */
 	private static function notify_admin( string $event, array $health ): bool {
 		// Read without decrypting the credentials: a decrypt failure records
@@ -1147,7 +1149,10 @@ class ConfigManager {
 			);
 		}
 
-		return (bool) wp_mail( $to, $subject, $body );
+		if ( ! wp_mail( $to, $subject, $body ) ) {
+			Logger::warning( '[DiluxOne Offload ConfigManager] The ' . $event . ' e-mail could not be sent to the administrator address.' );
+		}
+		return true;
 	}
 
 	/**
