@@ -220,6 +220,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
     /** @var array<int, string|null> The upload the engine asked to take up on each start (null: a new one). */
     public array $resume_requests = [];
 
+    /** @var string The name the fake gives its uploads (R2's run past the row's 255 characters). */
+    public string $upload_name = 'fake-upload';
+
     public function begin_chunked_upload(array $file_info, ?string $resume_upload_id = null): array {
         $size = is_file($file_info['local_path']) ? (int) filesize($file_info['local_path']) : 0;
         if ($size <= 0) {
@@ -227,8 +230,9 @@ class FakeCloudClient implements CloudStorageClientInterface {
         }
         $this->resume_requests[] = $resume_upload_id;
         $key    = ltrim($file_info['remote_path'], '/');
-        $upload = new ChunkedUpload($file_info['local_path'], $key, $size, $this->part_size, 'fake-upload');
-        if (null === $resume_upload_id) {
+        $upload = new ChunkedUpload($file_info['local_path'], $key, $size, $this->part_size, $this->upload_name);
+        // Like a service: only its own upload's name, or the SHA-1 form of it, takes it up.
+        if (!in_array($resume_upload_id, [$this->upload_name, '#' . sha1($this->upload_name)], true)) {
             unset($this->parts[$key]); // A new upload: what an earlier one left is not part of it.
         }
         // Like ListParts: the service says which parts it holds, with their size.

@@ -975,6 +975,9 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		}
 
 		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
+			$resume_upload_id = $this->resolve_upload_id( $key, $resume_upload_id );
+		}
+		if ( null !== $resume_upload_id && '' !== $resume_upload_id ) {
 			$landed = $this->list_parts( $key, $resume_upload_id );
 			if ( null !== $landed ) {
 				$upload = new ChunkedUpload( $local_path, $key, $size, self::PART_SIZE, $resume_upload_id );
@@ -1154,7 +1157,48 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * @param ChunkedUpload $upload The upload.
 	 */
 	public function abort_chunked_upload( ChunkedUpload $upload ): void {
-		$this->abort( $this->request_url( $upload->remotePath() ), $upload->uploadId() );
+		$upload_id = $this->resolve_upload_id( $upload->remotePath(), $upload->uploadId() );
+		if ( null !== $upload_id ) {
+			$this->abort( $this->request_url( $upload->remotePath() ), $upload_id );
+		}
+	}
+
+	/**
+	 * The UploadId a token names: itself, or, for the `#` form a name too
+	 * long for the row is kept as, the unfinished upload of the key whose
+	 * UploadId has that SHA-1 (ListMultipartUploads, every page). Null when
+	 * the service holds none.
+	 *
+	 * @param string $key  Object key.
+	 * @param string $name UploadId, or `#` and its SHA-1.
+	 * @return string|null
+	 */
+	private function resolve_upload_id( string $key, string $name ): ?string {
+		if ( '#' !== substr( $name, 0, 1 ) ) {
+			return $name;
+		}
+		$sha1  = substr( $name, 1 );
+		$query = 'uploads=&prefix=' . rawurlencode( $key );
+		for ( $page = 0; $page < 20; $page++ ) {
+			$response = $this->request( 'GET', $this->request_url( '', $query ) );
+			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				return null;
+			}
+			$xml = self::parse_xml( (string) wp_remote_retrieve_body( $response ) );
+			if ( null === $xml ) {
+				return null;
+			}
+			foreach ( $xml->Upload as $unfinished ) {
+				if ( $key === (string) $unfinished->Key && hash_equals( $sha1, sha1( (string) $unfinished->UploadId ) ) ) {
+					return (string) $unfinished->UploadId;
+				}
+			}
+			if ( 'true' !== strtolower( (string) $xml->IsTruncated ) ) {
+				return null;
+			}
+			$query = 'uploads=&prefix=' . rawurlencode( $key ) . '&key-marker=' . rawurlencode( (string) $xml->NextKeyMarker ) . '&upload-id-marker=' . rawurlencode( (string) $xml->NextUploadIdMarker );
+		}
+		return null;
 	}
 
 	/**

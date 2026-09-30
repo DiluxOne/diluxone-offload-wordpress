@@ -146,17 +146,25 @@ class ChunkedUpload {
 		return $missing;
 	}
 
+	/** Longest upload name a token carries as it is; a longer one is kept as its SHA-1. */
+	const MAX_TOKEN_UPLOAD_ID = 200;
+
 	/**
 	 * What the sync keeps in the file's row to take the upload up again in
 	 * a later request: the file's size and modification time, so a file that
 	 * changed since is started over, and the provider's name for the upload.
-	 * Which parts landed is asked of the service when it is taken up.
+	 * Which parts landed is asked of the service when it is taken up. The
+	 * row's column holds 255 characters and some services' upload names are
+	 * longer (Cloudflare R2's), so a name longer than MAX_TOKEN_UPLOAD_ID is
+	 * kept as `#` and its SHA-1, which the provider resolves by listing the
+	 * key's unfinished uploads.
 	 *
 	 * @param int $mtime The file's modification time.
 	 * @return string
 	 */
 	public function resumeToken( int $mtime ): string {
-		return 'v1|' . $this->size . '|' . $mtime . '|' . $this->uploadId;
+		$name = strlen( $this->uploadId ) > self::MAX_TOKEN_UPLOAD_ID ? '#' . sha1( $this->uploadId ) : $this->uploadId;
+		return 'v1|' . $this->size . '|' . $mtime . '|' . $name;
 	}
 
 	/**
@@ -165,7 +173,7 @@ class ChunkedUpload {
 	 * @param string|null $token What resumeToken() returned, or null.
 	 * @param int         $size  The file's size now.
 	 * @param int         $mtime The file's modification time now.
-	 * @return string|null The provider's name for the upload; null to start over.
+	 * @return string|null The provider's name for the upload, or `#` and its SHA-1 when it was too long to keep; null to start over.
 	 */
 	public static function resumableUploadId( ?string $token, int $size, int $mtime ): ?string {
 		$fields = explode( '|', (string) $token, 4 );

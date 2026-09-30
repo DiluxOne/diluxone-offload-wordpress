@@ -42,6 +42,16 @@ class ChunkedUploadTest extends TestCase {
 		$this->assertSame( '', ChunkedUpload::resumableUploadId( ( new ChunkedUpload( '/f', 'f', 2500, 1000 ) )->resumeToken( 5 ), 2500, 5 ), 'a provider that names no upload' );
 	}
 
+	/** An upload name too long for the row's 255 characters (R2's are) is kept as its SHA-1. */
+	public function test_a_long_upload_name_is_kept_as_its_sha1(): void {
+		$name  = str_repeat( 'R2', 150 );
+		$token = ( new ChunkedUpload( '/f', 'f', 2500, 1000, $name ) )->resumeToken( 1700000000 );
+		$this->assertLessThanOrEqual( 255, strlen( $token ) );
+		$this->assertSame( '#' . sha1( $name ), ChunkedUpload::resumableUploadId( $token, 2500, 1700000000 ) );
+		$short = str_repeat( 'a', ChunkedUpload::MAX_TOKEN_UPLOAD_ID );
+		$this->assertSame( $short, ChunkedUpload::uploadIdOf( ( new ChunkedUpload( '/f', 'f', 2500, 1000, $short ) )->resumeToken( 1 ) ) );
+	}
+
 	/** @dataProvider notTokens */
 	public function test_anything_else_in_the_column_starts_over( ?string $value ): void {
 		$this->assertNull( ChunkedUpload::resumableUploadId( $value, 2500, 5 ) );

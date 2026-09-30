@@ -489,6 +489,27 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertNull($wpdb->get_var($wpdb->prepare('SELECT upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/long.prt')), 'a synced file keeps no token');
     }
 
+    /** An upload name too long for the row (R2's) is kept as its SHA-1, and the next request still takes it up. */
+    public function test_an_upload_with_a_long_name_is_still_taken_up(): void {
+        global $wpdb;
+        $this->configure(['allowed_file_types' => 'prt']);
+        $bytes = random_bytes(6000);
+        $this->fixture('prt/r2.prt', $bytes);
+        $this->client->upload_name = str_repeat('R2', 150);
+        $sm = new SyncManager();
+        $this->assertTrue($sm->start_sync()['success']);
+        $sm->set_parallel_uploads(3);
+        $this->chunkedAt($sm, 1000, 1000);
+
+        $sm->process_batch(0.0);
+        $token = (string) $wpdb->get_var($wpdb->prepare('SELECT upload_id FROM ' . DB::get_table_name() . ' WHERE file = %s', '/prt/r2.prt'));
+        $this->assertStringEndsWith('|#' . sha1($this->client->upload_name), $token, 'the row keeps the SHA-1, which fits');
+
+        $this->assertSame('completed', $sm->process_batch(30.0)['status']);
+        $this->assertSame(6, $this->client->part_requests, 'the second request sent only the missing parts');
+        $this->assertSame($bytes, $this->client->blobs['uploads/prt/r2.prt']);
+    }
+
     /** A file that changed since its upload was left half sent is sent again whole, as a new upload. */
     public function test_a_file_that_changed_since_is_started_over(): void {
         $this->configure(['allowed_file_types' => 'prt']);

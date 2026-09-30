@@ -183,7 +183,7 @@ interface CloudStorageClientInterface {
 	 * upload, a new one starts.
 	 *
 	 * @param array<string, mixed> $file_info        File information ['local_path' => string, 'remote_path' => string]
-	 * @param string|null          $resume_upload_id The name of the unfinished upload to take up (an S3 UploadId, an Azure nonce), or null for a new one.
+	 * @param string|null          $resume_upload_id The name of the unfinished upload to take up (an S3 UploadId, an Azure nonce, or `#` and the SHA-1 of a name too long for the row, which the provider resolves), or null for a new one.
 	 * @return array<string, mixed> ['success' => bool, 'error' => string, 'upload' => ChunkedUpload]
 	 */
 	public function begin_chunked_upload( array $file_info, ?string $resume_upload_id = null ): array;
@@ -225,7 +225,8 @@ interface CloudStorageClientInterface {
 	/**
 	 * Give up an upload whose part failed, so the parts sent are not kept
 	 * (S3 aborts the multipart upload; Azure discards uncommitted blocks on
-	 * its own after a week and needs no call).
+	 * its own after a week and needs no call). Its name may be the `#` form
+	 * of a token, as begin_chunked_upload() takes it.
 	 *
 	 * @param \DiluxOneOffload\DTOs\ChunkedUpload $upload The upload.
 	 */

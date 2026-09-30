@@ -552,6 +552,33 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertSame( '"e3"', $r['upload']->tag( 3 ) );
 	}
 
+	/** A name kept as its SHA-1 is found among the key's unfinished uploads, then taken up; so is its abort. */
+	public function test_an_upload_kept_as_its_sha1_is_found_by_listing_the_unfinished_uploads(): void {
+		$long  = str_repeat( 'Z', 300 );
+		$f     = $this->tmp( 11 * 1048576 );
+		$list  = '<ListMultipartUploadsResult>'
+			. '<Upload><Key>uploads/big.mov.bak</Key><UploadId>OTHER</UploadId></Upload>'
+			. '<Upload><Key>uploads/big.mov</Key><UploadId>' . $long . '</UploadId></Upload>'
+			. '<IsTruncated>false</IsTruncated></ListMultipartUploadsResult>';
+		$this->answer(
+			fn( string $method, string $url ) => false !== strpos( $url, '?uploads=' )
+				? self::reply( 200, $list )
+				: self::reply( 200, '<ListPartsResult><IsTruncated>false</IsTruncated></ListPartsResult>' )
+		);
+
+		$r = $this->provider->begin_chunked_upload( array( 'local_path' => $f, 'remote_path' => 'uploads/big.mov' ), '#' . sha1( $long ) );
+		unlink( $f );
+		$this->assertSame( $long, $r['upload']->uploadId() );
+		$this->assertSame( 'https://s3.example.com/media/?uploads=&prefix=uploads%2Fbig.mov', $this->requests()[0]['url'] );
+		$this->assertStringStartsWith( 'https://s3.example.com/media/uploads/big.mov?uploadId=ZZZ', $this->requests()[1]['url'] );
+
+		$this->answer( fn( string $method ) => 'GET' === $method ? self::reply( 200, $list ) : self::reply( 204 ) );
+		$this->provider->abort_chunked_upload( new \DiluxOneOffload\DTOs\ChunkedUpload( '/f', 'uploads/big.mov', 1, 1, '#' . sha1( $long ) ) );
+		$abort = array_slice( $this->requests(), -1 )[0];
+		$this->assertSame( 'DELETE', $abort['method'] );
+		$this->assertStringEndsWith( '?uploadId=' . $long, $abort['url'] );
+	}
+
 	/** An upload the service no longer knows (aborted, expired) is replaced by a new one. */
 	public function test_an_upload_the_service_forgot_starts_over(): void {
 		$f = $this->tmp( 11 * 1048576 );

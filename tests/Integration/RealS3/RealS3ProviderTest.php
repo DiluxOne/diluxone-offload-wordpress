@@ -173,8 +173,11 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $this->assertTrue($first['success'], $first['error'] ?? '');
         $this->assertNull(self::sendPart(self::$provider, $first['upload'], 1));
 
-        // A later request: the service says part 1 is there.
-        $again  = self::$provider->begin_chunked_upload($file, $first['upload']->uploadId());
+        // A later request, through the token the row keeps (an upload name
+        // longer than the row allows, as R2's are, is kept as its SHA-1 and
+        // found by listing the key's unfinished uploads): part 1 is there.
+        $token  = \DiluxOneOffload\DTOs\ChunkedUpload::resumableUploadId($first['upload']->resumeToken(1700000000), 11 * 1048576, 1700000000);
+        $again  = self::$provider->begin_chunked_upload($file, $token);
         $upload = $again['upload'];
         $this->assertSame($first['upload']->uploadId(), $upload->uploadId());
         $this->assertSame([2, 3], $upload->missingParts());
@@ -186,6 +189,21 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $down = $this->tempFile(0);
         $this->assertTrue(self::$provider->download_file($file['remote_path'], $down)['success']);
         $this->assertSame(md5_file($local), md5_file($down));
+    }
+
+    /** An upload named only by its SHA-1 (how the row keeps a long one) is found by ListMultipartUploads and taken up. */
+    public function test_an_upload_named_by_its_sha1_is_found_among_the_unfinished_uploads(): void {
+        $file  = ['local_path' => $this->tempFile(6 * 1048576, 'mp4'), 'remote_path' => $this->key('by-sha1.mp4')];
+        $first = self::$provider->begin_chunked_upload($file)['upload'];
+        $this->assertNull(self::sendPart(self::$provider, $first, 1));
+
+        $again = self::$provider->begin_chunked_upload($file, '#' . sha1($first->uploadId()))['upload'];
+        $this->assertSame($first->uploadId(), $again->uploadId());
+        $this->assertSame([2], $again->missingParts());
+        self::$provider->abort_chunked_upload(new \DiluxOneOffload\DTOs\ChunkedUpload($file['local_path'], $file['remote_path'], 1, 1, '#' . sha1($first->uploadId())));
+        $fresh = self::$provider->begin_chunked_upload($file, $first->uploadId())['upload'];
+        $this->assertNotSame($first->uploadId(), $fresh->uploadId(), 'the abort found it too');
+        self::$provider->abort_chunked_upload($fresh);
     }
 
     /** An aborted upload is one the service no longer knows: taking it up starts a new one. */
