@@ -50,8 +50,12 @@ jobs:
       checks: read
     uses: DiluxOne/.github/.github/workflows/plugin-tests-wp.yml@v2
 
+  # The paid review runs only once every deterministic check of this
+  # workflow passed: conventions, the static checks and the unit, integration
+  # and end-to-end suites. The real-storage suites live in their own
+  # workflows and are not waited for.
   review:
-    needs: [conventions, checks]
+    needs: [conventions, checks, tests]
     permissions:
       contents: read
       pull-requests: write
