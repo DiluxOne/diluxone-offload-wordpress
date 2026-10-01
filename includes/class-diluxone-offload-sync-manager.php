@@ -561,7 +561,7 @@ class SyncManager {
 	private function run_batch( float $time_limit ) {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
-		$start_time          = microtime( true );
+		$start_time          = Clock::now();
 		$uploaded_this_batch = 0;
 		$max_batch_size      = $this->round_bytes();
 
@@ -690,7 +690,7 @@ class SyncManager {
 			}
 
 			// Check time limit
-			$elapsed = microtime( true ) - $start_time;
+			$elapsed = Clock::now() - $start_time;
 			if ( $elapsed >= $time_limit ) {
 				Logger::info( '[DiluxOne Offload SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
 				break;
@@ -1034,7 +1034,7 @@ class SyncManager {
 	 * three such kills retire only them.
 	 *
 	 * @param array<int, array<string, mixed>> $batch    Array of file_info arrays
-	 * @param float                            $deadline microtime() after which no new file starts.
+	 * @param float                            $deadline Clock::now() after which no new file starts.
 	 * @return array<int, array<string, mixed>> Per-file result envelopes, keyed like $batch, for the files that started
 	 */
 	private function sync_files_parallel( $batch, float $deadline ) {
@@ -1058,7 +1058,7 @@ class SyncManager {
 				list( $kind, $i, $part ) = $queue[0];
 				// A new file or part starts in the first fill or while there is
 				// time; a commit finishes a file whose parts all landed.
-				if ( 'commit' !== $kind && ! $first && microtime( true ) >= $deadline ) {
+				if ( 'commit' !== $kind && ! $first && Clock::now() >= $deadline ) {
 					break;
 				}
 				array_shift( $queue );
@@ -1778,7 +1778,7 @@ class SyncManager {
 		if ( ! $this->cloud_client ) {
 			throw new \Exception( 'Cloud client not configured' );
 		}
-		$start   = microtime( true );
+		$start   = Clock::now();
 		$prefix  = DiluxOneOffloadDB::listing_prefix();
 		$deleted = 0;
 		$failed  = 0;
@@ -1790,7 +1790,7 @@ class SyncManager {
 			foreach ( CloudStreamWrapper::site_files( $page['files'] ) as $file ) {
 				// Out of time, or no longer untouched: the rest of this page is
 				// listed again from the same marker, without what went already.
-				$out_of_time = $deleted + $failed > 0 && microtime( true ) - $start >= $time_limit;
+				$out_of_time = $deleted + $failed > 0 && Clock::now() - $start >= $time_limit;
 				if ( $out_of_time || ! self::target_untouched() ) {
 					break 2;
 				}
@@ -1809,7 +1809,7 @@ class SyncManager {
 				break;
 			}
 			$marker = $page['next'];
-			if ( microtime( true ) - $start >= $time_limit ) {
+			if ( Clock::now() - $start >= $time_limit ) {
 				break;
 			}
 		}
@@ -1860,7 +1860,7 @@ class SyncManager {
 	private function run_reverse_batch( float $time_limit ) {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
-		$start_time            = microtime( true );
+		$start_time            = Clock::now();
 		$downloaded_this_batch = 0;
 		$max_batch_size        = 12 * 1024 * 1024; // 12 MB a round (the upload side sizes its rounds by the parallelism: round_bytes())
 
@@ -1972,7 +1972,7 @@ class SyncManager {
 			}
 
 			// Check time limit
-			$elapsed = microtime( true ) - $start_time;
+			$elapsed = Clock::now() - $start_time;
 			if ( $elapsed >= $time_limit ) {
 				Logger::info( '[DiluxOne Offload SyncManager] Time limit reached (' . round( $elapsed, 2 ) . 's), ending batch' );
 				break;

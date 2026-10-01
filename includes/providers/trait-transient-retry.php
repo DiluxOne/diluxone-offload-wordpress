@@ -57,9 +57,9 @@ trait TransientRetry {
 		$repeatable = 'POST' !== strtoupper( (string) ( $args['method'] ?? 'GET' ) );
 		$attempt    = 0;
 		while ( true ) {
-			$started  = microtime( true );
+			$started  = \DiluxOneOffload\Clock::now();
 			$response = wp_remote_request( $url, $args );
-			$slow     = microtime( true ) - $started >= static::$slow_answer;
+			$slow     = \DiluxOneOffload\Clock::now() - $started >= static::$slow_answer;
 			if ( ! $repeatable || $slow || ! self::is_transient( $response ) || $attempt >= count( static::$retry_pauses ) ) {
 				return $response;
 			}

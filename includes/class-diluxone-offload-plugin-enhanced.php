@@ -1159,7 +1159,7 @@ class Plugin {
 
 		$deleted_total = 0;
 		$failed_total  = 0;
-		$start_time    = microtime( true );
+		$start_time    = Clock::now();
 		$time_limit    = 20; // 20 seconds per Ajax request
 		$batch_size    = 500; // Process 500 files per DB query
 		$break         = false;
@@ -1227,7 +1227,7 @@ class Plugin {
 				"SELECT COUNT(*) FROM {$table_name} WHERE synced = 1 AND deleted = 0"
 			);
 
-			$elapsed = microtime( true ) - $start_time;
+			$elapsed = Clock::now() - $start_time;
 
 			if ( $is_done || $elapsed >= $time_limit ) {
 				$break = true;
