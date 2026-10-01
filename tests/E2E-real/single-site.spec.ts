@@ -185,8 +185,7 @@ test.describe.serial( 'single site journey', () => {
 		await ui.goTab( page, base, 'sync' );
 		const outcome = await ui.runSyncToCompletion( page, 'scratch' );
 		expect( outcome ).not.toBe( 'success' );
-		await page.locator( '#accept-errors-btn, #sync-complete-close-btn' ).first().click();
-		await page.waitForURL( ui.onScreen( 'sync' ) );
+		await ui.clickAndAwaitReload( page, '#accept-errors-btn, #sync-complete-close-btn >> nth=0' );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Synced with Errors/ );
 
 		await page.locator( '.view-failed-btn' ).first().click();
