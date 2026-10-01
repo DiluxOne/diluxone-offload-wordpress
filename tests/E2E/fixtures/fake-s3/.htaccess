@@ -1,0 +1,7 @@
+# Every request under /e2e-bucket/ goes to the fake S3 server (router.php).
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /e2e-bucket/
+RewriteRule ^router\.php$ - [L]
+RewriteRule ^ router.php [L,QSA]
+</IfModule>

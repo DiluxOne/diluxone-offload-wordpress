@@ -451,4 +451,27 @@ class ConfigObjectsTest extends TestCase {
 		$this->assertFalse( $s->shouldNotifyEmail(), 'an unchecked box is off' );
 		$this->assertSame( array( 'backups/', 'cache/' ), $s->getExcludedFolders(), 'another tab leaves the folders alone' );
 	}
+
+	public function test_a_group_that_is_not_a_settings_tab_is_refused(): void {
+		$this->expectException( \InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Unknown settings group: provider' );
+		( new PluginSettings() )->withPostedGroup( 'provider', array() );
+	}
+
+	/** @return array<string, array{string}> */
+	public function badStorageAccounts(): array {
+		return array(
+			'upper case'   => array( 'MyAccount' ),
+			'too short'    => array( 'ab' ),
+			'too long'     => array( str_repeat( 'a', 25 ) ),
+			'with a dash'  => array( 'my-account' ),
+		);
+	}
+
+	/** @dataProvider badStorageAccounts */
+	public function test_an_azure_account_name_azure_would_refuse_is_rejected( string $account ): void {
+		$this->expectException( \InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Storage Account Name must be 3-24 lowercase letters and numbers only' );
+		\DiluxOneOffload\DTOs\ProviderConfig::validate_azure_config( array( 'storage_account' => $account, 'access_key' => 'k', 'container_name' => 'media' ) );
+	}
 }

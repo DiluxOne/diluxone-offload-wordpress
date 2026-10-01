@@ -36,6 +36,7 @@ class LoggerTest extends TestCase {
 	protected function tearDown(): void {
 		ini_set( 'error_log', $this->previous_sink );
 		@unlink( $this->sink );
+		Logger::set_verbose_logging( false );
 		unset( $GLOBALS['_test_wp_options'] );
 		parent::tearDown();
 	}
@@ -181,5 +182,69 @@ PHP;
 		$out = $this->written();
 		$this->assertStringContainsString( $a, $out );
 		$this->assertStringContainsString( $b, $out );
+	}
+
+	private static function property( string $name ): \ReflectionProperty {
+		$p = new \ReflectionProperty( Logger::class, $name );
+		if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+			$p->setAccessible( true );
+		}
+		return $p;
+	}
+
+	public function test_a_message_logged_again_after_the_window_is_written_again(): void {
+		$m     = $this->msg( 'window' );
+		$cache = self::property( 'log_cache' );
+		Logger::error( $m );
+		// Age the entry past the 300-second window, as if the first line was
+		// written six minutes ago.
+		$entries = $cache->getValue();
+		$key     = md5( 'error|' . $m );
+		$entries[ $key ] = time() - 301;
+		$cache->setValue( null, $entries );
+
+		Logger::error( $m );
+
+		$this->assertSame( 2, substr_count( $this->written(), $m ) );
+	}
+
+	public function test_stale_dedupe_entries_are_dropped_when_the_next_line_is_written(): void {
+		$cache   = self::property( 'log_cache' );
+		$entries = $cache->getValue();
+		$entries['stale-entry'] = time() - 301;
+		$entries['fresh-entry'] = time() - 10;
+		$cache->setValue( null, $entries );
+
+		Logger::error( $this->msg( 'sweeper' ) );
+
+		$after = $cache->getValue();
+		$this->assertArrayNotHasKey( 'stale-entry', $after, 'the cache does not grow for ever' );
+		$this->assertArrayHasKey( 'fresh-entry', $after );
+	}
+
+	public function test_init_is_a_no_op_once_initialised(): void {
+		Logger::set_verbose_logging( true );
+		// The saved toggle says off, but init() after initialisation must not
+		// re-read it: only refresh() does.
+		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'debug_enabled' => false );
+		Logger::init();
+		$this->assertTrue( Logger::is_verbose_logging() );
+	}
+
+	public function test_the_flag_is_read_lazily_on_first_use(): void {
+		self::property( 'initialized' )->setValue( null, false );
+		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'debug_enabled' => true );
+
+		$this->assertTrue( Logger::is_verbose_logging(), 'is_verbose_logging() initialises from the saved config' );
+	}
+
+	public function test_logging_initialises_from_the_saved_config_on_first_line(): void {
+		self::property( 'initialized' )->setValue( null, false );
+		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'debug_enabled' => true );
+		$m = $this->msg( 'lazy-info' );
+
+		Logger::info( $m );
+
+		$this->assertStringContainsString( $m, $this->written(), 'info goes through because the toggle is on' );
 	}
 }

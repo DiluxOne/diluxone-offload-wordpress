@@ -67,4 +67,12 @@ class ChunkedUploadTest extends TestCase {
 			'other version' => array( 'v2|2500|5|U' ),
 		);
 	}
+
+	public function test_the_upload_keeps_what_it_was_built_with(): void {
+		$u = new ChunkedUpload( '/tmp/f.mov', 'uploads/f.mov', 2500, 1000, 'UP-1' );
+		$this->assertSame( '/tmp/f.mov', $u->localPath() );
+		$this->assertSame( 'uploads/f.mov', $u->remotePath() );
+		$this->assertSame( 2500, $u->size() );
+		$this->assertSame( 'UP-1', $u->uploadId() );
+	}
 }

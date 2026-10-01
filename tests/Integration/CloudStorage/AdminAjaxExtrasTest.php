@@ -4,6 +4,7 @@ namespace Tests\Integration\CloudStorage;
 use Tests\Integration\IntegrationTestCase;
 use Tests\Integration\ScriptedHttp;
 use Tests\Integration\FakeCloudClient;
+use Tests\Integration\FaultyCloudClient;
 use Tests\Integration\LocalBlobServer;
 use DiluxOneOffload\ConfigManager;
 use DiluxOneOffload\Enums\PluginState;
@@ -176,5 +177,102 @@ class AdminAjaxExtrasTest extends IntegrationTestCase {
         $this->assertTrue($r['json']['success'], $r['raw']);
         $this->assertSame(2, $r['json']['data']['fileCount']);
         $this->assertSame(5, $r['json']['data']['storageUsedBytes']);
+    }
+
+    // ── Test Connection and the saved connection's health ───
+
+    private function pauseHealth(): void {
+        update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => '403', 'error_message' => 'HTTP 403', 'consecutive_failures' => 3, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'upload']);
+    }
+
+    public function test_a_passing_test_of_the_saved_credentials_ends_a_pause(): void {
+        $key = base64_encode(random_bytes(32));
+        ConfigManager::save_config(['cloud_provider' => 'azure', 'provider_config' => ['storage_account' => 'savedacct', 'container_name' => 'media', 'access_key' => $key]]);
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        $this->pauseHealth();
+        $this->scriptHttp(fn() => self::httpReply(200, '', ['x-ms-blob-public-access' => 'blob']));
+
+        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'azure', 'account_name' => 'savedacct', 'account_key' => $key, 'container_name' => 'media']);
+
+        $this->assertTrue($r['json']['success'], $r['raw']);
+        $health = ConfigManager::get_connection_health();
+        $this->assertSame('healthy', $health['status'], 'the key that is in use works again: uploads reopen now');
+        $this->assertSame(0, $health['consecutive_failures']);
+    }
+
+    public function test_a_failing_test_leaves_no_permission_to_save(): void {
+        $this->scriptHttp(fn() => self::httpReply(403, '<?xml version="1.0"?><Error><Code>AuthenticationFailed</Code><Message>Server failed to authenticate</Message></Error>'));
+        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'azure', 'account_name' => 'badacct', 'account_key' => base64_encode(random_bytes(32)), 'container_name' => 'media']);
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertStringContainsString('403', $r['json']['data']['message']);
+        $this->assertFalse(get_transient('diluxone_offload_connection_test_passed_' . $this->admin_id));
+    }
+
+    public function test_a_provider_name_in_another_spelling_is_refused_before_any_request(): void {
+        $this->scriptHttp(fn() => self::httpReply(200));
+        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'AZURE', 'account_name' => 'acct', 'account_key' => 'k', 'container_name' => 'media']);
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('Unsupported cloud provider', $r['json']['data']['message']);
+        $this->assertSame([], $this->httpRequests(), 'nothing was sent');
+    }
+
+    public function test_a_field_posted_as_an_array_is_treated_as_empty(): void {
+        $this->scriptHttp(fn() => self::httpReply(200));
+        $r = $this->call('diluxone_offload_test_connection', ['provider' => 'azure', 'account_name' => ['evil' => 'x'], 'account_key' => base64_encode(random_bytes(32)), 'container_name' => 'media']);
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertStringContainsString('Storage Account Name is required', $r['json']['data']['message']);
+        $this->assertSame([], $this->httpRequests());
+    }
+
+    public function test_a_subscriber_cannot_test_a_connection(): void {
+        $sub = (int) wp_insert_user(['user_login' => 'adxsub_' . wp_generate_password(6, false), 'user_pass' => wp_generate_password(12), 'role' => 'subscriber']);
+        wp_set_current_user($sub);
+        $this->scriptHttp(fn() => self::httpReply(200, '', ['x-ms-blob-public-access' => 'blob']));
+        try {
+            $r = $this->call('diluxone_offload_test_connection', ['provider' => 'azure', 'account_name' => 'acct', 'account_key' => base64_encode(random_bytes(32)), 'container_name' => 'media']);
+        } finally {
+            wp_set_current_user($this->admin_id);
+            wp_delete_user($sub);
+        }
+        $this->assertSame('Insufficient permissions', $r['json']['data']['message']);
+        $this->assertSame([], $this->httpRequests());
+    }
+
+    // ── Check now and stats, when the provider fails ────────
+
+    public function test_check_now_without_a_provider_says_there_is_nothing_to_check(): void {
+        $r = $this->call('diluxone_offload_check_health');
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertStringContainsString('No provider is connected', $r['json']['data']['message']);
+    }
+
+    private function useFaulty(): FaultyCloudClient {
+        $client = new FaultyCloudClient(self::$server->base_url);
+        $this->fake = $client;
+        add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectFake']);
+        return $client;
+    }
+
+    public function test_stats_the_provider_cannot_compute_are_an_error_and_never_mark_the_connection_healthy(): void {
+        $client = $this->useFaulty();
+        $client->throws['get_storage_stats'] = 'HTTP 403 listing refused';
+        $this->pauseHealth();
+        $r = $this->call('diluxone_offload_refresh_stats');
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('HTTP 403 listing refused', $r['json']['data']['message']);
+        $this->assertSame('unhealthy', ConfigManager::get_connection_health()['status']);
+    }
+
+    public function test_stats_answered_as_a_failure_are_passed_on(): void {
+        $client = new class(self::$server->base_url) extends FakeCloudClient {
+            public function get_storage_stats(bool $force_refresh = false): array {
+                return ['success' => false, 'message' => 'Listing failed: HTTP 500'];
+            }
+        };
+        $this->fake = $client;
+        add_filter('diluxone_offload_pre_cloud_client', [$this, 'injectFake']);
+        $r = $this->call('diluxone_offload_refresh_stats');
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('Listing failed: HTTP 500', $r['json']['data']['message']);
     }
 }

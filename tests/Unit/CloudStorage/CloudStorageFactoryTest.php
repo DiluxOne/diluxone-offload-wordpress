@@ -5,6 +5,7 @@ use PHPUnit\Framework\TestCase;
 use DiluxOneOffload\Factories\CloudStorageFactory;
 use DiluxOneOffload\Interfaces\CloudStorageClientInterface;
 use DiluxOneOffload\Providers\AzureProvider;
+use DiluxOneOffload\Providers\S3CompatibleProvider;
 
 /**
  * Unit tests for CloudStorageFactory — provider instantiation, supported
@@ -53,5 +54,45 @@ class CloudStorageFactoryTest extends TestCase {
         $this->assertIsArray($azure_fields);
         $this->assertNotEmpty($azure_fields);
         $this->assertArrayHasKey('storage_account', $azure_fields);
+    }
+
+    public function test_create_s3_provider_is_case_insensitive(): void {
+        $provider = CloudStorageFactory::create('S3', [
+            'preset'            => 'custom',
+            'endpoint'          => 'https://s3.example.com',
+            'region'            => 'us-east-1',
+            'bucket'            => 'media',
+            'access_key_id'     => 'AKID',
+            'secret_access_key' => 'secret',
+            'public_url'        => 'https://cdn.example.com',
+        ]);
+
+        $this->assertInstanceOf(S3CompatibleProvider::class, $provider);
+        $this->assertSame('https://cdn.example.com/uploads/a.jpg', $provider->get_file_url('uploads/a.jpg'));
+    }
+
+    public function test_the_s3_label_is_the_family_name(): void {
+        $this->assertSame('S3-compatible storage', CloudStorageFactory::get_provider_label('s3'));
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: string}> */
+    public function serviceConfigs(): array {
+        return [
+            'an S3 preset names its service' => [['cloud_provider' => 's3', 'provider_config' => ['preset' => 'r2']], 'Cloudflare R2'],
+            'Amazon'                         => [['cloud_provider' => 's3', 'provider_config' => ['preset' => 'aws']], 'Amazon S3'],
+            'Custom names the family'        => [['cloud_provider' => 's3', 'provider_config' => ['preset' => 'custom']], 'S3-compatible storage'],
+            'an unknown preset, the family'  => [['cloud_provider' => 's3', 'provider_config' => ['preset' => 'nope']], 'S3-compatible storage'],
+            'no preset, the family'          => [['cloud_provider' => 's3', 'provider_config' => []], 'S3-compatible storage'],
+            'a preset on Azure is ignored'   => [['cloud_provider' => 'azure', 'provider_config' => ['preset' => 'r2']], 'Microsoft Azure Blob Storage'],
+            'nothing configured'             => [[], ''],
+        ];
+    }
+
+    /**
+     * @dataProvider serviceConfigs
+     * @param array<string, mixed> $config
+     */
+    public function test_the_service_label_names_the_preset_except_custom(array $config, string $label): void {
+        $this->assertSame($label, CloudStorageFactory::get_service_label($config));
     }
 }

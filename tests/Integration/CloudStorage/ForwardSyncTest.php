@@ -738,4 +738,34 @@ class ForwardSyncTest extends IntegrationTestCase {
         $this->assertSame(2, $r['downloaded_this_batch']);
         $this->assertSame(0, $r['remaining_files']);
     }
+
+    // ── Paths a row must never lead the upload to ───────────
+
+    public function test_a_pending_row_that_climbs_out_of_uploads_is_never_read_or_uploaded(): void {
+        $this->configure(['allowed_file_types' => 'tv']);
+        $outside = dirname($this->base) . '/dlx-forward-escape.tv';
+        file_put_contents($outside, 'secret outside uploads');
+        try {
+            \DiluxOneOffload\DiluxOneOffloadDB::add_file('/../dlx-forward-escape.tv', 22);
+            $this->fixture('tv/ok.tv', 'ok');
+            \DiluxOneOffload\DiluxOneOffloadDB::add_file('/tv/ok.tv', 2);
+            update_option('diluxone_offload_sync_meta', ['status' => 'started', 'session_id' => 's', 'total_files' => 2, 'last_heartbeat' => time()], false);
+            ConfigManager::set_state(PluginState::SYNCING);
+
+            $r = (new SyncManager())->process_batch(30.0);
+
+            $this->assertSame('completed', $r['status'], print_r($r, true));
+            $this->assertArrayHasKey('uploads/tv/ok.tv', $this->client->blobs);
+            foreach (array_keys($this->client->blobs) as $key) {
+                $this->assertStringNotContainsString('..', $key);
+            }
+            $this->assertNotContains('secret outside uploads', $this->client->blobs);
+            global $wpdb;
+            $row = $wpdb->get_row($wpdb->prepare('SELECT synced, errors, error_message FROM `' . self::$table_name . '` WHERE file = %s', '/../dlx-forward-escape.tv'), ARRAY_A);
+            $this->assertSame(0, (int) $row['synced']);
+            $this->assertGreaterThanOrEqual(3, (int) $row['errors']);
+        } finally {
+            @unlink($outside);
+        }
+    }
 }

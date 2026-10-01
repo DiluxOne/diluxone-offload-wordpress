@@ -282,6 +282,21 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertMatchesRegularExpression('/^#[0-9a-fA-F]{3,8}$/', Admin::accent_color());
     }
 
+    public function test_accent_colour_follows_the_users_admin_colour_scheme(): void {
+        global $_wp_admin_css_colors;
+        require_once ABSPATH . 'wp-admin/includes/misc.php';
+        if (empty($_wp_admin_css_colors['ocean'])) {
+            register_admin_color_schemes();
+        }
+        update_user_option(get_current_user_id(), 'admin_color', 'ocean', true);
+        try {
+            $this->assertSame($_wp_admin_css_colors['ocean']->colors[2], Admin::accent_color());
+        } finally {
+            delete_user_option(get_current_user_id(), 'admin_color', true);
+        }
+        $this->assertSame('#2271b1', Admin::accent_color(), 'the default scheme falls back to WordPress blue');
+    }
+
     public function test_a_screen_with_tabs_shows_the_strip_and_marks_the_open_tab(): void {
         $html = $this->render('credentials');
         $this->assertStringContainsString('nav-tab-wrapper', $html);
@@ -392,6 +407,7 @@ class AdminRenderTest extends IntegrationTestCase {
             '403'     => ['403', 'permission'],
             '404'     => ['404', 'not found'],
             'network' => ['exception', 'connect'],
+            'timeout' => ['timeout', 'cloud transfer timed out'],
             'other'   => ['500', 'paused'],
         ];
     }
