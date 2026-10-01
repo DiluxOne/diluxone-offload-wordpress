@@ -249,6 +249,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* The DiluxOne Offload menu sits at the end of the admin menu, after Settings, where WordPress places a plugin's menu by default.
 * A sync or download request keeps to its time limit when the server's clock is corrected while it runs. Before, a clock set back made the limit look untouched, and the request kept starting uploads past it.
 * Uninstalling cancels the S3 multipart uploads a sync left unfinished, so the bucket stops billing parts nobody can complete any more.
 * Before the first sync, Sync & Offloading › Sync checks this site's folder in the container or bucket. If something is already there (an earlier install, a staging copy) it says how many files and how much, and lets you continue with them, empty that folder (typing the container's or bucket's name) or connect another one. Emptying never touches anything outside this site's folder.

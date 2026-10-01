@@ -2,8 +2,8 @@
 /**
  * Admin: the rail beside every screen ("Right now", a note, related screens).
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * $rail comes from Admin::render_rail(), which includes this file with it in
+ * scope. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *

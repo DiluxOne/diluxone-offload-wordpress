@@ -2,8 +2,9 @@
 /**
  * Admin: Settings › Logging: debug logging.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -16,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use DiluxOneOffload\ConfigManager;
 
-$config = $config ?? array();
+$config = $args['config'] ?? array();
 ?>
 
 <div class="diluxone-offload-settings">

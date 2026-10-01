@@ -15,7 +15,6 @@
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
  * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
- * phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_var_export
  *
  * @package DiluxOneOffload
  */
@@ -361,7 +360,7 @@ class DiluxOneOffloadDB {
 
 		// Debug logging when marking fails
 		if ( $result === false || $result === 0 ) {
-			Logger::error( '[DiluxOne Offload DB] ⚠️ mark_synced FAILED for: ' . $file_path . ' (result=' . var_export( $result, true ) . ', wpdb->last_error=' . $wpdb->last_error . ')' );
+			Logger::error( '[DiluxOne Offload DB] ⚠️ mark_synced FAILED for: ' . $file_path . ' (result=' . ( false === $result ? 'false' : (string) $result ) . ', wpdb->last_error=' . $wpdb->last_error . ')' );
 		}
 
 		return $result;
