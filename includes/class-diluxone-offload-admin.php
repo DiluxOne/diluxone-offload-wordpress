@@ -336,8 +336,7 @@ class Admin {
 			'manage_options',                        // Capability.
 			self::MENU,                              // Menu slug.
 			array( __CLASS__, 'render_admin_page' ), // Callback.
-			'dashicons-cloud',                       // Icon.
-			81                                       // Position (below the Settings block).
+			'dashicons-cloud'                        // Icon. No position: WordPress puts it at the end, after Settings.
 		);
 
 		foreach ( self::screens() as $meta ) {
@@ -465,27 +464,32 @@ class Admin {
 	 * regexes). A crafted `field[]=` arrives as '' rather than an array, so
 	 * nothing downstream can be handed a type it does not expect.
 	 *
-	 * The nonce and capability for the request are verified by the caller
-	 * before this runs.
+	 * It verifies the request itself before reading a field: one of the two
+	 * nonces the plugin's forms and AJAX calls carry, and the capability.
+	 * Without both it returns no field at all.
 	 *
 	 * @param string[] $keys Field names to take.
 	 * @return array<string, string>
 	 */
 	private static function posted_fields( array $keys ): array {
-		$fields = array();
+		$verified = wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'diluxone_offload_save_config' )
+			|| wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'diluxone_offload_admin' )
+			|| wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' );
+		if ( ! $verified || ! current_user_can( 'manage_options' ) ) {
+			return array();
+		}
 
+		$fields = array();
 		foreach ( $keys as $key ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by the caller.
 			if ( ! isset( $_POST[ $key ] ) ) {
 				continue;
 			}
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only checked for being a scalar; sanitized on the next line.
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only tested for being a scalar here (an array becomes ''); the value is sanitized on the next line.
 			if ( ! is_scalar( $_POST[ $key ] ) ) {
 				$fields[ $key ] = '';
 				continue;
 			}
 			// A textarea keeps its line breaks (one excluded folder per line).
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by the caller.
 			$fields[ $key ] = 'excluded_folders' === $key ? sanitize_textarea_field( (string) wp_unslash( $_POST[ $key ] ) ) : sanitize_text_field( (string) wp_unslash( $_POST[ $key ] ) );
 		}
 
@@ -1119,12 +1123,8 @@ class Admin {
 		self::merge_tab_data( $screen, $template_data );
 
 		if ( $template_path !== '' && file_exists( $full_template_path ) ) {
-			// Templates expect each value of $template_data to be available as
-			// a local variable. The keys are static (set in this method) and
-			// never derived from user input, so the documented extract() risk
-			// (variable shadowing from untrusted keys) does not apply here.
-			// phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- Keys are static and trusted; templates depend on this contract.
-			extract( $template_data );
+			// The template reads its data from $args, as get_template_part() hands it.
+			$args = $template_data;
 			include $full_template_path;
 		} else {
 			echo '<p>' . \esc_html(
@@ -1334,9 +1334,6 @@ class Admin {
 	 */
 	private static function render_rail( string $screen, string $tab, array $health ): void {
 		$rail = self::rail_content( $screen, $tab, $health );
-
-		// phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- One static key; the partial depends on this contract.
-		extract( array( 'rail' => $rail ) );
 		include DILUXONE_OFFLOAD_DIR . 'templates/partials/rail.php';
 	}
 

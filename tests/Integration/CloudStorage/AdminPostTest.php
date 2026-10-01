@@ -102,6 +102,36 @@ class AdminPostTest extends IntegrationTestCase {
 
     // ── guards ──────────────────────────────────────────────
 
+    /** posted_fields() verifies the request itself: a nonce and the capability, before it reads a field. */
+    public function test_posted_fields_reads_nothing_without_a_nonce_or_the_capability(): void {
+        $read = static function (): array {
+            $m = new \ReflectionMethod(Admin::class, 'posted_fields');
+            if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+                $m->setAccessible( true );
+            }
+            return $m->invoke(null, ['timeout']);
+        };
+
+        $_POST = ['timeout' => '90'];
+        $this->assertSame([], $read(), 'no nonce, no field');
+
+        $_POST = ['timeout' => '90', '_wpnonce' => 'forged'];
+        $this->assertSame([], $read(), 'a nonce that does not verify, no field');
+
+        $_POST = ['timeout' => '90', '_wpnonce' => wp_create_nonce('some_other_action')];
+        $this->assertSame([], $read(), 'a nonce for another action, no field');
+
+        wp_set_current_user($this->subscriber_id);
+        $_POST = ['timeout' => '90', '_wpnonce' => wp_create_nonce('diluxone_offload_save_config')];
+        $this->assertSame([], $read(), 'a subscriber with a valid nonce, no field');
+
+        wp_set_current_user($this->admin_id);
+        foreach (['_wpnonce' => 'diluxone_offload_save_config', 'nonce' => 'diluxone_offload_admin'] as $field => $action) {
+            $_POST = ['timeout' => '90', $field => wp_create_nonce($action)];
+            $this->assertSame(['timeout' => '90'], $read(), "an administrator with the $action nonce in $field");
+        }
+    }
+
     public function test_the_handler_refuses_a_bad_nonce(): void {
         foreach (['save_config'] as $h) {
             $_POST = ['_wpnonce' => 'nope'];
