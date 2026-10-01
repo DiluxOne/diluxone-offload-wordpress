@@ -352,8 +352,9 @@ REVIEW_CENTRAL_REF ?= v2
 .PHONY: review-local
 review-local: ## The pull request's review before it exists: conventions, risk floor, Claude review (REVIEW_ARGS="--body-file pr.md", "--title …", "--no-claude").
 	@if [ "$(REVIEW_CENTRAL)" = build/.dx-central ]; then \
-	  [ -d build/.dx-central/.git ] || git clone -q --depth 1 --branch $(REVIEW_CENTRAL_REF) https://github.com/DiluxOne/.github build/.dx-central; \
+	  [ -d build/.dx-central/.git ] || { rm -rf build/.dx-central && git -c advice.detachedHead=false clone -q --depth 1 --branch $(REVIEW_CENTRAL_REF) https://github.com/DiluxOne/.github build/.dx-central; }; \
 	  git -C build/.dx-central fetch -q --depth 1 origin $(REVIEW_CENTRAL_REF) && git -C build/.dx-central checkout -q FETCH_HEAD; \
+	  echo "DiluxOne/.github at $(REVIEW_CENTRAL_REF) ($$(git -C build/.dx-central rev-parse --short HEAD)): moving that tag changes what runs here."; \
 	fi
 	bash "$(REVIEW_CENTRAL)/scripts/local-review.sh" $(REVIEW_ARGS)
 

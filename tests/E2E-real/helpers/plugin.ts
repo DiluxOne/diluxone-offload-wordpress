@@ -43,6 +43,17 @@ export async function goTab( page: Page, base: string, view: string ): Promise< 
 	await expectNoPhpErrors( page );
 }
 
+/**
+ * Click something whose answer reloads the page, and wait for that reload.
+ * The URL does not change, so waitForURL returns at once, and the next
+ * goto would be interrupted by the reload still on its way.
+ */
+export async function clickAndAwaitReload( page: Page, selector: string, timeout = 60_000 ): Promise< void > {
+	const reloaded = page.waitForEvent( 'load', { timeout } );
+	await page.locator( selector ).click();
+	await reloaded;
+}
+
 /** The URL of a screen, for waitForURL after a reload or a redirect. */
 export function onScreen( view: string ): RegExp {
 	return new RegExp( `page=${ VIEWS[ view ].page }` );
@@ -185,9 +196,10 @@ export async function retryFailedFiles( page: Page ): Promise< 'success' | 'erro
 
 /** Enable offloading from the completion modal; the page reloads into OFFLOADING_ACTIVE on the Sync tab. */
 export async function enableOffloadingFromModal( page: Page ): Promise< void > {
+	const reloaded = page.waitForEvent( 'load', { timeout: 60_000 } );
 	await page.locator( '#sync-modal-summary #enable-offloading-btn' ).click();
 	await expect( page.locator( '#diluxone-offload-notification' ) ).toContainText( /enabled/i, { timeout: 60_000 } );
-	await page.waitForURL( onScreen( 'sync' ), { timeout: 60_000 } );
+	await reloaded;
 	await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Offloading Active/, { timeout: 60_000 } );
 }
 
@@ -230,8 +242,8 @@ export async function startSyncAndCancel( page: Page ): Promise< void > {
 	await expect
 		.poll( async () => Number( ( await page.locator( '#sync-modal-stats-processed' ).innerText() ).replace( /\D/g, '' ) ), { timeout: LONG } )
 		.toBeGreaterThan( 0 );
-	await page.locator( '#sync-modal-cancel' ).click();
-	await page.waitForURL( onScreen( 'sync' ), { timeout: 60_000 } );
+	await clickAndAwaitReload( page, '#sync-modal-cancel' );
+	await expect( page ).toHaveURL( onScreen( 'sync' ) );
 	// A cancelled sync leaves a continuation offer, not a fresh start.
 	await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Continue Sync/i );
 }
@@ -239,8 +251,8 @@ export async function startSyncAndCancel( page: Page ): Promise< void > {
 export async function resetSync( page: Page ): Promise< void > {
 	await page.locator( '#cancel-all-sync-btn' ).first().click();
 	await expect( page.locator( '#cancel-sync-modal' ) ).toBeVisible( { timeout: 30_000 } );
-	await page.locator( '#confirm-cancel-sync' ).click();
-	await page.waitForURL( onScreen( 'sync' ), { timeout: 60_000 } );
+	await clickAndAwaitReload( page, '#confirm-cancel-sync' );
+	await expect( page ).toHaveURL( onScreen( 'sync' ) );
 	await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Start Sync/i );
 }
 
@@ -253,8 +265,8 @@ export async function deleteLocalFiles( page: Page ): Promise< { total: number }
 	await page.locator( '#delete-modal-start' ).click();
 	await expect( page.locator( '#delete-accept-btn' ) ).toBeVisible( { timeout: LONG } );
 	await expect( page.locator( '#delete-modal-summary' ) ).toContainText( /completed successfully/i );
-	await page.locator( '#delete-accept-btn' ).click();
-	await page.waitForURL( onScreen( 'offloading' ), { timeout: 60_000 } );
+	await clickAndAwaitReload( page, '#delete-accept-btn' );
+	await expect( page ).toHaveURL( onScreen( 'offloading' ) );
 	return { total };
 }
 
@@ -300,8 +312,8 @@ export async function startDisconnectAndCancel( page: Page ): Promise< void > {
 	await expect
 		.poll( async () => Number( ( await page.locator( '#disconnect-stats-downloaded' ).innerText() ).replace( /\D/g, '' ) ), { timeout: LONG } )
 		.toBeGreaterThan( 0 );
-	await page.locator( '#cancel-disconnect' ).click();
-	await page.waitForURL( onScreen( 'disconnect' ), { timeout: 60_000 } );
+	await clickAndAwaitReload( page, '#cancel-disconnect' );
+	await expect( page ).toHaveURL( onScreen( 'disconnect' ) );
 	// Still offloading: the download can be resumed.
 	await expect( page.locator( '#disconnect-from-cloud-btn' ) ).toBeVisible();
 }
@@ -309,8 +321,8 @@ export async function startDisconnectAndCancel( page: Page ): Promise< void > {
 export async function resyncAll( page: Page ): Promise< void > {
 	await page.locator( '.resync-all-btn' ).first().click();
 	await expect( page.locator( '#resync-confirm-btn' ) ).toBeVisible();
-	await page.locator( '#resync-confirm-btn' ).click();
-	await page.waitForURL( onScreen( 'sync' ), { timeout: 60_000 } );
+	await clickAndAwaitReload( page, '#resync-confirm-btn' );
+	await expect( page ).toHaveURL( onScreen( 'sync' ) );
 	await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Start Sync/i );
 }
 

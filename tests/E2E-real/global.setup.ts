@@ -1,6 +1,6 @@
 import { test as setup, expect } from '@playwright/test';
 import { newRun, createContainers, writeRun } from './helpers/storage';
-import { BASE_URL, wp, Site } from './helpers/wp';
+import { BASE_URL, wp, shell, nativeUploadsDir, Site } from './helpers/wp';
 import { generateFixtures } from './helpers/fixtures';
 
 /**
@@ -51,6 +51,13 @@ setup( 'both sites start clean', async () => {
 		wp( site, [ 'plugin', 'activate', 'diluxone-offload-wordpress', ...network ] );
 		const ids = wp( site, [ 'post', 'list', '--post_type=attachment', '--format=ids' ] );
 		if ( ids ) wp( site, [ 'post', 'delete', ...ids.split( ' ' ), '--force' ] );
+		// And the files the journeys copy straight to disk, into the year
+		// and month folders, which no attachment owns: an empty file left by
+		// a run that stopped halfway is counted again by the next scan (under
+		// last month's folder, once the month has turned). Other plugins'
+		// folders under uploads/ stay.
+		const uploads = nativeUploadsDir( site );
+		if ( uploads.endsWith( '/wp-content/uploads' ) ) shell( site, `rm -rf "${ uploads }"/[0-9][0-9][0-9][0-9]` );
 	}
 	// Sites an aborted run may have left on the network.
 	const sites = wp( 'network', [ 'site', 'list', '--fields=blog_id,url', '--format=csv' ] ).split( '\n' ).slice( 1 );
