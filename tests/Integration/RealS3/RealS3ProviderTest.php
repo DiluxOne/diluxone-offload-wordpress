@@ -234,10 +234,12 @@ class RealS3ProviderTest extends IntegrationTestCase {
         foreach ([5242879, 5242880, 5242881] as $bytes) {
             $local = $this->tempFile($bytes, 'bin');
             $key   = $this->key("edge-{$bytes}.bin");
-            $this->assertTrue(self::$provider->upload_file($local, $key)['success'], (string) $bytes);
+            $up = self::$provider->upload_file($local, $key);
+            $this->assertTrue($up['success'], $bytes . ': ' . ($up['error'] ?? ''));
             $this->assertSame($bytes, (int) self::$provider->get_file_info($key)['size'], (string) $bytes);
             $down = $this->tempFile(0);
-            $this->assertTrue(self::$provider->download_file($key, $down)['success']);
+            $got  = self::$provider->download_file($key, $down);
+            $this->assertTrue($got['success'], $bytes . ': ' . ($got['error'] ?? ''));
             $this->assertSame(md5_file($local), md5_file($down), (string) $bytes);
         }
     }

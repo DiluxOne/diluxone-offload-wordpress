@@ -101,6 +101,21 @@ i18n: ## Regenerate languages/diluxone-offload.pot via WP-CLI.
 	    --domain=diluxone-offload \
 	    --exclude=tests,vendor,node_modules,.wordpress-org,assets,docs,build
 
+# Same rule as CI's i18n job: any warning from make-pot (a string with two
+# translator comments, a missing comment, a dynamic domain) fails.
+.PHONY: i18n-check
+i18n-check: ## Extract the strings as CI does; any make-pot warning fails.
+	@mkdir -p build
+	@out=$$($(WP_CLI) i18n make-pot . build/i18n-check.pot \
+	    --slug=diluxone-offload \
+	    --domain=diluxone-offload \
+	    --exclude=tests,vendor,node_modules,.wordpress-org,assets,docs,build 2>&1); status=$$?; \
+	echo "$$out"; \
+	[ "$$status" -eq 0 ] || exit "$$status"; \
+	if printf '%s\n' "$$out" | grep -E '^(Warning|Error):' >&2; then \
+	    echo "✘ make-pot reported warnings; CI's i18n job fails on them."; exit 1; \
+	fi
+
 # -- Tests -------------------------------------------------------------
 .PHONY: test
 test: test-unit ## Run the unit-test suite (default — fast, no WP needed).
@@ -358,6 +373,7 @@ docs-check: ## Relative links in every Markdown file resolve, and no retired pro
 .PHONY: pre-pr
 pre-pr: ## Everything a pull request is checked on that runs without a cloud account, one after the other, then the local review (needs `make env` and `make env-multisite`).
 	$(MAKE) check
+	$(MAKE) i18n-check
 	$(MAKE) test-unit-min
 	$(MAKE) docs-check
 	$(MAKE) test-integration

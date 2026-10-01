@@ -6,7 +6,9 @@
  * plugin itself created in the database: its options, its transients and its
  * file-tracking table — on every site of a network, since each site has its
  * own. Media files are left exactly where they are, locally and in the
- * cloud; nothing here touches the storage account.
+ * cloud. The one call to the storage cancels the S3 multipart uploads the
+ * table still names, which nobody could finish once it is gone and which
+ * the bucket would keep billing.
  *
  * @package DiluxOneOffload
  */
@@ -15,6 +17,12 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
+// The plugin is inactive when it is deleted, so its classes are not loaded.
+if ( ! defined( 'DILUXONE_OFFLOAD_DIR' ) ) {
+	define( 'DILUXONE_OFFLOAD_DIR', plugin_dir_path( __FILE__ ) );
+}
+require_once DILUXONE_OFFLOAD_DIR . 'includes/enhanced-autoloader.php';
+
 /**
  * Remove this plugin's data from the current site.
  *
@@ -22,6 +30,16 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  */
 function diluxone_offload_uninstall_site() {
 	global $wpdb;
+
+	// First, while the credentials and the table are still there. Best
+	// effort: whatever the storage does, the database cleanup below runs.
+	try {
+		if ( \DiluxOneOffload\DiluxOneOffloadDB::table_exists() ) {
+			\DiluxOneOffload\DiluxOneOffloadDB::abandon_unfinished_uploads();
+		}
+	} catch ( \Throwable $e ) {
+		unset( $e );
+	}
 
 	$options = array(
 		'diluxone_offload_config',

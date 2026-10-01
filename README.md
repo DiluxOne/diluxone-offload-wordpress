@@ -97,13 +97,14 @@ flowchart TB
     subgraph LOCAL["💻 On your machine: make pre-pr"]
         direction TB
         L1["make check<br/>PHPCS · PHPStan level 8 · Psalm taint · unit tests"]
+        L1b["make i18n-check<br/>string extraction, any warning fails"]
         L2["make test-unit-min<br/>unit tests on PHP 7.4, the minimum"]
         L3["make docs-check<br/>links resolve, no retired names"]
         L4["make test-integration<br/>PHPUnit on a WordPress network (wp-env)"]
         L5["make test-e2e<br/>Playwright, every screen, no cloud account"]
         L6["make plugin-check<br/>wordpress.org's Plugin Check"]
         L7["make review-local<br/>conventions · risk floor · Claude review"]
-        L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7
+        L1 --> L1b --> L2 --> L3 --> L4 --> L5 --> L6 --> L7
         L8["optional: make s3-up && make test-real REAL_PROVIDER=s3<br/>real-storage journeys on a local S3 server, no keys"]
     end
 
@@ -134,7 +135,7 @@ flowchart TB
 | Unit tests on PHP 7.4 | `make test-unit-min` | ✅ |
 | Unit tests on PHP 8.0 to 8.5 | no | ✅ |
 | Docs: links and retired names | `make docs-check` | ✅ |
-| i18n extraction | `make i18n` | ✅ |
+| i18n extraction, any warning fails | `make i18n-check` | ✅ |
 | Integration tests (WordPress + MySQL, multisite) | `make test-integration` | ✅ |
 | End-to-end tests (every screen, no cloud account) | `make test-e2e` | ✅ |
 | wordpress.org Plugin Check | `make plugin-check` | ✅ |

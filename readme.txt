@@ -211,7 +211,7 @@ Yes, while offloading is active: the stream wrapper turns the deletion into a de
 
 Deleting the plugin from the Plugins screen removes everything it created in your database: its options (all prefixed `diluxone_offload_`), its transients and its file-tracking table (`diluxone_offload_files`, with your table prefix) — on every site of a network. Deactivating alone keeps all of that, so you can deactivate and reactivate without losing your configuration.
 
-Your media files are never touched by uninstalling: whatever is in `/wp-content/uploads/` stays there, and whatever is in your container stays in your container. If offloading was active and local copies had been deleted, download them first with **Sync & Offloading → Disconnect from Cloud**, otherwise WordPress will be pointing at files that are no longer on the server.
+Your media files are never touched by uninstalling: whatever is in `/wp-content/uploads/` stays there, and whatever is in your container stays in your container. The only thing uninstalling cancels in the storage is an S3 multipart upload the sync left unfinished, which could no longer be completed and would keep being billed. If offloading was active and local copies had been deleted, download them first with **Sync & Offloading → Disconnect from Cloud**, otherwise WordPress will be pointing at files that are no longer on the server.
 
 = How do I enable verbose debug logging? =
 
@@ -249,6 +249,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Uninstalling cancels the S3 multipart uploads a sync left unfinished, so the bucket stops billing parts nobody can complete any more.
 * Before the first sync, Sync & Offloading › Sync checks this site's folder in the container or bucket. If something is already there (an earlier install, a staging copy) it says how many files and how much, and lets you continue with them, empty that folder (typing the container's or bucket's name) or connect another one. Emptying never touches anything outside this site's folder.
 * A sync whose uploads go through ends a pause the connection health had recorded (a key that failed and was fixed since), instead of showing "Paused" for up to five more minutes.
 * An upload, a delete or a check that meets a temporary error from the storage service (a 500 or 503, a dropped connection) is tried up to three times in all, instead of failing at once. Backblaze B2 answers that way to about one upload in a hundred, which could leave an image without one of its thumbnails.

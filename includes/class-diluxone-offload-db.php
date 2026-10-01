@@ -913,9 +913,11 @@ class DiluxOneOffloadDB {
 	 * (Azure discards uncommitted blocks on its own). Best effort: a provider
 	 * that cannot be reached leaves them to the bucket's lifecycle rule.
 	 *
+	 * Also called by uninstall.php, before it drops the table.
+	 *
 	 * @param bool $unsynced_only Only the rows of files not uploaded (the ones Discard failed files removes).
 	 */
-	private static function abandon_unfinished_uploads( bool $unsynced_only = false ): void {
+	public static function abandon_unfinished_uploads( bool $unsynced_only = false ): void {
 		global $wpdb;
 
 		$rows = $wpdb->get_results( 'SELECT file, size, upload_id FROM ' . self::get_table_name() . " WHERE upload_id IS NOT NULL AND upload_id <> ''" . ( $unsynced_only ? ' AND synced = 0 AND deleted = 0' : '' ), ARRAY_A );

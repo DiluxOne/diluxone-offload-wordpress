@@ -47,7 +47,8 @@ paid review and a round of waiting.
    make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
    ```
    One after the other, it runs what a pull request is checked on:
-   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the unit
+   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the
+   string extraction CI fails on any warning of (`make i18n-check`), the unit
    tests again on PHP 7.4, the minimum (`make test-unit-min`), the docs
    check (`make docs-check`: links resolve, no retired product name), the
    integration suite, the end-to-end suite, wordpress.org's Plugin Check,
@@ -58,9 +59,9 @@ paid review and a round of waiting.
    session). Any step can run alone (`make review-local` is the last one).
    A change to docs only (Markdown, `docs/`, no code) needs just
    `make docs-check` and `make review-local`: on GitHub such a pull request
-   skips the slow suites too. Only two things stay on GitHub: the unit tests on PHP 8.0 to 8.5
-   and the real-storage suites. Run `make screenshots` when a listing screen
-   changes; when the change touches
+   skips the slow suites too. What stays on GitHub: the unit tests on
+   PHP 8.0 to 8.5, the real-storage suites and CodeQL. Run
+   `make screenshots` when a listing screen changes; when the change touches
    storage, the real-storage journeys against a local S3 server need no
    keys: `make s3-up && make test-real REAL_PROVIDER=s3` (`s3-up` adds one
    line to `/etc/hosts` the first time, with sudo).
@@ -71,8 +72,9 @@ paid review and a round of waiting.
    until it says **Ready for a pull request**.
 8. **Only then push and open the pull request**, with that title and that
    description, and only when the person you work for says so. On GitHub the
-   same review runs again, the end-to-end suite and the real-storage suites
-   run too (they need the repository's keys; forks get them after the merge).
+   same review runs again, and so do the end-to-end suite and the
+   real-storage suites (those need the repository's keys: a fork's pull
+   request gets them after the merge).
    If the review there leaves findings, fix them all locally, run step 6, and
    push once.
 

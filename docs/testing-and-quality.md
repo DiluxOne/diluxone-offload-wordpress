@@ -14,7 +14,7 @@ The pull request checks run from [`.github/workflows/pull-request.yml`](../.gith
 | Coding style | PHP_CodeSniffer + WordPress Coding Standards | Style, naming, escaping, sanitisation, prepared statements, deprecated APIs. | fast | `make lint` |
 | Static analysis | PHPStan level 8 + szepeviktor/phpstan-wordpress | Type safety, unreachable code, undefined methods/properties, missing return types. **No baseline.** | fast | `make stan` |
 | Security taint analysis | Psalm + humanmade/psalm-plugin-wordpress (taint-only mode) | XSS, SQL injection, command injection, file-system traversal. | fast | `make psalm` |
-| i18n | `wp i18n make-pot` on the shipped tree | Missing translator comments, dynamic text domains, concatenated strings. | fast | `make i18n` |
+| i18n | `wp i18n make-pot` on the shipped tree | Missing translator comments, dynamic text domains, concatenated strings. | fast | `make i18n-check` |
 | Plugin Check (wp.org) | wordpress/plugin-check on the shipped tree | The checks the wp.org plugin team runs at submission and review. | fast | `make plugin-check` |
 | Readme and versions | shell | Required readme headers; `Stable tag`, `Version:` and the version constant in line (a `-dev.N` / `-alpha` / `-beta` / `-rc` suffix is accepted for stamped builds); changelog entry; the three markers name the last release, or the one being released in its release pull request (`release-markers.sh check`, see [`release.md`](release.md#versions)). | fast | `make release` |
 | Claude review | shared `claude-review` workflow | Everything in [`architecture.md`](architecture.md) and the WordPress review profile; rates risk and complexity. Whole change first, then only new pushes; light model for low-risk paths. | after the conventions, the static checks, the unit, integration and end-to-end suites and the real-storage suites pass | (runs on PR) |
@@ -115,10 +115,10 @@ If Psalm flags a path you believe is safe, the right fix is almost always to pip
 CI: the fast suite's **i18n** job, on the shipped tree (what `.distignore` leaves).
 
 ```bash
-make i18n
+make i18n-check
 ```
 
-The Makefile target runs `wp i18n make-pot` and writes the result to `build/diluxone-offload.pot`. The CI workflow does the same and additionally fails the build if any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so we capture the output and grep ourselves).
+`make i18n-check` runs `wp i18n make-pot` into `build/i18n-check.pot` and fails, like the CI job, when any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so the output is captured and grepped). `make pre-pr` runs it right after `make check`. `make i18n` regenerates `languages/diluxone-offload.pot`, the template the translations are merged from.
 
 The workflow catches three real classes of bug:
 
@@ -141,4 +141,4 @@ make check     # the fast gates: lint + stan + psalm + unit tests
 make release   # make check + version-alignment dry-run
 ```
 
-`make pre-pr` is the pre-pull-request habit: `make check`, the unit tests on PHP 7.4, the docs check, the integration and end-to-end suites, Plugin Check and the local review (`make review-local`: the conventions, the risk floor and the Claude review CI will run, on the same brief, from [DiluxOne/.github](https://github.com/DiluxOne/.github)'s `scripts/local-review.sh`). It does not replace CI: the unit tests on PHP 8.0 to 8.5 and the real-storage suites (which need credentials) run only there, and i18n has its own target. `make release` is what the maintainer runs on `main` before approving a release (see [`release.md`](release.md)).
+`make pre-pr` is the pre-pull-request habit: `make check`, the string extraction (`make i18n-check`), the unit tests on PHP 7.4, the docs check, the integration and end-to-end suites, Plugin Check and the local review (`make review-local`: the conventions, the risk floor and the Claude review CI will run, on the same brief, from [DiluxOne/.github](https://github.com/DiluxOne/.github)'s `scripts/local-review.sh`). It does not replace CI: the unit tests on PHP 8.0 to 8.5 and the real-storage suites (which need credentials) run only there. `make release` is what the maintainer runs on `main` before approving a release (see [`release.md`](release.md)).
