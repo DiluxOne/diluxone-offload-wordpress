@@ -345,7 +345,7 @@ class Plugin {
 
 		// Set concurrency and start sync
 		$this->sync_manager->set_parallel_uploads( $concurrency );
-		$result = $this->sync_manager->start_sync( (bool) $retry_failed );
+		$result = $this->sync_manager->start_sync( (bool) $retry_failed, $session_id );
 
 		if ( $result['success'] ) {
 			wp_send_json_success(
@@ -399,7 +399,8 @@ class Plugin {
 		$concurrency = $sync_meta['concurrency'] ?? 5;
 		$this->sync_manager->set_parallel_uploads( $concurrency );
 
-		$result = $this->sync_manager->process_batch( self::batch_seconds() );
+		$session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+		$result     = $this->sync_manager->process_batch( self::batch_seconds(), $session_id );
 
 		wp_send_json_success( $result );
 	}

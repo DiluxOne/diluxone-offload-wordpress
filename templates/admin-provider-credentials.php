@@ -2,8 +2,9 @@
 /**
  * Admin: Cloud Provider › Credentials. Rotate the access key; delete the provider.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -14,11 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$config              = $config ?? array();
-$current_state       = $current_state ?? 'not_configured';
-$is_configured       = $is_configured ?? false;
-$can_delete_provider = $can_delete_provider ?? false;
-$screen_urls         = $screen_urls ?? array();
+$config              = $args['config'] ?? array();
+$current_state       = $args['current_state'] ?? 'not_configured';
+$is_configured       = $args['is_configured'] ?? false;
+$can_delete_provider = $args['can_delete_provider'] ?? false;
+$screen_urls         = $args['screen_urls'] ?? array();
 
 $provider_name      = (string) ( $config['cloud_provider'] ?? '' );
 $provider_config    = (array) ( $config['provider_config'] ?? array() );

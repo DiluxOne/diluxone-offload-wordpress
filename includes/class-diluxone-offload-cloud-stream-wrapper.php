@@ -1275,8 +1275,9 @@ class CloudStreamWrapper {
 		// requesting a missing attachment, not just wp-admin. Only WP_DEBUG sites
 		// get the detail; everyone else gets a fixed, uninformative message.
 		$message = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? (string) $error : 'Cloud storage stat failed';
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DevelopmentFunctions.error_log_trigger_error -- Required by PHP stream wrapper protocol; message is internal and WP_DEBUG-gated above.
-		trigger_error( $message, E_USER_WARNING );
+		// Escaped: with display_errors on, PHP prints the warning into the page.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_trigger_error -- The stream wrapper protocol reports a failed stat this way (fopen(), file_exists() read it).
+		trigger_error( esc_html( $message ), E_USER_WARNING );
 
 		return false;
 	}

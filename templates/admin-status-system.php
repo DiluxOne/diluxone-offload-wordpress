@@ -2,8 +2,9 @@
 /**
  * Admin: Status › System. The environment: WordPress, PHP, the plugin build, the provider, the free disk.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -18,7 +19,7 @@ use DiluxOneOffload\Admin;
 use DiluxOneOffload\CloudStreamWrapper;
 use DiluxOneOffload\ConfigManager;
 
-$config        = $config ?? array();
+$config        = $args['config'] ?? array();
 $plugin_config = $config;
 $is_configured = ConfigManager::is_configured();
 
@@ -27,7 +28,7 @@ $is_configured = ConfigManager::is_configured();
 // the disk a disconnect would fill (Admin::free_disk(), null when the host
 // does not allow reading it).
 $diluxone_offload_upload_dir = CloudStreamWrapper::native_upload_basedir();
-$diluxone_offload_free_disk  = $free_disk ?? null;
+$diluxone_offload_free_disk  = $args['free_disk'] ?? null;
 ?>
 
 <div class="diluxone-offload-status">

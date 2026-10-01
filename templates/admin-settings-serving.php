@@ -2,8 +2,9 @@
 /**
  * Admin: Settings › Serving: how the media is handed out once it is in the cloud.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -16,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use DiluxOneOffload\ConfigManager;
 
-$config = $config ?? array();
+$config = $args['config'] ?? array();
 
 // The infrequent-access class exists on Azure (the Cool tier) and on the S3
 // services whose preset says so (Amazon S3, Cloudflare R2).

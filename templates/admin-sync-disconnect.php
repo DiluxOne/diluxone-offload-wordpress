@@ -2,8 +2,9 @@
 /**
  * Admin: Sync & Offloading › Disconnect. Bring every file back from the cloud and turn offloading off.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -14,18 +15,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// All data is prepared by Admin::render_screen_content() — no business logic in templates
-$current_state   = $current_state ?? 'not_configured';
-$sync_progress   = $sync_progress ?? array();
-$stats           = $stats ?? array();
-$failed_files    = $failed_files ?? array();
-$failed_count    = (int) ( $failed_count ?? 0 );
-$has_files_in_db = $has_files_in_db ?? false;
-$synced_count    = (int) ( $synced_count ?? 0 );
-$pending_count   = (int) ( $pending_count ?? 0 );
-$counts          = $counts ?? array();
-$free_disk       = $free_disk ?? null;
-$screen_urls     = $screen_urls ?? array();
+// All data is prepared by Admin::render_screen_content() and read from $args — no business logic in templates
+$current_state   = $args['current_state'] ?? 'not_configured';
+$sync_progress   = $args['sync_progress'] ?? array();
+$stats           = $args['stats'] ?? array();
+$failed_files    = $args['failed_files'] ?? array();
+$failed_count    = (int) ( $args['failed_count'] ?? 0 );
+$has_files_in_db = $args['has_files_in_db'] ?? false;
+$synced_count    = (int) ( $args['synced_count'] ?? 0 );
+$pending_count   = (int) ( $args['pending_count'] ?? 0 );
+$counts          = $args['counts'] ?? array();
+$free_disk       = $args['free_disk'] ?? null;
+$screen_urls     = $args['screen_urls'] ?? array();
 $cloud_only      = (int) ( $counts['cloud_only'] ?? 0 );
 $cloud_only_size = (int) ( $counts['cloud_only_size'] ?? 0 );
 ?>

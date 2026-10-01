@@ -34,7 +34,6 @@
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
  * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
- * phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
  *
  * @package DiluxOneOffload
  */
@@ -367,12 +366,14 @@ class SyncManager {
 	 * after kicking off the first batch; subsequent batches are driven by
 	 * the AJAX progress endpoint.
 	 *
-	 * @param bool $retry_failed When true, only re-uploads files marked
-	 *                           failed in DiluxOneOffloadDB; the regular sync queue
-	 *                           is skipped.
+	 * @param bool   $retry_failed When true, only re-uploads files marked
+	 *                             failed in DiluxOneOffloadDB; the regular sync queue
+	 *                             is skipped.
+	 * @param string $session_id   The browser tab that runs the sync, as the AJAX
+	 *                             handler read and sanitized it; '' gives one.
 	 * @return array{success:bool,message:string,total_files?:int} Status envelope.
 	 */
-	public function start_sync( $retry_failed = false ) {
+	public function start_sync( $retry_failed = false, string $session_id = '' ) {
 		Logger::info( '[DiluxOne Offload SyncManager] start_sync() called with retry_failed=' . ( $retry_failed ? 'true' : 'false' ) );
 
 		$current_state = ConfigManager::get_state();
@@ -446,7 +447,7 @@ class SyncManager {
 				$pending_files = (int) ( $db_stats['pending_files'] ?? 0 );
 				$total_files   = $pending_files; // Only pending files for this sync session
 
-				Logger::info( '[DiluxOne Offload SyncManager] DB stats: ' . print_r( $db_stats, true ) );
+				Logger::info( '[DiluxOne Offload SyncManager] DB stats: ' . wp_json_encode( $db_stats ) );
 				Logger::info( '[DiluxOne Offload SyncManager] Pending files count: ' . $pending_files );
 
 				if ( $pending_files === 0 ) {
@@ -506,11 +507,11 @@ class SyncManager {
 			}
 		}
 
-		// ⭐ NEW: Get session_id from POST (will be sent from JavaScript).
-		// This method is invoked by AJAX handlers that already verified the nonce
-		// via check_ajax_referer(); the session_id is a client-generated correlator.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by calling AJAX handler.
-		$session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ?? '' ) ) : uniqid( 'sync_', true );
+		// The tab that owns the sync: a correlator the browser makes up, never
+		// a credential. Without one (WP-CLI, a test) the sync gets its own.
+		if ( '' === $session_id ) {
+			$session_id = uniqid( 'sync_', true );
+		}
 
 		// Initialize sync metadata in wp_options (MINIMAL - only metadata, no file list)
 		$sync_meta = array(
@@ -541,12 +542,14 @@ class SyncManager {
 	 * Process batch of files with time-based batching
 	 * Uses the tracking table and a time budget per request
 	 *
-	 * @param float $time_limit Time limit in seconds (default 8s for responsive UI)
+	 * @param float  $time_limit Time limit in seconds (default 8s for responsive UI)
+	 * @param string $session_id The tab asking, as the AJAX handler read and
+	 *                           sanitized it; '' skips the ownership check.
 	 * @return array<string, mixed> Progress information
 	 */
-	public function process_batch( $time_limit = 8.0 ) {
+	public function process_batch( $time_limit = 8.0, string $session_id = '' ) {
 		try {
-			return $this->run_batch( (float) $time_limit );
+			return $this->run_batch( (float) $time_limit, $session_id );
 		} finally {
 			$this->release_transport();
 		}
@@ -555,10 +558,11 @@ class SyncManager {
 	/**
 	 * The rounds of process_batch(), on the request's one transport.
 	 *
-	 * @param float $time_limit Time limit in seconds.
+	 * @param float  $time_limit Time limit in seconds.
+	 * @param string $session_id The tab asking; '' skips the ownership check.
 	 * @return array<string, mixed> Progress information
 	 */
-	private function run_batch( float $time_limit ) {
+	private function run_batch( float $time_limit, string $session_id ) {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$start_time          = Clock::now();
@@ -576,10 +580,8 @@ class SyncManager {
 			);
 		}
 
-		// ⭐ NEW: Validate session ownership.
-		// Invoked from AJAX handlers that already ran check_ajax_referer().
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by calling AJAX handler.
-		$requesting_session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ?? '' ) ) : '';
+		// Only the tab that owns the sync may run its batches.
+		$requesting_session_id = $session_id;
 		$current_session_id    = $sync_meta['sync_session_id'] ?? '';
 
 		if ( ! empty( $requesting_session_id ) && $requesting_session_id !== $current_session_id ) {

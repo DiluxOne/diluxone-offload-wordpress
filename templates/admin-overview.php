@@ -2,10 +2,10 @@
 /**
  * Admin: Overview tab template.
  *
- * Local variables in this template (e.g. $config, $is_configured, $cloud_stats)
- * are populated by Admin::render_screen_content() in the calling scope and are
- * intentionally unprefixed because the include() puts them in the same local
- * scope as this template — they are not globals. Suppress the prefix sniff
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it. The locals below ($config, $is_configured,
+ * $cloud_stats, …) are unprefixed on purpose: include() keeps them in the
+ * calling function's scope, so they are not globals. Suppress the prefix sniff
  * for the whole template:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
@@ -29,10 +29,11 @@ $plugin_state = ConfigManager::get_state();
 // (the field is cleared post-decrypt). The "looser" `!empty(cloud_provider)`
 // check would diverge here and create the kind of cross-tab inconsistency
 // we are trying to remove.
+$config        = $args['config'] ?? array();
 $is_configured = ConfigManager::is_configured();
 $is_synced     = in_array( $plugin_state, array( PluginState::SYNCED, PluginState::OFFLOADING_ACTIVE ), true );
 $is_offloading = $plugin_state === PluginState::OFFLOADING_ACTIVE;
-$cloud_stats   = $cloud_stats ?? null;
+$cloud_stats   = $args['cloud_stats'] ?? null;
 
 // Health context (mirrors admin-status-health.php) — when the cloud connection
 // is unhealthy, every card below shows a "paused" sub-state so the user

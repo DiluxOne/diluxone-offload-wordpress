@@ -2,8 +2,9 @@
 /**
  * Admin: Cloud Provider › Connection. The provider form before a provider is saved; the connection, read-only, afterwards.
  *
- * Local variables are populated by Admin::render_screen_content() in the
- * calling scope. Suppress the prefix sniff:
+ * Its data comes in $args from Admin::render_screen_content(), as
+ * get_template_part() passes it; the locals below are this file's own, not
+ * globals. Suppress the prefix sniff:
  *
  * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
  *
@@ -14,12 +15,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$config        = $config ?? array();
-$current_state = $current_state ?? 'not_configured';
-$is_configured = $is_configured ?? false;
-$health        = $health ?? array();
-$timestamps    = $timestamps ?? array();
-$screen_urls   = $screen_urls ?? array();
+$config        = $args['config'] ?? array();
+$current_state = $args['current_state'] ?? 'not_configured';
+$is_configured = $args['is_configured'] ?? false;
+$health        = $args['health'] ?? array();
+$timestamps    = $args['timestamps'] ?? array();
+$screen_urls   = $args['screen_urls'] ?? array();
 $connected_at  = (int) ( $timestamps['connected_at'] ?? 0 );
 
 $provider_name         = $config['cloud_provider'] ?? '';

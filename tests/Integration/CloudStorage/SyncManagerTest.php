@@ -286,11 +286,25 @@ class SyncManagerTest extends IntegrationTestCase {
         $this->fixture('2026/09/session.jpg');
         $sm = $this->scanAndStart();
 
-        $_POST['session_id'] = 'someone-else';
-        $result = $sm->process_batch();
+        $result = $sm->process_batch(8.0, 'someone-else');
 
         $this->assertSame('session_lost', $result['status']);
         $this->assertNotEmpty($result['active_session_id']);
+    }
+
+    /** The session comes from the AJAX handler as an argument: the sync manager never reads the request. */
+    public function test_the_request_is_not_read_by_the_sync_manager(): void {
+        $this->fixture('2026/09/request.jpg');
+        $_POST['session_id'] = 'from-the-request';
+        try {
+            $sm = new SyncManager();
+            $sm->scan_local_files();
+            $this->assertTrue($sm->start_sync(false, 'tab-A')['success']);
+            $this->assertSame('tab-A', get_option('diluxone_offload_sync_meta')['sync_session_id'], 'the argument, not $_POST');
+            $this->assertNotSame('session_lost', $sm->process_batch(8.0, 'tab-A')['status'], 'the owning tab runs its batch whatever $_POST says');
+        } finally {
+            unset($_POST['session_id']);
+        }
     }
 
     // ── progress / pause / cancel ───────────────────────────
