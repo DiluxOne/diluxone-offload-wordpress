@@ -102,15 +102,6 @@ class PluginTest extends TestCase {
 
 		Plugin::deactivate();
 
-		if ( ConfigManager::get_state() !== $state ) {
-			$this->markTestIncomplete(
-				'BUG: Plugin::deactivate() (includes/class-diluxone-offload-plugin-enhanced.php:1598) calls '
-				. 'CloudStreamWrapper::deactivate_offloading(), which sets the state to SYNCED unconditionally '
-				. '(includes/class-diluxone-offload-cloud-stream-wrapper.php:271). Deactivating a plugin that was '
-				. '"' . $state . '" leaves it "' . ConfigManager::get_state() . '" on reactivation, although nothing was synced; '
-				. 'readme.txt promises deactivation keeps everything.'
-			);
-		}
 		$this->assertSame( $state, ConfigManager::get_state() );
 	}
 }

@@ -357,7 +357,7 @@ test.describe.serial( 'With the storage service on the dev site', () => {
 
 	test( 'a sync in progress: the screen says so, and a second tab can take it over with Continue Here', async ( { page, context } ) => {
 		const other = await takeOverInAnotherTab( page, context );
-		// Tab A is left behind (see the fixme below): take it off the screen.
+		// Tab A is left behind: take it off the screen.
 		await page.goto( 'about:blank' );
 		const reloaded = other.waitForEvent( 'load', { timeout: 60_000 } );
 		await other.locator( '#later-btn' ).click();
@@ -367,14 +367,10 @@ test.describe.serial( 'With the storage service on the dev site', () => {
 		await other.close();
 	} );
 
-	// BUG (assets/js/admin-sync.js, processSyncBatch()): when the tab that lost
-	// the sync sends its next batch after the other tab has already finished it,
-	// process_batch answers success with {status: 'error', message: 'No active
-	// sync found'} (SyncManager::run_batch()). The script only stops on
-	// 'session_lost' or 'completed': it paints "0 / 0 files (0%)" and calls
-	// processSyncBatch() again at once, forever. Measured here: 253 requests in
-	// 8 seconds from the abandoned tab, its progress dialog still open.
-	test.fixme( 'the tab that lost the sync stops asking for batches once the other tab has finished it', async ( { page, context } ) => {
+	// The tab that lost the sync stops once the other tab has finished it: the
+	// batch answers 'No active sync found', and the script used to ask again at
+	// once, forever (253 requests in 8 seconds).
+	test( 'the tab that lost the sync stops asking for batches once the other tab has finished it', async ( { page, context } ) => {
 		const other = await takeOverInAnotherTab( page, context );
 		let asked = 0;
 		page.on( 'request', ( r ) => {
@@ -458,19 +454,14 @@ test.describe.serial( 'With the storage service on the dev site', () => {
 		page.once( 'dialog', ( d ) => void d.accept() );
 		const reloaded = page.waitForEvent( 'load', { timeout: 60_000 } );
 		await box.locator( '.clear-failed-btn' ).click();
-		await expect( page.locator( '#diluxone-offload-notification' ) ).toContainText( 'Failed files list cleared successfully' );
+		await expect( page.locator( '#diluxone-offload-notification' ) ).toContainText( 'Failed files list cleared.' );
 		await reloaded;
 		await expect( wrap( page ) ).toContainText( 'Offloading Active' );
 	} );
 
-	// BUG (includes/class-diluxone-offload-admin.php, ajax_clear_failed()): Clear
-	// List calls ConfigManager::clear_failed_files(), which deletes the option
-	// diluxone_offload_failed_files. Nothing reads that option any more: the
-	// Sync tab counts and lists failed files from the tracking table
-	// (DiluxOneOffloadDB::count_failed_files() / get_failed_files()). The button
-	// answers "Failed files list cleared successfully", the page reloads, and
-	// "1 files failed to sync" is still there with the same row.
-	test.fixme( 'Clear List empties the failed list for good', async ( { page } ) => {
+	// Clear List removes the failed rows from the tracking table, which the
+	// screen lists; it used to delete an option nothing reads any more.
+	test( 'Clear List empties the failed list for good', async ( { page } ) => {
 		configureFakeS3( 'OFFLOADING_ACTIVE' );
 		if ( trackingCounts().failed === 0 ) track( '/2026/09/later-failure.png', false, 'HTTP 500 InternalError' );
 		await page.goto( SYNC );
@@ -574,20 +565,15 @@ test.describe.serial( 'When a request behind a button fails', () => {
 		await page.goto( CREDENTIALS );
 		await page.locator( '#new_secret_access_key' ).fill( 'another' );
 		await page.locator( '#test-new-credentials' ).click();
-		// Written into the result box (which the fixme below finds is never shown).
+		// Written into the result box, and shown.
 		await expect( page.locator( '#new-credentials-result .notice-error' ) ).toHaveCount( 1 );
 		await expect( page.locator( '#save-new-credentials' ) ).toBeDisabled();
 		await expect( page.locator( '#test-new-credentials' ) ).toBeEnabled();
 	} );
 
-	// BUG (assets/js/admin-cloud-provider.js, the #test-new-credentials handler,
-	// with assets/css/admin.css `.connection-result { display: none; }`): the
-	// Credentials tab writes every answer of Test Connection into
-	// #new-credentials-result ("Please enter the new access key.", "Connection
-	// Successful", "Connection Failed" and the reason) but never shows the box,
-	// as the Connection tab's handler does with .show(). The owner rotating a
-	// key sees nothing happen; only Save New Key turning on or off tells them.
-	test.fixme( 'the Credentials tab shows the answer of Test Connection', async ( { page } ) => {
+	// Every answer of Test Connection on the Credentials tab is shown, as on the
+	// Connection tab: it used to be written into a box that stayed hidden.
+	test( 'the Credentials tab shows the answer of Test Connection', async ( { page } ) => {
 		await page.goto( CREDENTIALS );
 		await page.locator( '#test-new-credentials' ).click();
 		await expect( page.locator( '#new-credentials-result' ) ).toBeVisible();

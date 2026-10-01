@@ -909,7 +909,9 @@ class SyncManager {
 					$skip_reason = 'path_too_long';
 				} else {
 					// Apply filtering (including file type, max size, hidden files)
-					$skip_reason = $this->should_sync_file( $local_path, $file_size );
+					// to the path below uploads/: the folders above it (a server
+					// under /srv/cache/, a site under /tmp/) are not the library's.
+					$skip_reason = $this->should_sync_file( '/' . ltrim( $relative_path, '/' ), $file_size );
 				}
 				if ( $skip_reason !== true ) {
 					// The size reason names each file's size, which would make every
@@ -986,7 +988,7 @@ class SyncManager {
 	 * Check if file should be synced
 	 * REFACTORED: Now uses SyncFilter DTO
 	 *
-	 * @param string $file_path
+	 * @param string $file_path The path below uploads/, with a leading slash.
 	 * @param int    $file_size File size in bytes
 	 * @return bool|string True if should sync, string with reason if should skip
 	 */

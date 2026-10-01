@@ -281,7 +281,7 @@ class PluginAjaxExtrasTest extends IntegrationTestCase {
     public function test_every_sync_handler_says_so_when_there_is_no_sync_manager(): void {
         $this->setSyncManager(null);
         foreach (['start_sync', 'process_batch', 'start_reverse_sync', 'process_reverse_batch', 'scan_remote', 'calculate_download', 'calculate_sync', 'activate_offloading', 'deactivate_offloading', 'reset_state_to_configured', 'inspect_target', 'empty_target'] as $a) {
-            $nonce = in_array($a, ['activate_offloading', 'deactivate_offloading'], true) ? 'diluxone_offload_admin_nonce' : 'diluxone_offload_admin';
+            $nonce = 'diluxone_offload_admin';
             $r = $this->call('diluxone_offload_' . $a, ['session_id' => 't', 'confirmed' => '1'], $nonce);
             $this->assertFalse($r['json']['success'] ?? true, "$a: " . $r['raw']);
             $this->assertStringContainsString('not available', (string) $r['json']['data'], $a);

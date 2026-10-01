@@ -386,7 +386,7 @@ class StreamWrapperCoverageTest extends TestCase {
 
 	public function test_file_exists_is_quietly_false_when_the_client_throws_and_the_answer_is_cached(): void {
 		$client = $this->mockClient();
-		$client->shouldReceive( 'file_exists' )->once()->andThrow( new \RuntimeException( 'HEAD timed out' ) );
+		$client->shouldReceive( 'get_file_info' )->once()->andThrow( new \RuntimeException( 'HEAD timed out' ) );
 
 		$this->assertFalse( file_exists( self::P . '://uploads/x.jpg' ) );
 		$this->assertFalse( file_exists( self::P . '://uploads/x.jpg' ), 'second answer from the stat cache (once() above)' );
@@ -394,7 +394,7 @@ class StreamWrapperCoverageTest extends TestCase {
 
 	public function test_stat_warns_with_the_cloud_error_when_the_client_throws(): void {
 		$client = $this->mockClient();
-		$client->shouldReceive( 'file_exists' )->andThrow( new \RuntimeException( 'HEAD timed out' ) );
+		$client->shouldReceive( 'get_file_info' )->andThrow( new \RuntimeException( 'HEAD timed out' ) );
 
 		$warnings = array();
 		set_error_handler(
@@ -413,9 +413,21 @@ class StreamWrapperCoverageTest extends TestCase {
 		$this->assertContains( 'Cloud error: HEAD timed out', $warnings, 'WP_DEBUG is on in the unit suite: the detail is shown' );
 	}
 
+	/** filesize() and filemtime() of an object read its size and date from the one HEAD request stat() makes. */
+	public function test_stat_of_an_object_reports_its_size_and_modification_time(): void {
+		$client = $this->mockClient();
+		$client->shouldReceive( 'get_file_info' )->once()->with( 'uploads/2026/09/old.jpg' )->andReturn(
+			array( 'size' => 48213, 'md5' => null, 'last_modified' => 'Tue, 01 Sep 2026 10:00:00 GMT' )
+		);
+
+		$this->assertSame( 48213, filesize( self::P . '://uploads/2026/09/old.jpg' ) );
+		$this->assertSame( strtotime( 'Tue, 01 Sep 2026 10:00:00 GMT' ), filemtime( self::P . '://uploads/2026/09/old.jpg' ), 'from the stat cache, no second HEAD' );
+		$this->assertTrue( is_file( self::P . '://uploads/2026/09/old.jpg' ) );
+	}
+
 	public function test_a_quiet_link_stat_of_a_missing_blob_is_an_empty_stat_not_a_failure(): void {
 		$client = $this->mockClient();
-		$client->shouldReceive( 'file_exists' )->with( 'uploads/missing.jpg' )->andReturn( false );
+		$client->shouldReceive( 'get_file_info' )->with( 'uploads/missing.jpg' )->andReturn( false );
 
 		$stat = ( new CloudStreamWrapper() )->url_stat( self::P . '://uploads/missing.jpg', STREAM_URL_STAT_QUIET | STREAM_URL_STAT_LINK );
 
@@ -437,7 +449,7 @@ class StreamWrapperCoverageTest extends TestCase {
 		$client = $this->mockClient();
 		$client->shouldReceive( 'upload_file' )->andReturn( array( 'success' => true ) );
 		$client->shouldReceive( 'delete_file' )->once()->with( 'uploads/del.txt' )->andThrow( new \RuntimeException( 'reset by peer' ) );
-		$client->shouldNotReceive( 'file_exists' );
+		$client->shouldNotReceive( 'get_file_info' );
 
 		file_put_contents( self::P . '://uploads/del.txt', 'cached' );
 		$this->assertArrayHasKey( 'uploads/del.txt', self::getStatic( 'file_cache' ) );
@@ -489,7 +501,7 @@ class StreamWrapperCoverageTest extends TestCase {
 		$client->shouldReceive( 'copy_blob' )->once()->with( 'uploads/tmp.css', 'uploads/final.css' )->andReturn( array( 'success' => true ) );
 		$client->shouldReceive( 'delete_file' )->once()->with( 'uploads/tmp.css' )->andThrow( new \RuntimeException( 'delete exploded' ) );
 		// The destination is served from what was moved: no HEAD, no download.
-		$client->shouldNotReceive( 'file_exists' );
+		$client->shouldNotReceive( 'get_file_info' );
 		$client->shouldNotReceive( 'download_file' );
 
 		file_put_contents( self::P . '://uploads/tmp.css', 'a{color:red}' );

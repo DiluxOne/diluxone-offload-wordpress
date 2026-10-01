@@ -249,6 +249,12 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Deactivating the plugin before the first sync keeps its state; it used to come back as "synced".
+* A site whose server path has a folder named cache, temp or tmp above `uploads/` syncs its files; every file used to be skipped. Those folders inside `uploads/` are still left out.
+* Cloud Provider › Credentials shows the answer of Test Connection; it was written but stayed hidden.
+* Clear List empties the failed files list on Sync & Offloading › Sync; it used to say so and leave the list as it was.
+* A browser tab that lost the sync to another tab stops when the sync finishes, instead of asking the server again and again.
+* The size of a file that is only in the cloud is its real size (the Media Library shows it for files without a stored size); it used to be 0.
 * The DiluxOne Offload menu sits at the end of the admin menu, after Settings, where WordPress places a plugin's menu by default.
 * A sync or download request keeps to its time limit when the server's clock is corrected while it runs. Before, a clock set back made the limit look untouched, and the request kept starting uploads past it.
 * Uninstalling cancels the S3 multipart uploads a sync left unfinished, so the bucket stops billing parts nobody can complete any more.

@@ -530,6 +530,15 @@ jQuery(document).ready(function($) {
 						return;
 					}
 
+					// No active sync any more: another tab finished or reset it.
+					// Stop asking and show the screen as it is now.
+					if (data.status === 'error') {
+						currentSyncState = 'terminated';
+						$('#sync-modal').hide();
+						location.reload();
+						return;
+					}
+
 					// Update UI
 					updateSyncProgress(data);
 
@@ -931,7 +940,7 @@ jQuery(document).ready(function($) {
 			type: 'POST',
 			data: {
 				action: 'diluxone_offload_activate_offloading',
-				nonce: diluxOneOffloadAdmin.offloadingNonce
+				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
 				if (response.success) {
@@ -1177,7 +1186,7 @@ jQuery(document).ready(function($) {
 						type: 'POST',
 						data: {
 							action: 'diluxone_offload_activate_offloading',
-							nonce: diluxOneOffloadAdmin.offloadingNonce
+							nonce: diluxOneOffloadAdmin.nonce
 						},
 						success: function(offloadingResponse) {
 							if (offloadingResponse.success) {
@@ -1574,7 +1583,7 @@ jQuery(document).ready(function($) {
 										type: 'POST',
 										data: {
 											action: 'diluxone_offload_deactivate_offloading',
-											nonce: diluxOneOffloadAdmin.offloadingNonce
+											nonce: diluxOneOffloadAdmin.nonce
 										},
 										success: function(response) {
 
@@ -1655,7 +1664,7 @@ jQuery(document).ready(function($) {
 			type: 'POST',
 			data: {
 				action: 'diluxone_offload_deactivate_offloading',
-				nonce: diluxOneOffloadAdmin.offloadingNonce
+				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
 				if (response.success) {
@@ -1812,7 +1821,7 @@ jQuery(document).ready(function($) {
 				type: 'POST',
 				data: {
 					action: 'diluxone_offload_deactivate_offloading',
-					nonce: diluxOneOffloadAdmin.offloadingNonce
+					nonce: diluxOneOffloadAdmin.nonce
 				},
 				success: function(response) {
 

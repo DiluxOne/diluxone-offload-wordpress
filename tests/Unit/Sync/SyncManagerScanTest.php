@@ -210,13 +210,6 @@ class SyncManagerScanTest extends SyncTestCase {
 			rmdir( dirname( $base ) );
 		}
 
-		if ( array() === $files ) {
-			$this->markTestIncomplete(
-				'BUG: SyncManager::should_sync_file() (includes/class-diluxone-offload-sync-manager.php:995-1003) matches /cache/, /temp/ and /tmp/ '
-				. 'against the absolute local path, so when the uploads directory itself lives under such a folder every file is skipped as "'
-				. key( $skipped['reasons'] ) . '" and nothing is ever synced. It should match the path below uploads/ only.'
-			);
-		}
 		$this->assertSame( 'uploads/2026/a.jpg', $files[0]['remote_path'] );
 	}
 

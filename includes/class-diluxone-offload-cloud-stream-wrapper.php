@@ -267,8 +267,11 @@ class CloudStreamWrapper {
 		// Unregister stream wrapper
 		self::unregister();
 
-		// Update state
-		ConfigManager::set_state( PluginState::SYNCED );
+		// Offloading off leaves a synced library. Any other state (deactivating
+		// the plugin before it ever synced) stays what it was.
+		if ( PluginState::OFFLOADING_ACTIVE === ConfigManager::get_state() ) {
+			ConfigManager::set_state( PluginState::SYNCED );
+		}
 
 		Logger::info( '[DiluxOne Offload CloudStreamWrapper] Offloading deactivated' );
 
@@ -1234,22 +1237,28 @@ class CloudStreamWrapper {
 			return $this->trigger_error_internal( 'Cloud client not available', $flags );
 		}
 
-		// Try to check if file exists in Azure (HEAD request)
-		// Note: file_exists() returns boolean (true/false)
+		// One HEAD request answers whether the object is there and how big it
+		// is, so filesize() and stat() report its real size (an attachment
+		// without a stored file size shows it in the Media Library).
 		try {
-			$exists = $cloud_client->file_exists( $path );
+			$info = $cloud_client->get_file_info( $path );
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] create_stat exception: ' . $path . ' - ' . $e->getMessage() );
 			return $this->trigger_error_internal( 'Cloud error: ' . $e->getMessage(), $flags );
 		}
 
-		if ( ! $exists ) {
+		if ( false === $info ) {
 			// File doesn't exist - trigger error (returns false)
 			return $this->trigger_error_internal( 'File or directory not found: ' . $path, $flags );
 		}
 
-		// File exists - return stat array
-		return $this->format_url_stat( array() );
+		$mtime = isset( $info['last_modified'] ) ? strtotime( (string) $info['last_modified'] ) : false;
+		return $this->format_url_stat(
+			array(
+				'size'  => (int) ( $info['size'] ?? 0 ),
+				'mtime' => false === $mtime ? 0 : $mtime,
+			)
+		);
 	}
 
 	/**
@@ -1335,6 +1344,10 @@ class CloudStreamWrapper {
 				if ( isset( $result['size'] ) && is_int( $result['size'] ) ) {
 					$stat[7]      = $result['size'];
 					$stat['size'] = $result['size'];
+				}
+				if ( isset( $result['mtime'] ) && is_int( $result['mtime'] ) ) {
+					$stat[9]       = $result['mtime'];
+					$stat['mtime'] = $result['mtime'];
 				}
 				break;
 		}

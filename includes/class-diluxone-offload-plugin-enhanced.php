@@ -861,7 +861,7 @@ class Plugin {
 	 * AJAX: Activate offloading
 	 */
 	public function ajax_activate_offloading(): void {
-		check_ajax_referer( 'diluxone_offload_admin_nonce', 'nonce' );
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
@@ -882,7 +882,7 @@ class Plugin {
 	 * AJAX: Deactivate offloading
 	 */
 	public function ajax_deactivate_offloading(): void {
-		check_ajax_referer( 'diluxone_offload_admin_nonce', 'nonce' );
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
