@@ -43,6 +43,17 @@ export async function goTab( page: Page, base: string, view: string ): Promise< 
 	await expectNoPhpErrors( page );
 }
 
+/**
+ * Click something whose answer reloads the page, and wait for that reload.
+ * The URL does not change, so waitForURL returns at once, and the next
+ * goto would be interrupted by the reload still on its way.
+ */
+export async function clickAndAwaitReload( page: Page, selector: string ): Promise< void > {
+	const reloaded = page.waitForEvent( 'load' );
+	await page.locator( selector ).click();
+	await reloaded;
+}
+
 /** The URL of a screen, for waitForURL after a reload or a redirect. */
 export function onScreen( view: string ): RegExp {
 	return new RegExp( `page=${ VIEWS[ view ].page }` );

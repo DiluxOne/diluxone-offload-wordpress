@@ -124,6 +124,22 @@ export async function blobMd5( run: RealRun, key: string ): Promise< string > {
 	return run.s3 ? s3.objectMd5( run.s3, run.container, key ) : azure.blobMd5( run, key );
 }
 
+/**
+ * '' when the object holds exactly the bytes whose MD5 is `expected`;
+ * otherwise what was read, read again two seconds later, and what the
+ * service says about the object. A mismatch has come and gone on Google
+ * Cloud Storage; the second read says whether the object or the read was
+ * wrong. It never turns a mismatch into a pass.
+ */
+export async function bytesDiffer( run: RealRun, key: string, expected: string ): Promise< string > {
+	const first = await blobMd5( run, key );
+	if ( first === expected ) return '';
+	await new Promise( ( resolve ) => setTimeout( resolve, 2000 ) );
+	const second = await blobMd5( run, key );
+	const facts = run.s3 ? await s3.objectFacts( run.s3, run.container, key ) : `size ${ await blobSize( run, key ) }`;
+	return `expected md5 ${ expected }, read ${ first }, read again ${ second } (${ second === expected ? 'the object is right: the first read was stale' : 'the object itself differs' }); ${ facts }`;
+}
+
 /** Put an object there as someone else would have: a bucket reused from another install. */
 export async function putObject( run: RealRun, key: string, body: string ): Promise< void > {
 	return run.s3 ? s3.putObject( run.s3, run.container, key, body ) : azure.putBlob( run, key, body );

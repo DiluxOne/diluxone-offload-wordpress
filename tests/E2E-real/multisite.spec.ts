@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, bytesDiffer, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
 import { BASE_URL, wp, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -96,7 +96,7 @@ test.describe.serial( 'multisite journey', () => {
 			expect( otherKeys.some( ( k ) => k.endsWith( '/' + name ) ), `${ name } under sites/${ blogId }` ).toBe( true );
 		}
 		for ( const rel of filesUnder( site, otherUploads ) ) {
-			expect( await blobMd5( run, `uploads/sites/${ blogId }/${ rel }` ) ).toBe( md5Inside( site, `${ otherUploads }/${ rel }` ) );
+			expect( await bytesDiffer( run, `uploads/sites/${ blogId }/${ rel }`, md5Inside( site, `${ otherUploads }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
 		}
 	} );
 
@@ -174,7 +174,7 @@ test.describe.serial( 'multisite journey', () => {
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
 		for ( const key of await listKeys( run, `uploads/sites/${ blogId }/` ) ) {
 			const rel = key.replace( `uploads/sites/${ blogId }/`, '' );
-			expect( md5Inside( site, `${ otherUploads }/${ rel }` ), rel ).toBe( await blobMd5( run, key ) );
+			expect( await bytesDiffer( run, key, md5Inside( site, `${ otherUploads }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
 		}
 		expect( ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ) ).toEqual( mainKeysBefore );
 	} );

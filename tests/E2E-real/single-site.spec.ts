@@ -1,7 +1,7 @@
 import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
 import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -198,8 +198,7 @@ test.describe.serial( 'single site journey', () => {
 		wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c['${ secretField( run ) }'] = '${ secret( run ) }'; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => '${ run.provider }', 'provider_config' => $c ) );` ] );
 		await ui.goTab( page, base, 'sync' );
 		expect( await ui.retryFailedFiles( page ) ).toBe( 'success' );
-		await page.locator( '#later-btn' ).click();
-		await page.waitForURL( ui.onScreen( 'sync' ) );
+		await ui.clickAndAwaitReload( page, '#later-btn' );
 		expect( pluginState( site ) ).toBe( 'synced' );
 		await ui.resetSync( page );
 	} );
@@ -217,7 +216,7 @@ test.describe.serial( 'single site journey', () => {
 				continue;
 			}
 			expect( keys, `${ rel } is in the container` ).toContain( `uploads/${ rel }` );
-			expect( await blobMd5( run, `uploads/${ rel }` ), `${ rel } bytes` ).toBe( md5Inside( site, `${ uploadsDir }/${ rel }` ) );
+			expect( await bytesDiffer( run, `uploads/${ rel }`, md5Inside( site, `${ uploadsDir }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
 		}
 		await ui.enableOffloadingFromModal( page );
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
@@ -295,7 +294,7 @@ test.describe.serial( 'single site journey', () => {
 
 		const file = attachedFile( site, uiUploadId );
 		expect( await blobExists( run, `uploads/${ file }` ) ).toBe( true );
-		expect( await blobMd5( run, `uploads/${ file }` ) ).toBe( fileMd5( upload ) );
+		expect( await bytesDiffer( run, `uploads/${ file }`, fileMd5( upload ) ), `${ file } bytes` ).toBe( '' );
 
 		const sizes = JSON.parse( wp( site, [ 'eval', `echo wp_json_encode( array_keys( (array) ( wp_get_attachment_metadata( ${ uiUploadId } )['sizes'] ?? array() ) ) );` ] ) );
 		expect( sizes.length ).toBeGreaterThan( 0 );
@@ -382,7 +381,7 @@ test.describe.serial( 'single site journey', () => {
 		for ( const key of keys ) {
 			const rel = key.replace( /^uploads\//, '' );
 			expect( local, `${ rel } is back on disk` ).toContain( rel );
-			expect( md5Inside( site, `${ uploadsDir }/${ rel }` ), `${ rel } bytes` ).toBe( await blobMd5( run, key ) );
+			expect( await bytesDiffer( run, key, md5Inside( site, `${ uploadsDir }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
 		}
 		expect( local.filter( ( f ) => f.endsWith( '.dlxpart' ) ).length ).toBe( 0 );
 		// Every row has its copy back: the Sync tab counts no file as cloud only.
@@ -403,10 +402,9 @@ test.describe.serial( 'single site journey', () => {
 		// Complete Sync: everything is already in the cloud, so the summary comes straight away.
 		await ui.goTab( page, base, 'sync' );
 		expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
-		// Later records the finished sync and then reloads; the URL does not
-		// change, so the state is what proves the reload happened.
-		await page.locator( '#sync-modal-summary #later-btn' ).click();
-		await expect.poll( () => pluginState( site ) ).toBe( 'synced' );
+		// Later records the finished sync and then reloads the page.
+		await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
+		expect( pluginState( site ) ).toBe( 'synced' );
 		await ui.goTab( page, base, 'offloading' );
 		await expect( page.locator( '#enable-offloading-btn[data-confirm]' ) ).toBeVisible();
 		await ui.goTab( page, base, 'sync' );

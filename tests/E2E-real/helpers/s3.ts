@@ -142,6 +142,12 @@ export async function objectSize( target: S3Target, bucket: string, key: string 
 	return head.ContentLength ?? -1;
 }
 
+/** What the service says about an object, for a failure message. */
+export async function objectFacts( target: S3Target, bucket: string, key: string ): Promise< string > {
+	const head = await client( target ).send( new HeadObjectCommand( { Bucket: bucket, Key: key } ) );
+	return `size ${ head.ContentLength }, ETag ${ head.ETag }, last modified ${ head.LastModified?.toISOString() }`;
+}
+
 /** MD5 of the object's bytes, from a fresh download: a multipart ETag is not one. */
 export async function objectMd5( target: S3Target, bucket: string, key: string ): Promise< string > {
 	const object = await client( target ).send( new GetObjectCommand( { Bucket: bucket, Key: key } ) );
