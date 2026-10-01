@@ -2280,6 +2280,8 @@ class Admin {
 
 	/**
 	 * AJAX: Clear failed files list
+	 *
+	 * @throws \RuntimeException When the tracking table cannot be updated (caught and answered as an error).
 	 */
 	public static function ajax_clear_failed(): void {
 		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
