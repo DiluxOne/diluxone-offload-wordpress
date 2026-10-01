@@ -156,11 +156,13 @@ class StreamWrapperEdgeCasesTest extends TestCase {
 	public function test_a_failed_download_leaves_no_file_behind(): void {
 		$GLOBALS['_test_wp_http'] = fn() => self::reply( 403, '<Error><Code>AuthenticationFailed</Code></Error>' );
 
-		$before = glob( sys_get_temp_dir() . '/*' ) ?: array();
 		$this->assertFalse( @fopen( self::P . '://uploads/denied.txt', 'r' ) );
-		$after = glob( sys_get_temp_dir() . '/*' ) ?: array();
 
-		$this->assertSame( count( $before ), count( $after ), 'the partial file is removed' );
+		// The file the transport streamed into, not a count of the shared
+		// temp folder, which any other process may write to meanwhile.
+		$file = $GLOBALS['_test_wp_http_log'][0]['args']['filename'] ?? '';
+		$this->assertNotSame( '', $file, 'the download streamed into a file' );
+		$this->assertFileDoesNotExist( $file, 'the partial file is removed' );
 	}
 
 	// ── Writes reach the cloud on every closing path ─────────
