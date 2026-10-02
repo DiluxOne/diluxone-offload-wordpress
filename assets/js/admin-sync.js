@@ -302,17 +302,18 @@ jQuery(document).ready(function($) {
 	// ⭐ NEW: Show sync options modal (Continue/From Scratch)
 	function showSyncOptionsModal(data, fromScratch, retryFailed) {
 
-		// Nothing pending and something synced: skip the modal and go straight
-		// to the Enable Offloading screen — there is nothing left to upload.
-		if (data.pending_files === 0 && data.synced_files > 0) {
+		// Nothing pending, nothing new and something synced: skip the modal and
+		// go straight to the Enable Offloading screen — there is nothing left
+		// to upload. New files found by the scan still go through the sync.
+		if (data.pending_files === 0 && !(data.new_files > 0) && data.synced_files > 0) {
 
 			// Prepare the modal to show the result.
 			$('#sync-modal').show();
 			$('#sync-container').hide();
 			$('#sync-modal-content').show();
 			$('#sync-modal-summary').hide();
-				$('#sync-modal-progress').hide();
-	
+			$('#sync-modal-progress').hide();
+
 			// Hand the pre-check numbers straight to onSyncComplete.
 			onSyncComplete({
 				status: 'completed',
@@ -527,6 +528,15 @@ jQuery(document).ready(function($) {
 
 						// Start monitoring state instead of processing
 						startStateMonitoring();
+						return;
+					}
+
+					// No active sync any more: another tab finished or reset it.
+					// Stop asking and show the screen as it is now.
+					if (data.status === 'error') {
+						currentSyncState = 'terminated';
+						$('#sync-modal').hide();
+						location.reload();
 						return;
 					}
 
@@ -931,7 +941,7 @@ jQuery(document).ready(function($) {
 			type: 'POST',
 			data: {
 				action: 'diluxone_offload_activate_offloading',
-				nonce: diluxOneOffloadAdmin.offloadingNonce
+				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
 				if (response.success) {
@@ -1177,7 +1187,7 @@ jQuery(document).ready(function($) {
 						type: 'POST',
 						data: {
 							action: 'diluxone_offload_activate_offloading',
-							nonce: diluxOneOffloadAdmin.offloadingNonce
+							nonce: diluxOneOffloadAdmin.nonce
 						},
 						success: function(offloadingResponse) {
 							if (offloadingResponse.success) {
@@ -1574,7 +1584,7 @@ jQuery(document).ready(function($) {
 										type: 'POST',
 										data: {
 											action: 'diluxone_offload_deactivate_offloading',
-											nonce: diluxOneOffloadAdmin.offloadingNonce
+											nonce: diluxOneOffloadAdmin.nonce
 										},
 										success: function(response) {
 
@@ -1655,7 +1665,7 @@ jQuery(document).ready(function($) {
 			type: 'POST',
 			data: {
 				action: 'diluxone_offload_deactivate_offloading',
-				nonce: diluxOneOffloadAdmin.offloadingNonce
+				nonce: diluxOneOffloadAdmin.nonce
 			},
 			success: function(response) {
 				if (response.success) {
@@ -1812,7 +1822,7 @@ jQuery(document).ready(function($) {
 				type: 'POST',
 				data: {
 					action: 'diluxone_offload_deactivate_offloading',
-					nonce: diluxOneOffloadAdmin.offloadingNonce
+					nonce: diluxOneOffloadAdmin.nonce
 				},
 				success: function(response) {
 

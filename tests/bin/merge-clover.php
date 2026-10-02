@@ -1,7 +1,8 @@
 <?php
 /**
- * Merges Clover reports (unit + integration) into one, taking for every line
- * the sum of hits across reports, and prints a per-file coverage table.
+ * Merges Clover reports (unit + integration, or the end-to-end PHP report)
+ * into one, taking for every line the sum of hits across reports, and prints
+ * a per-file coverage table.
  *
  * Usage: php tests/bin/merge-clover.php out.xml in1.xml in2.xml ...
  */
@@ -22,8 +23,9 @@ foreach (array_slice($argv, 2) as $in) {
     }
     foreach ($doc->getElementsByTagName('file') as $file) {
         $name = $file->getAttribute('name');
-        // Reports come from different containers; key by the path inside the plugin.
-        $key = preg_replace('#^.*?/((?:includes|templates)/.*)$#', '$1', $name);
+        // Reports come from different containers; key by the path inside the plugin
+        // (includes/…, templates/…, or a root file such as uninstall.php).
+        $key = preg_replace('#^.*?/((?:includes|templates)/.*|[^/]+\.php)$#', '$1', $name);
         foreach ($file->getElementsByTagName('line') as $line) {
             if ($line->getAttribute('type') !== 'stmt') {
                 continue;

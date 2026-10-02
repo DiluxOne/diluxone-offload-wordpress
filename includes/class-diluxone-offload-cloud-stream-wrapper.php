@@ -267,8 +267,11 @@ class CloudStreamWrapper {
 		// Unregister stream wrapper
 		self::unregister();
 
-		// Update state
-		ConfigManager::set_state( PluginState::SYNCED );
+		// Offloading off leaves a synced library. Any other state (deactivating
+		// the plugin before it ever synced) stays what it was.
+		if ( PluginState::OFFLOADING_ACTIVE === ConfigManager::get_state() ) {
+			ConfigManager::set_state( PluginState::SYNCED );
+		}
 
 		Logger::info( '[DiluxOne Offload CloudStreamWrapper] Offloading deactivated' );
 
@@ -1234,22 +1237,28 @@ class CloudStreamWrapper {
 			return $this->trigger_error_internal( 'Cloud client not available', $flags );
 		}
 
-		// Try to check if file exists in Azure (HEAD request)
-		// Note: file_exists() returns boolean (true/false)
+		// One HEAD request answers whether the object is there and how big it
+		// is, so filesize() and stat() report its real size (an attachment
+		// without a stored file size shows it in the Media Library).
 		try {
-			$exists = $cloud_client->file_exists( $path );
+			$info = $cloud_client->get_file_info( $path );
 		} catch ( \Exception $e ) {
 			Logger::error( '[DiluxOne Offload CloudStreamWrapper] create_stat exception: ' . $path . ' - ' . $e->getMessage() );
 			return $this->trigger_error_internal( 'Cloud error: ' . $e->getMessage(), $flags );
 		}
 
-		if ( ! $exists ) {
+		if ( false === $info ) {
 			// File doesn't exist - trigger error (returns false)
 			return $this->trigger_error_internal( 'File or directory not found: ' . $path, $flags );
 		}
 
-		// File exists - return stat array
-		return $this->format_url_stat( array() );
+		$mtime = isset( $info['last_modified'] ) ? strtotime( (string) $info['last_modified'] ) : false;
+		return $this->format_url_stat(
+			array(
+				'size'  => (int) ( $info['size'] ?? 0 ),
+				'mtime' => false === $mtime ? 0 : $mtime,
+			)
+		);
 	}
 
 	/**
@@ -1336,6 +1345,10 @@ class CloudStreamWrapper {
 					$stat[7]      = $result['size'];
 					$stat['size'] = $result['size'];
 				}
+				if ( isset( $result['mtime'] ) && is_int( $result['mtime'] ) ) {
+					$stat[9]       = $result['mtime'];
+					$stat['mtime'] = $result['mtime'];
+				}
 				break;
 		}
 
@@ -1400,6 +1413,7 @@ class CloudStreamWrapper {
 		// blob may still be there, and the row stays until the next reconcile.
 		if ( $result['success'] && class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
 			\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
+			self::delete_local_copy( $parsed_path );
 		}
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -1413,6 +1427,31 @@ class CloudStreamWrapper {
 
 		// ⭐ ALWAYS return true (goal achieved: file doesn't exist)
 		return true;
+	}
+
+	/**
+	 * Delete the copy of an object that is still on this server, once the
+	 * object itself is gone. Deleting an attachment before Delete Local Files
+	 * removed only the objects: with their rows forgotten, the copies on disk
+	 * were never freed. Only this site's own files (owns_key(): on a
+	 * network's main site, another site's `uploads/sites/<id>/` is not its
+	 * own), and the path below the prefix may not climb out of uploads/.
+	 *
+	 * @param string $key Object key, e.g. `uploads/2026/09/photo.jpg`.
+	 * @return void
+	 */
+	private static function delete_local_copy( string $key ): void {
+		if ( ! self::owns_key( $key ) ) {
+			return;
+		}
+		$relative = substr( $key, strlen( self::key_prefix() . '/' ) );
+		if ( '' === $relative || false !== strpos( $relative, '..' ) ) {
+			return;
+		}
+		$local = rtrim( self::native_upload_basedir(), '/' ) . '/' . $relative;
+		if ( is_file( $local ) ) {
+			wp_delete_file( $local );
+		}
 	}
 
 	/**

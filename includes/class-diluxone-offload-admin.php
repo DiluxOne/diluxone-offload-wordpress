@@ -579,12 +579,9 @@ class Admin {
 			'diluxone-offload-admin',
 			'diluxOneOffloadAdmin',
 			array(
-				'nonce'           => wp_create_nonce( 'diluxone_offload_admin' ),
-				// Offloading activate/deactivate verify a different action; see
-				// Plugin::ajax_activate_offloading().
-				'offloadingNonce' => wp_create_nonce( 'diluxone_offload_admin_nonce' ),
-				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-				'autoRefresh'     => true,
+				'nonce'       => wp_create_nonce( 'diluxone_offload_admin' ),
+				'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+				'autoRefresh' => true,
 			)
 		);
 	}
@@ -2115,7 +2112,7 @@ class Admin {
 		}
 
 		if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
-			wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the provider configuration is invalid.', 'diluxone-offload' ) ) );
+			wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved. Try again.', 'diluxone-offload' ) ) );
 		}
 
 		delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );
@@ -2283,6 +2280,8 @@ class Admin {
 
 	/**
 	 * AJAX: Clear failed files list
+	 *
+	 * @throws \RuntimeException When the tracking table cannot be updated (caught and answered as an error).
 	 */
 	public static function ajax_clear_failed(): void {
 		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
@@ -2294,9 +2293,15 @@ class Admin {
 		}
 
 		try {
+			// The list on the screen is the tracking table's files that were not
+			// uploaded; they keep their local copy. The old option goes too.
+			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+			if ( false === DiluxOneOffloadDB::discard_unsynced_files() ) {
+				throw new \RuntimeException( 'the tracking table could not be updated' );
+			}
 			ConfigManager::clear_failed_files();
 
-			wp_send_json_success( 'Failed files list cleared successfully' );
+			wp_send_json_success( esc_html__( 'Failed files list cleared.', 'diluxone-offload' ) );
 
 		} catch ( \Exception $e ) {
 			/* translators: %s: error message */

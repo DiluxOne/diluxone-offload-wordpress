@@ -41,6 +41,7 @@ function diluxone_offload_autoloader( string $class_name ): void {
 		'ValidationHelper'                        => 'includes/class-diluxone-offload-validation-helper.php',
 		'MimeHelper'                              => 'includes/class-diluxone-offload-mime-helper.php',
 		'Clock'                                   => 'includes/class-diluxone-offload-clock.php',
+		'DiluxOneOffloadDB'                       => 'includes/class-diluxone-offload-db.php',
 		'SiteHealth'                              => 'includes/class-diluxone-offload-site-health.php',
 
 		// Image Editors

@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Page, Route } from '@playwright/test';
 import type { ConnectionForm } from './storage';
 
 /**
@@ -420,4 +420,45 @@ export async function checkHealthNow( page: Page ): Promise< string > {
 	await expect( button ).toBeEnabled( { timeout: 60_000 } );
 	await expect( page.locator( '#health-last-check' ) ).toHaveText( /just now/ );
 	return ( await page.locator( '#health-status' ).innerText() ).trim();
+}
+
+/**
+ * Start a sync from scratch and cancel it at the moment `halfSent` says a
+ * large file is left half sent, the way a closed tab or a Cancel click
+ * leaves one: after each batch comes back, `halfSent` is asked, and once it
+ * answers yes the next batch is held in the browser, never reaching the
+ * server, so nothing finishes the file before the Cancel lands. Call it with
+ * short batches on (shortBatches()), so a batch leaves a large file half
+ * sent instead of sending it whole.
+ */
+export async function startSyncAndInterruptMidFile( page: Page, halfSent: () => boolean ): Promise< void > {
+	let hold = false;
+	const held: Route[] = [];
+	await page.route( '**/wp-admin/admin-ajax.php', async ( route ) => {
+		if ( ! ( route.request().postData() ?? '' ).includes( 'action=diluxone_offload_process_batch' ) ) {
+			await route.continue();
+			return;
+		}
+		if ( hold ) {
+			held.push( route );
+			return;
+		}
+		const response = await route.fetch( { timeout: LONG } );
+		hold = halfSent();
+		await route.fulfill( { response } );
+	} );
+	try {
+		await passTargetCheck( page );
+		await page.locator( '#start-sync-btn' ).click();
+		await expect( page.locator( '#scratch-upload-btn' ) ).toBeVisible( { timeout: 60_000 } );
+		await page.locator( '#scratch-upload-btn' ).click();
+		await expect( page.locator( '#sync-modal-progress' ) ).toBeVisible();
+		await expect.poll( () => hold, { timeout: LONG, message: 'a batch left the large file half sent' } ).toBe( true );
+		await clickAndAwaitReload( page, '#sync-modal-cancel' );
+		await expect( page ).toHaveURL( onScreen( 'sync' ) );
+		await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Continue Sync/i );
+	} finally {
+		await page.unrouteAll( { behavior: 'ignoreErrors' } );
+		for ( const route of held ) await route.abort().catch( () => undefined );
+	}
 }

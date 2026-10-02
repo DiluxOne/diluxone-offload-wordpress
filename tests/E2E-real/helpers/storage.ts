@@ -151,6 +151,37 @@ export async function deleteObject( run: RealRun, key: string ): Promise< void >
 
 export const fileMd5 = azure.fileMd5;
 
+/** What an object was stored with: Cache-Control ('' when none), storage class or tier, content type. */
+export async function objectProps( run: RealRun, key: string ): Promise< { cacheControl: string; storageClass: string; contentType: string } > {
+	return run.s3 ? s3.objectProps( run.s3, run.container, key ) : azure.blobProps( run, key );
+}
+
+/**
+ * The class Settings › Serving's "infrequent" stores new objects in on this
+ * service, or '' when the service offers none (the setting is not shown and
+ * new objects go in the service's default class): Azure's Cool tier, and
+ * STANDARD_IA on the S3 services whose preset says so (Amazon S3, R2).
+ */
+export function infrequentClass( run: RealRun ): string {
+	if ( ! run.s3 ) return 'Cool';
+	return [ 'aws', 'r2' ].includes( run.s3.preset ) ? 'STANDARD_IA' : '';
+}
+
+/**
+ * What the storage still holds of an unfinished upload of `key`: on S3 the
+ * parts of the multipart upload `uploadName` (-1 once the service knows no
+ * such upload: completed or aborted); on Azure the blob's uncommitted
+ * blocks (0 once a commit took them in or there are none).
+ */
+export async function unfinishedParts( run: RealRun, key: string, uploadName: string ): Promise< number > {
+	return run.s3 ? s3.uploadParts( run.s3, run.container, key, uploadName ) : azure.uncommittedBlocks( run, key );
+}
+
+/** unfinishedParts()' answer once nothing of the upload is left unfinished. */
+export function noUnfinishedParts( run: RealRun ): number {
+	return run.s3 ? -1 : 0;
+}
+
 // ── What the screens ask and show ───────────────────────
 
 /** The Connection form, filled with the run's credentials unless another secret is given. */

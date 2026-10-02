@@ -1,8 +1,9 @@
 import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal } from './helpers/storage';
-import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER } from './helpers/wp';
+import { createHash } from 'node:crypto';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal, objectProps, infrequentClass, unfinishedParts, noUnfinishedParts } from './helpers/storage';
+import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER, trackedRow, trackedRowsLike, TrackedRow, setStoredSecret, connectionHealth, importAs, attachmentFiles } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
 
@@ -12,10 +13,21 @@ import * as ui from './helpers/plugin';
  * offload, upload through the Media Library, delete the local copies,
  * cancel and resume a Disconnect, disconnect, rotate the key, resync,
  * remove the provider, uninstall. Every transfer is checked byte for byte
- * on the other side.
+ * on the other side, and so is what only the storage can show: the headers
+ * an object was stored with, a large file taken up where an interrupted
+ * sync left it, uploads paused while the key fails, an image edited with
+ * no local copy, a rename, a delete, a folder left out, and the unfinished
+ * upload an uninstall cancels.
  */
 const site = 'single';
 const base = BASE_URL.single;
+const DEFAULT_CACHE_CONTROL = 'public, max-age=604800';
+
+/** The tracking row of the 60 MB video while a batch has left it half sent, or null. */
+function halfSentVideo(): TrackedRow | null {
+	const row = trackedRow( site, 'video-60m.mp4' );
+	return row && row.synced === 0 && row.upload !== '' ? row : null;
+}
 
 test.describe.serial( 'single site journey', () => {
 	let run: RealRun;
@@ -202,6 +214,36 @@ test.describe.serial( 'single site journey', () => {
 		await ui.resetSync( page );
 	} );
 
+	test( 'an interrupted sync takes the large file up where it was left, and leaves nothing unfinished in the storage', async ( { page } ) => {
+		await ui.goTab( page, base, 'sync' );
+		const seen: { row: TrackedRow | null } = { row: null };
+		shortBatches( site, true );
+		try {
+			await ui.startSyncAndInterruptMidFile( page, () => ( seen.row = halfSentVideo() ) !== null );
+		} finally {
+			shortBatches( site, false );
+		}
+		const half = seen.row as TrackedRow | null;
+		expect( half, 'the video was left half sent' ).not.toBeNull();
+		if ( ! half ) return;
+		// The cancel keeps the upload, and the storage holds what was sent of it.
+		expect( await unfinishedParts( run, half.key, half.upload ), 'the parts sent so far are in the storage' ).toBeGreaterThan( 0 );
+		expect( trackedRow( site, 'video-60m.mp4' ), 'the row still names its upload' ).toMatchObject( { synced: 0, upload: half.upload } );
+
+		// Continue finishes it: the file is whole, and no unfinished upload is left to bill.
+		await ui.goTab( page, base, 'sync' );
+		expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
+		expect( await bytesDiffer( run, half.key, md5Inside( site, `${ uploadsDir }${ half.file }` ) ), 'the video, byte for byte' ).toBe( '' );
+		expect( await unfinishedParts( run, half.key, half.upload ), 'the upload was completed, not left behind' ).toBe( noUnfinishedParts( run ) );
+		expect( trackedRow( site, 'video-60m.mp4' ) ).toMatchObject( { synced: 1, upload: '' } );
+
+		// Back to a clean start for the initial sync.
+		await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
+		expect( pluginState( site ) ).toBe( 'synced' );
+		await ui.resetSync( page );
+		expect( pluginState( site ) ).toBe( 'configured' );
+	} );
+
 	test( 'the initial sync puts every local file in the container, byte for byte', async ( { page } ) => {
 		await ui.goTab( page, base, 'sync' );
 		expect( await ui.runSyncToCompletion( page, 'scratch' ) ).toBe( 'success' );
@@ -216,6 +258,14 @@ test.describe.serial( 'single site journey', () => {
 			}
 			expect( keys, `${ rel } is in the container` ).toContain( `uploads/${ rel }` );
 			expect( await bytesDiffer( run, `uploads/${ rel }`, md5Inside( site, `${ uploadsDir }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
+		}
+		// Every object carries the Cache-Control of Settings › Serving and the
+		// service's default class: one PUT, parts sent by the sync, a large video.
+		for ( const name of [ 'tiny-10k.png', 'clip-12m.mp4', 'video-60m.mp4' ] ) {
+			const rel = local.find( ( f ) => f.endsWith( '/' + name ) ) ?? '';
+			const props = await objectProps( run, `uploads/${ rel }` );
+			expect( props.cacheControl, `${ name } Cache-Control` ).toBe( DEFAULT_CACHE_CONTROL );
+			expect( props.storageClass, `${ name } is in the default class` ).not.toBe( infrequentClass( run ) || 'STANDARD_IA' );
 		}
 		await ui.enableOffloadingFromModal( page );
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
@@ -324,6 +374,67 @@ test.describe.serial( 'single site journey', () => {
 		expect( last.detail ).toMatch( /^ui-upload.*\.png · / );
 	} );
 
+	test( 'Settings › Serving decides the Cache-Control and the storage class the next uploads are stored with', async ( { page } ) => {
+		const infrequent = infrequentClass( run );
+		const saveSettings = async () => {
+			await page.getByRole( 'button', { name: /Save Settings/ } ).click();
+			await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
+		};
+		const ids: number[] = [];
+		try {
+			// A value of one's own, and the cheaper class where the service has one.
+			await ui.goTab( page, base, 'serving' );
+			await page.locator( '#cache_control' ).fill( 'public, max-age=60' );
+			if ( infrequent ) {
+				await page.locator( '#storage_class' ).selectOption( 'infrequent' );
+			} else {
+				await expect( page.locator( '#storage_class' ), 'a service without a cheaper class is not offered one' ).toHaveCount( 0 );
+			}
+			await saveSettings();
+			const custom = importAs( site, 'small-300k.png', `serving-custom-${ run.runId }.png` );
+			expect( custom, 'the upload went through' ).toBeGreaterThan( 0 );
+			ids.push( custom );
+			const files = attachmentFiles( site, custom );
+			expect( files.length, 'the original and its thumbnails' ).toBeGreaterThan( 1 );
+			for ( const file of files ) {
+				const props = await objectProps( run, `uploads/${ file }` );
+				expect( props.cacheControl, `${ file } Cache-Control` ).toBe( 'public, max-age=60' );
+				if ( infrequent ) expect( props.storageClass, `${ file } is in the cheaper class` ).toBe( infrequent );
+				else expect( props.storageClass, `${ file } is in the default class` ).not.toBe( 'STANDARD_IA' );
+			}
+			const http = await request.newContext();
+			const head = await http.head( attachmentUrl( site, custom ) );
+			expect( head.status() ).toBe( 200 );
+			expect( head.headers()[ 'cache-control' ], 'browsers get the stored header' ).toBe( 'public, max-age=60' );
+			await http.dispose();
+
+			// Switched off, and back to the default class: the next upload carries neither.
+			await ui.goTab( page, base, 'serving' );
+			await page.locator( 'input[name="cache_control_enabled"]' ).uncheck();
+			if ( infrequent ) await page.locator( '#storage_class' ).selectOption( 'standard' );
+			await saveSettings();
+			const plain = importAs( site, 'tiny-10k.png', `serving-off-${ run.runId }.png` );
+			expect( plain ).toBeGreaterThan( 0 );
+			ids.push( plain );
+			const props = await objectProps( run, `uploads/${ attachedFile( site, plain ) }` );
+			// Some services answer a default of their own for an object stored without one; never ours.
+			expect( [ 'public, max-age=60', DEFAULT_CACHE_CONTROL ], 'no Cache-Control was stored' ).not.toContain( props.cacheControl );
+			if ( infrequent ) expect( props.storageClass ).not.toBe( infrequent );
+		} finally {
+			// The defaults again, for the rest of the journey, and the two uploads go.
+			await ui.goTab( page, base, 'serving' );
+			await page.locator( 'input[name="cache_control_enabled"]' ).check();
+			await page.locator( '#cache_control' ).fill( DEFAULT_CACHE_CONTROL );
+			if ( infrequent ) await page.locator( '#storage_class' ).selectOption( 'standard' );
+			await saveSettings();
+			for ( const id of ids ) {
+				const files = attachmentFiles( site, id );
+				wp( site, [ 'post', 'delete', String( id ), '--force' ] );
+				for ( const file of files ) expect( await blobExists( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+			}
+		}
+	} );
+
 	test( 'deleting the local copies frees the disk and the site keeps serving', async ( { page } ) => {
 		await ui.goTab( page, base, 'offloading' );
 		const { total } = await ui.deleteLocalFiles( page );
@@ -346,6 +457,115 @@ test.describe.serial( 'single site journey', () => {
 		expect( await ui.bignumCount( page, 'Files to bring back' ) ).toBe( inCloud );
 		expect( ( await ui.bignum( page, 'Size to bring back' ) ).value ).not.toMatch( /^0 B$/ );
 		expect( ( await ui.bignum( page, 'Free disk here' ) ).detail ).toBe( 'enough for what is in the cloud' );
+	} );
+
+	test( 'a key that stops working pauses uploads after three failures, nothing is written anywhere, and they resume once it works', async ( { page } ) => {
+		const name = ( n: number ) => `paused-${ run.runId }-${ n }.png`;
+		const before = filesUnder( site, uploadsDir );
+		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
+		setStoredSecret( site, run.provider, secretField( run ), wrongKey );
+		try {
+			for ( let n = 1; n <= 3; n++ ) {
+				expect( importAs( site, 'tiny-10k.png', name( n ) ), `upload ${ n } is refused by the storage` ).toBe( 0 );
+			}
+			const health = connectionHealth( site );
+			expect( health.status ).toBe( 'unhealthy' );
+			expect( health.consecutive_failures ).toBeGreaterThanOrEqual( 3 );
+			expect( health.error_code, 'the storage\'s own answer' ).toBe( '403' );
+			// Paused: the next write is refused before it starts.
+			expect( wp( site, [ 'eval', `echo false === @file_put_contents( 'diluxoneoffload://uploads/${ subdir }/${ name( 4 ) }', 'x' ) ? 'refused' : 'written';` ] ) ).toBe( 'refused' );
+			// No local fallback and no object: nothing of the four uploads is anywhere.
+			expect( filesUnder( site, uploadsDir ), 'nothing was written on this server' ).toEqual( before );
+			expect( ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => k.includes( `paused-${ run.runId }` ) ), 'nothing reached the storage' ).toEqual( [] );
+			expect( trackedRowsLike( site, `paused-${ run.runId }` ) ).toBe( 0 );
+
+			// The screens say it, and Check now with the key still wrong keeps it so.
+			await ui.goTab( page, base, 'health' );
+			await expect( page.locator( '#health-status' ) ).toContainText( 'Unhealthy' );
+			await expect( page.locator( '#health-failures' ) ).toContainText( 'uploads refused from 3' );
+			await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( 'New uploads are refused until the connection recovers.' );
+			expect( await ui.checkHealthNow( page ) ).toContain( 'Unhealthy' );
+		} finally {
+			setStoredSecret( site, run.provider, secretField( run ), secret( run ) );
+		}
+
+		// The key works again: Check now finds it, and the next upload goes straight to the storage.
+		await ui.goTab( page, base, 'health' );
+		expect( await ui.checkHealthNow( page ) ).toMatch( /^Healthy/ );
+		await expect( page.locator( '#health-failures strong' ) ).toHaveText( '0' );
+		const id = importAs( site, 'tiny-10k.png', name( 5 ) );
+		expect( id, 'uploads resumed' ).toBeGreaterThan( 0 );
+		const key = `uploads/${ attachedFile( site, id ) }`;
+		expect( await bytesDiffer( run, key, fileMd5( path.join( FIXTURE_DIR, 'tiny-10k.png' ) ) ) ).toBe( '' );
+		expect( filesUnder( site, uploadsDir ), 'and only there' ).toEqual( before );
+		wp( site, [ 'post', 'delete', String( id ), '--force' ] );
+		expect( await blobExists( run, key ) ).toBe( false );
+	} );
+
+	test( 'with no local copy, a video over one part, a rename, an image edit and a delete all happen in the storage', async () => {
+		const ids: number[] = [];
+		const http = await request.newContext();
+		try {
+			// A video over one part goes up through the wrapper in parts, byte for byte, with its header.
+			const videoName = `live-${ run.runId }.mp4`;
+			const video = importAs( site, 'clip-12m.mp4', videoName );
+			expect( video ).toBeGreaterThan( 0 );
+			ids.push( video );
+			const videoKey = `uploads/${ attachedFile( site, video ) }`;
+			const videoMd5 = fileMd5( path.join( FIXTURE_DIR, 'clip-12m.mp4' ) );
+			expect( await bytesDiffer( run, videoKey, videoMd5 ) ).toBe( '' );
+			expect( ( await objectProps( run, videoKey ) ).cacheControl ).toBe( DEFAULT_CACHE_CONTROL );
+			expect( trackedRow( site, videoName ), 'tracked as synced, with no local copy' ).toMatchObject( { key: videoKey, synced: 1 } );
+
+			// A rename through the wrapper moves the object on the service, bytes and
+			// header with it, and the tracking row follows; then back, for the attachment.
+			const renamedKey = videoKey.replace( /\.mp4$/, '-renamed.mp4' );
+			const rename = ( from: string, to: string ) => wp( site, [ 'eval', `echo rename( 'diluxoneoffload://${ from }', 'diluxoneoffload://${ to }' ) ? 'moved' : 'failed';` ] );
+			expect( rename( videoKey, renamedKey ) ).toBe( 'moved' );
+			expect( await blobExists( run, videoKey ), 'the old name is gone' ).toBe( false );
+			expect( await bytesDiffer( run, renamedKey, videoMd5 ) ).toBe( '' );
+			expect( ( await objectProps( run, renamedKey ) ).cacheControl, 'the copy keeps the header' ).toBe( DEFAULT_CACHE_CONTROL );
+			expect( trackedRow( site, path.basename( renamedKey ) )?.key ).toBe( renamedKey );
+			expect( trackedRow( site, videoName ) ).toBeNull();
+			expect( rename( renamedKey, videoKey ) ).toBe( 'moved' );
+			expect( await bytesDiffer( run, videoKey, videoMd5 ) ).toBe( '' );
+			expect( await blobExists( run, renamedKey ) ).toBe( false );
+
+			// WordPress's image editor, with the original only in the cloud: the
+			// edited image and its sizes are written there, the original is kept.
+			const imageName = `edit-${ run.runId }.png`;
+			const image = importAs( site, 'small-300k.png', imageName );
+			expect( image ).toBeGreaterThan( 0 );
+			ids.push( image );
+			const originalKey = `uploads/${ attachedFile( site, image ) }`;
+			const originalMd5 = await blobMd5( run, originalKey );
+			const saved = wp( site, [ 'eval', `require_once ABSPATH . 'wp-admin/includes/image-edit.php'; wp_set_current_user( 1 ); $_REQUEST['history'] = wp_slash( '[{"r":90}]' ); $_REQUEST['target'] = 'all'; $_REQUEST['context'] = ''; $_REQUEST['do'] = 'save'; $r = wp_save_image( ${ image } ); echo empty( $r->error ) ? 'saved' : $r->error;` ] );
+			expect( saved ).toBe( 'saved' );
+			const editedKey = `uploads/${ attachedFile( site, image ) }`;
+			expect( editedKey ).toMatch( /-e\d+\.png$/ );
+			const imageFiles = attachmentFiles( site, image );
+			expect( imageFiles.length, 'the edit, its sizes and the original kept' ).toBeGreaterThan( 2 );
+			for ( const file of imageFiles ) expect( await blobExists( run, `uploads/${ file }` ), `${ file } is in the storage` ).toBe( true );
+			expect( await blobMd5( run, originalKey ), 'the original is kept as it was' ).toBe( originalMd5 );
+			const served = await http.get( attachmentUrl( site, image ) );
+			expect( served.status() ).toBe( 200 );
+			const servedMd5 = createHash( 'md5' ).update( await served.body() ).digest( 'hex' );
+			expect( servedMd5, 'the site serves the edited image' ).toBe( await blobMd5( run, editedKey ) );
+			expect( servedMd5, 'which is not the original' ).not.toBe( originalMd5 );
+			// None of it touched this server's disk.
+			expect( filesUnder( site, uploadsDir ).filter( ( f ) => ! f.endsWith( '.dlxpart' ) ).map( ( f ) => path.basename( f ) ) ).toEqual( [ 'empty-0b.txt' ] );
+
+			// Deleting the attachments deletes every object WordPress names for them, and their rows.
+			const all = [ ...imageFiles, ...attachmentFiles( site, video ) ];
+			for ( const id of ids.splice( 0 ) ) wp( site, [ 'post', 'delete', String( id ), '--force' ] );
+			for ( const file of all ) expect( await blobExists( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+			expect( trackedRowsLike( site, `live-${ run.runId }` ) + trackedRowsLike( site, `edit-${ run.runId }` ), 'their rows went too' ).toBe( 0 );
+		} finally {
+			await http.dispose();
+			for ( const id of ids ) {
+				try { wp( site, [ 'post', 'delete', String( id ), '--force' ] ); } catch { /* gone */ }
+			}
+		}
 	} );
 
 	test( 'a download can be cancelled and resumed', async ( { page } ) => {
@@ -419,6 +639,60 @@ test.describe.serial( 'single site journey', () => {
 		expect( pluginState( site ) ).toBe( 'configured' );
 	} );
 
+	test( 'a folder Settings › Transfers leaves out stays out of the storage, and the next scan says so', async ( { page } ) => {
+		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
+		const folder = `${ subdir }/e2e-excluded/`;
+		const fixtures = `${ REPO_IN_CONTAINER }/build/real-fixtures`;
+		shell( site, `mkdir -p "${ uploadsDir }/${ folder }deeper" && cp "${ fixtures }/notes.txt" "${ uploadsDir }/${ folder }kept-here.txt" && cp "${ fixtures }/tiny-10k.png" "${ uploadsDir }/${ folder }deeper/also-kept.png"` );
+		const setExcluded = async ( value: string ) => {
+			await ui.goTab( page, base, 'transfers' );
+			await page.locator( '#excluded_folders' ).fill( value );
+			await page.getByRole( 'button', { name: /Save Settings/ } ).click();
+			await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
+		};
+		try {
+			await setExcluded( folder );
+			// Complete Sync scans the disk again: the two new files are in the folder, so nothing is new.
+			await ui.goTab( page, base, 'sync' );
+			expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
+			await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
+			expect( await listKeys( run, `uploads/${ folder }` ), 'nothing of the folder reached the storage' ).toEqual( [] );
+			expect( trackedRowsLike( site, '/e2e-excluded/' ), 'and the folder is not tracked' ).toBe( 0 );
+			// The Sync screen names what the scan left out, and why.
+			await ui.goTab( page, base, 'sync' );
+			const skipped = page.locator( 'details.diluxone-offload-skipped' );
+			await skipped.locator( 'summary' ).click();
+			await expect( skipped ).toContainText( 'In a folder Settings › Transfers leaves out' );
+			await expect( skipped ).toContainText( `${ folder }kept-here.txt` );
+			await expect( skipped ).toContainText( `${ folder }deeper/also-kept.png` );
+		} finally {
+			await setExcluded( '' );
+			shell( site, `rm -rf "${ uploadsDir }/${ folder }"` );
+		}
+	} );
+
+	// Complete Sync uploads a file added to uploads/ since the last sync: the
+	// "nothing pending" shortcut used to skip new files and report success.
+	test( 'Complete Sync uploads a file added to uploads/ since the last sync', async ( { page } ) => {
+		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
+		const added = `${ subdir }/added-${ run.runId }.txt`;
+		shell( site, `cp "${ REPO_IN_CONTAINER }/build/real-fixtures/notes.txt" "${ uploadsDir }/${ added }"` );
+		// Sync offers Complete Sync when the plugin is configured and the
+		// whole library is already in the table (in Synced it offers Resync All).
+		wp( site, [ 'eval', '\\DiluxOneOffload\\ConfigManager::set_state( \\DiluxOneOffload\\Enums\\PluginState::CONFIGURED );' ] );
+		try {
+			await ui.goTab( page, base, 'sync' );
+			await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Complete Sync/ );
+			expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
+			await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
+			expect( await blobExists( run, `uploads/${ added }` ), 'the new file is in the storage' ).toBe( true );
+			expect( await bytesDiffer( run, `uploads/${ added }`, md5Inside( site, `${ uploadsDir }/${ added }` ) ) ).toBe( '' );
+			expect( trackedRow( site, path.basename( added ) )?.synced ).toBe( 1 );
+		} finally {
+			shell( site, `rm -f "${ uploadsDir }/${ added }"` );
+		}
+	} );
+
 	test( 'removing the provider resets the plugin to unconfigured', async ( { page } ) => {
 		await ui.goTab( page, base, 'credentials' );
 		await ui.removeProvider( page );
@@ -426,6 +700,42 @@ test.describe.serial( 'single site journey', () => {
 		expect( wp( site, [ 'eval', "echo get_option( 'diluxone_offload_config' ) === false ? 'gone' : 'still there';" ] ) ).toBe( 'gone' );
 		await ui.goTab( page, base, 'overview' );
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Not Configured/ );
+	} );
+
+	// Uninstalling cancels the multipart upload a cancelled sync left: the
+	// autoloader, all uninstall.php has, now maps DiluxOneOffloadDB.
+	test( 'uninstalling cancels the multipart upload a cancelled sync left half sent', async ( { page } ) => {
+		test.skip( run.provider === 'azure', 'Azure has no upload to cancel: the plugin\'s abort is a no-op there, and the service discards uncommitted blocks on its own after seven days' );
+		// Connected again (the step before removed the provider), and a sync cancelled mid-video.
+		await ui.goTab( page, base, 'connection' );
+		expect( await ui.testConnection( page, form( run ) ) ).toMatch( /success/i );
+		await ui.saveProvider( page );
+		// Removing the provider took the settings with it: the video is over the default size limit.
+		await ui.goTab( page, base, 'transfers' );
+		await page.locator( '#max_file_size' ).fill( '100' );
+		await page.getByRole( 'button', { name: /Save Settings/ } ).click();
+		await expect( page.locator( '.notice-success, .updated' ).first() ).toBeVisible();
+		await ui.goTab( page, base, 'sync' );
+		const seen: { row: TrackedRow | null } = { row: null };
+		shortBatches( site, true );
+		try {
+			await ui.startSyncAndInterruptMidFile( page, () => ( seen.row = halfSentVideo() ) !== null );
+		} finally {
+			shortBatches( site, false );
+		}
+		const half = seen.row as TrackedRow | null;
+		expect( half, 'the video was left half sent' ).not.toBeNull();
+		if ( ! half ) return;
+		expect( await unfinishedParts( run, half.key, half.upload ), 'the service holds the parts sent so far' ).toBeGreaterThan( 0 );
+
+		wp( site, [ 'plugin', 'deactivate', 'diluxone-offload-wordpress' ] );
+		wp( site, [ 'plugin', 'uninstall', 'diluxone-offload-wordpress', '--skip-delete' ] );
+		try {
+			expect( await unfinishedParts( run, half.key, half.upload ), 'the upload nobody could finish any more was cancelled' ).toBe( noUnfinishedParts( run ) );
+		} finally {
+			wp( site, [ 'plugin', 'activate', 'diluxone-offload-wordpress' ] );
+		}
+		expect( pluginState( site ) ).toBe( 'not_configured' );
 	} );
 
 	test( 'uninstalling leaves nothing of the plugin in the database', async () => {

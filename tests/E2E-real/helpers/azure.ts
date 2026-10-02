@@ -102,3 +102,20 @@ export async function putBlob( run: RealRun, key: string, body: string ): Promis
 export async function deleteBlob( run: RealRun, key: string ): Promise< void > {
 	await containerClient( run ).getBlobClient( key ).deleteIfExists();
 }
+
+/** What a blob was stored with: its Cache-Control, its access tier and its type. */
+export async function blobProps( run: RealRun, key: string ): Promise< { cacheControl: string; storageClass: string; contentType: string } > {
+	const props = await containerClient( run ).getBlobClient( key ).getProperties();
+	return { cacheControl: props.cacheControl ?? '', storageClass: props.accessTier ?? '', contentType: props.contentType ?? '' };
+}
+
+/** The blocks a blob holds that no commit took in: what an unfinished upload leaves (0 when there are none or no blob). */
+export async function uncommittedBlocks( run: RealRun, key: string ): Promise< number > {
+	try {
+		const list = await containerClient( run ).getBlockBlobClient( key ).getBlockList( 'uncommitted' );
+		return ( list.uncommittedBlocks ?? [] ).length;
+	} catch ( e ) {
+		if ( ( e as { statusCode?: number } ).statusCode === 404 ) return 0;
+		throw e;
+	}
+}

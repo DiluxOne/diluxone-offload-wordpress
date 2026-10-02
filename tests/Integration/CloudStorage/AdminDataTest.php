@@ -305,12 +305,25 @@ class AdminDataTest extends IntegrationTestCase {
         update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => '403', 'error_message' => 'x', 'consecutive_failures' => 3, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'azure']);
         $_POST = ['nonce' => wp_create_nonce('diluxone_offload_admin'), 'provider' => 'azure', 'account_name' => 'saved', 'account_key' => base64_encode(random_bytes(32)), 'container_name' => 'media'];
         $_REQUEST = $_POST;
+        // Azure answers every request of Test Connection with success, so the
+        // test really passes, without leaving this machine.
+        $answer = static function ($pre, array $args) {
+            $method = strtoupper($args['method'] ?? 'GET');
+            $code   = 'PUT' === $method ? 201 : ('DELETE' === $method ? 202 : 200);
+            return ['headers' => ['x-ms-blob-public-access' => 'blob'], 'body' => '<?xml version="1.0" encoding="utf-8"?><EnumerationResults><Blobs/></EnumerationResults>', 'response' => ['code' => $code, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+        };
+        add_filter('pre_http_request', $answer, 10, 2);
+        $out = '';
         try {
             ob_start();
             Admin::ajax_test_connection();
         } catch (\WPAjaxDieContinueException $e) {
-            ob_get_clean();
+            $out = (string) ob_get_clean();
+        } finally {
+            remove_filter('pre_http_request', $answer, 10);
         }
+        $json = json_decode($out, true);
+        $this->assertTrue($json['success'] ?? false, 'the test of the new key passed: ' . $out);
         $this->assertSame('unhealthy', ConfigManager::get_connection_health()['status'], 'a new key that passes says nothing about the saved one');
     }
 

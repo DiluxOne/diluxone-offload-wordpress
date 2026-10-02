@@ -282,6 +282,21 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertMatchesRegularExpression('/^#[0-9a-fA-F]{3,8}$/', Admin::accent_color());
     }
 
+    public function test_accent_colour_follows_the_users_admin_colour_scheme(): void {
+        global $_wp_admin_css_colors;
+        require_once ABSPATH . 'wp-admin/includes/misc.php';
+        if (empty($_wp_admin_css_colors['ocean'])) {
+            register_admin_color_schemes();
+        }
+        update_user_option(get_current_user_id(), 'admin_color', 'ocean', true);
+        try {
+            $this->assertSame($_wp_admin_css_colors['ocean']->colors[2], Admin::accent_color());
+        } finally {
+            delete_user_option(get_current_user_id(), 'admin_color', true);
+        }
+        $this->assertSame('#2271b1', Admin::accent_color(), 'the default scheme falls back to WordPress blue');
+    }
+
     public function test_a_screen_with_tabs_shows_the_strip_and_marks_the_open_tab(): void {
         $html = $this->render('credentials');
         $this->assertStringContainsString('nav-tab-wrapper', $html);
@@ -392,6 +407,7 @@ class AdminRenderTest extends IntegrationTestCase {
             '403'     => ['403', 'permission'],
             '404'     => ['404', 'not found'],
             'network' => ['exception', 'connect'],
+            'timeout' => ['timeout', 'cloud transfer timed out'],
             'other'   => ['500', 'paused'],
         ];
     }
@@ -754,5 +770,80 @@ class AdminRenderTest extends IntegrationTestCase {
             $this->render($css_only);
             $this->assertCount(0, array_filter(wp_scripts()->queue, fn($h) => strpos($h, 'diluxone-offload-admin-') === 0), "$css_only has css only");
         }
+    }
+
+    // ── States and rows the other renders do not reach ──────
+
+    public function test_the_connection_tab_flags_an_unhealthy_connection(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        update_option('diluxone_offload_connection_health', ['status' => 'unhealthy', 'error_code' => '403', 'error_message' => 'HTTP 403', 'consecutive_failures' => 3, 'last_check' => time(), 'last_success' => 0, 'error_source' => 'upload']);
+
+        $html = $this->render('connection');
+
+        $this->assertMatchesRegularExpression('/diluxone-offload-pill--pending">Unhealthy</', $html);
+        $this->assertStringNotContainsString('diluxone-offload-pill--active">Connected<', $html);
+    }
+
+    public function test_the_system_tab_says_the_free_disk_is_not_available_when_wordpress_has_no_uploads_directory(): void {
+        $this->configure(PluginState::CONFIGURED);
+        $this->useFakeClient();
+        $no_dir = static function (array $dir): array {
+            $dir['basedir'] = '';
+            return $dir;
+        };
+        add_filter('upload_dir', $no_dir, 99);
+        try {
+            $this->assertNull(Admin::free_disk(), 'no directory, no figure: never 0');
+            $html = $this->render('system');
+        } finally {
+            remove_filter('upload_dir', $no_dir, 99);
+        }
+        $this->assertStringContainsString('not available', $html);
+        $this->assertStringContainsString('The host does not allow reading it.', $html);
+    }
+
+    public function test_the_sync_tab_while_a_sync_runs_points_to_the_modal(): void {
+        $this->configure(PluginState::SYNCING);
+        $this->useFakeClient();
+        update_option('diluxone_offload_sync_meta', ['status' => 'processing', 'sync_session_id' => 'tab-1', 'last_heartbeat' => time(), 'total_files' => 3], false);
+
+        $html = $this->render('sync');
+
+        $this->assertStringContainsString('Sync in Progress', $html);
+        $this->assertStringContainsString('Do not close this page until synchronization is complete.', $html);
+        $this->assertStringContainsString('Sync controls are available in the modal dialog above.', $html);
+    }
+
+    public function test_the_sync_tab_counts_the_skipped_paths_it_does_not_list(): void {
+        $this->configure(PluginState::SYNCED);
+        $this->useFakeClient();
+        $this->addTestFiles(2);
+        update_option(ConfigManager::SKIPPED_OPTION, [
+            'time'    => time() - 60,
+            'total'   => 7,
+            'reasons' => ['empty_file' => ['count' => 7, 'paths' => ['/2026/01/a.jpg', '/2026/01/b.jpg']]],
+        ], false);
+
+        try {
+            $html = $this->render('sync');
+        } finally {
+            delete_option(ConfigManager::SKIPPED_OPTION);
+        }
+
+        $this->assertStringContainsString('<code>/2026/01/a.jpg</code>', $html);
+        $this->assertStringContainsString('and 5 more', $html, 'two listed, five counted');
+    }
+
+    public function test_the_offloading_tab_says_all_in_the_cloud_only_when_no_local_copy_is_left(): void {
+        $this->configure(PluginState::OFFLOADING_ACTIVE);
+        $this->useFakeClient();
+        DB::add_file('/2026/01/gone-local.jpg', 100);
+        global $wpdb;
+        $wpdb->update(DB::get_table_name(), ['synced' => 1, 'deleted' => 1, 'transferred' => 100], ['file' => '/2026/01/gone-local.jpg']);
+
+        $html = $this->render('offloading');
+
+        $this->assertStringContainsString('All in the cloud only', $html);
     }
 }

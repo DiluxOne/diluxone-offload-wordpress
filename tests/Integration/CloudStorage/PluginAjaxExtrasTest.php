@@ -180,6 +180,38 @@ class PluginAjaxExtrasTest extends IntegrationTestCase {
         $this->assertStringContainsString('inconsistent', $r['json']['data']['message']);
     }
 
+    /**
+     * A finished sync keeps its metadata with its heartbeat frozen. Opening Sync
+     * later must not take it for an abandoned one: it used to drop the plugin to
+     * CONFIGURED, which with offloading on turned offloading off.
+     *
+     * @dataProvider statesAfterASync
+     */
+    public function test_a_finished_sync_seen_later_keeps_the_state_it_left(string $state): void {
+        ConfigManager::set_state($state);
+        update_option('diluxone_offload_sync_meta', ['status' => 'completed', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500, 'total_files' => 1], false);
+        $r = $this->call('diluxone_offload_get_sync_state', ['session_id' => 'new']);
+        $this->assertSame('terminated', $r['json']['data']['state']);
+        $this->assertSame($state, ConfigManager::get_state());
+    }
+
+    /** @return array<string, array{string}> */
+    public function statesAfterASync(): array {
+        return [
+            'synced'             => [PluginState::SYNCED],
+            'offloading active'  => [PluginState::OFFLOADING_ACTIVE],
+        ];
+    }
+
+    /** A stale "started" sync expires, but a state the plugin left SYNCING for stays. */
+    public function test_an_expired_sync_never_moves_a_state_that_is_not_syncing(): void {
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500], false);
+        $r = $this->call('diluxone_offload_get_sync_state', ['session_id' => 'new']);
+        $this->assertSame('expired', $r['json']['data']['state']);
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+    }
+
     public function test_state_of_an_abandoned_sync_is_expired_and_cleaned_up(): void {
         ConfigManager::set_state(PluginState::SYNCING);
         update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500], false);
@@ -280,8 +312,8 @@ class PluginAjaxExtrasTest extends IntegrationTestCase {
 
     public function test_every_sync_handler_says_so_when_there_is_no_sync_manager(): void {
         $this->setSyncManager(null);
-        foreach (['start_sync', 'process_batch', 'start_reverse_sync', 'process_reverse_batch', 'scan_remote', 'calculate_download', 'calculate_sync', 'activate_offloading', 'deactivate_offloading', 'reset_state_to_configured'] as $a) {
-            $nonce = in_array($a, ['activate_offloading', 'deactivate_offloading'], true) ? 'diluxone_offload_admin_nonce' : 'diluxone_offload_admin';
+        foreach (['start_sync', 'process_batch', 'start_reverse_sync', 'process_reverse_batch', 'scan_remote', 'calculate_download', 'calculate_sync', 'activate_offloading', 'deactivate_offloading', 'reset_state_to_configured', 'inspect_target', 'empty_target'] as $a) {
+            $nonce = 'diluxone_offload_admin';
             $r = $this->call('diluxone_offload_' . $a, ['session_id' => 't', 'confirmed' => '1'], $nonce);
             $this->assertFalse($r['json']['success'] ?? true, "$a: " . $r['raw']);
             $this->assertStringContainsString('not available', (string) $r['json']['data'], $a);
@@ -330,5 +362,81 @@ class PluginAjaxExtrasTest extends IntegrationTestCase {
                 activate_plugin($basename, '', true, true);
             }
         }
+    }
+
+    // ── process_delete_batch: what it must never delete ─────
+
+    public function test_delete_batch_never_follows_a_row_out_of_the_uploads_directory(): void {
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        $sentinel = dirname($this->base) . '/dlx-delete-sentinel.txt';
+        file_put_contents($sentinel, 'must survive');
+        try {
+            DB::add_file('/../dlx-delete-sentinel.txt', 12);
+            DB::mark_synced('/../dlx-delete-sentinel.txt');
+            $r = $this->call('diluxone_offload_process_delete_batch');
+            $this->assertTrue($r['json']['success'], $r['raw']);
+            $this->assertSame(1, $r['json']['data']['failed_this_batch']);
+            $this->assertSame(0, $r['json']['data']['deleted_this_batch']);
+            $this->assertFileExists($sentinel, 'a path with .. never reaches the filesystem');
+        } finally {
+            @unlink($sentinel);
+        }
+    }
+
+    public function test_delete_batch_counts_a_local_copy_it_could_not_remove_as_failed(): void {
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        // A directory where the file should be: unlink() cannot remove it.
+        $dir = $this->base . '/pax/stuck.pax';
+        wp_mkdir_p($dir);
+        $this->fixtures[] = $this->base . '/pax';
+        $this->fixtures[] = $dir;
+        $ok = $this->fixture('pax/fine.pax', 'f');
+        DB::add_file('/pax/stuck.pax', 1);
+        DB::mark_synced('/pax/stuck.pax');
+        DB::add_file('/pax/fine.pax', 1);
+        DB::mark_synced('/pax/fine.pax');
+
+        $r = @$this->call('diluxone_offload_process_delete_batch');
+
+        $this->assertTrue($r['json']['success'], $r['raw']);
+        $this->assertSame('completed', $r['json']['data']['status']);
+        $this->assertSame(1, $r['json']['data']['deleted_this_batch']);
+        $this->assertSame(1, $r['json']['data']['failed_this_batch']);
+        $this->assertFileDoesNotExist($ok);
+        $this->assertDirectoryExists($dir);
+    }
+
+    public function test_delete_batch_with_nothing_to_delete_is_complete_at_once(): void {
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        DB::add_file('/pax/not-synced.pax', 1); // synced = 0: never deleted locally
+        $kept = $this->fixture('pax/not-synced.pax', 'n');
+        $r = $this->call('diluxone_offload_process_delete_batch');
+        $this->assertSame('completed', $r['json']['data']['status'], $r['raw']);
+        $this->assertSame(0, $r['json']['data']['deleted_this_batch']);
+        $this->assertFileExists($kept, 'a file not in the cloud stays');
+    }
+
+    public function test_delete_batch_refuses_when_wordpress_reports_no_uploads_directory(): void {
+        $none = static function ($dir) {
+            $dir['basedir'] = '';
+            return $dir;
+        };
+        add_filter('upload_dir', $none, 1000);
+        try {
+            $r = $this->call('diluxone_offload_process_delete_batch');
+        } finally {
+            remove_filter('upload_dir', $none, 1000);
+        }
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertStringContainsString('no uploads directory', $r['json']['data']['message']);
+    }
+
+    public function test_scan_remote_whose_listing_fails_reports_the_error_and_records_nothing(): void {
+        $this->client->blobs = ['uploads/pax/a.pax' => 'a'];
+        $this->client->list_error = 'HTTP 403 listing refused';
+        $r = $this->call('diluxone_offload_scan_remote');
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertStringContainsString('HTTP 403 listing refused', $r['json']['data']);
+        $this->assertSame(0, $this->getTableRowCount());
     }
 }

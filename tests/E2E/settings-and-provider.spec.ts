@@ -1,5 +1,5 @@
 import { configureUnreachableProvider, resetPlugin } from './helpers/wp';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test';
 
 /**
  * User-facing flows that need no cloud account.

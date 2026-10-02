@@ -276,6 +276,31 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertFileDoesNotExist($path . '.dlxpart');
     }
 
+    public function test_a_download_that_cannot_be_moved_into_place_is_a_failure_and_leaves_no_part_file(): void {
+        $this->client->blobs = ['uploads/2026/09/clash.jpg' => 'from the cloud'];
+        // Something that is not a file already holds the attachment's path.
+        $path = $this->base . '/2026/09/clash.jpg';
+        wp_mkdir_p($path);
+        file_put_contents($path . '/inside.txt', 'not ours');
+        $sm = new SyncManager();
+        $sm->start_reverse_sync('scratch');
+
+        try {
+            @$sm->process_reverse_batch(30.0);
+        } finally {
+            $inside = (string) @file_get_contents($path . '/inside.txt');
+            @unlink($path . '/inside.txt');
+            @rmdir($path);
+        }
+
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT deleted, errors, error_message FROM `' . self::$table_name . '` WHERE file = %s', '/2026/09/clash.jpg'), ARRAY_A);
+        $this->assertSame(1, (int) $row['deleted'], 'still cloud-only: not marked as downloaded');
+        $this->assertSame('Could not move the downloaded file into place', $row['error_message']);
+        $this->assertSame('not ours', $inside, 'what was at the path is untouched');
+        $this->assertFileDoesNotExist($path . '.dlxpart', 'the downloaded bytes are not left behind');
+    }
+
     public function test_reverse_batch_records_a_failed_download(): void {
         $this->client->blobs = ['uploads/2026/09/bad.jpg' => 'x'];
         $this->client->download_status = 500;
@@ -393,5 +418,72 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertNotFalse(has_filter('wp_image_editors', [$plugin, 'filter_image_editors']));
         Plugin::deactivate();
         $this->assertSame(PluginState::SYNCED, ConfigManager::get_state(), 'deactivation turns offloading off');
+    }
+
+    // ── What a Disconnect never writes to disk ──────────────
+
+    private function startedReverseSync(): void {
+        update_option('diluxone_offload_sync_meta', ['status' => 'started', 'is_reverse_sync' => true, 'reverse_mode' => 'scratch', 'total_files' => 1, 'already_downloaded' => 0, 'last_heartbeat' => time()], false);
+    }
+
+    private function errorsOf(string $file): int {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare('SELECT errors FROM `' . self::$table_name . '` WHERE file = %s', $file));
+    }
+
+    public function test_a_catalogued_path_that_climbs_out_of_uploads_is_never_downloaded(): void {
+        $outside = dirname($this->base) . '/dlx-reverse-escape.jpg';
+        @unlink($outside);
+        $this->client->blobs['uploads/../dlx-reverse-escape.jpg'] = 'pwned';
+        DB::add_cloud_only_file('/../dlx-reverse-escape.jpg', 5);
+        $this->startedReverseSync();
+
+        $r = (new SyncManager())->process_reverse_batch(30.0);
+
+        $this->assertSame('completed', $r['status'], 'parked after three strikes, not looped on');
+        $this->assertFileDoesNotExist($outside);
+        $this->assertSame(0, $this->client->downloads, 'not even requested');
+        $this->assertGreaterThanOrEqual(3, $this->errorsOf('/../dlx-reverse-escape.jpg'));
+    }
+
+    /** @dataProvider executableNames */
+    public function test_a_script_or_control_file_in_the_cloud_is_never_restored(string $name): void {
+        $this->client->blobs['uploads/2026/09/' . $name] = '<?php echo 1;';
+        $this->local('2026/09/' . $name);
+        DB::add_cloud_only_file('/2026/09/' . $name, 13);
+        $this->startedReverseSync();
+
+        $r = (new SyncManager())->process_reverse_batch(30.0);
+
+        $this->assertSame('completed', $r['status']);
+        $this->assertFileDoesNotExist($this->base . '/2026/09/' . $name, $name . ' written to disk');
+        $this->assertSame(0, $this->client->downloads);
+        $this->assertGreaterThanOrEqual(3, $this->errorsOf('/2026/09/' . $name));
+    }
+
+    /** @return array<string, array{string}> */
+    public function executableNames(): array {
+        return [
+            'php'              => ['shell.php'],
+            'double extension' => ['shell.php.jpg'],
+            'upper case'       => ['SHELL.PHTML'],
+            'htaccess'         => ['.htaccess'],
+            'user.ini'         => ['.user.ini'],
+            'html'             => ['page.html'],
+        ];
+    }
+
+    public function test_an_ordinary_file_next_to_a_refused_one_is_still_restored(): void {
+        $this->client->blobs = ['uploads/2026/09/ok.jpg' => 'fine', 'uploads/2026/09/bad.php' => '<?php'];
+        $this->local('2026/09/ok.jpg');
+        $this->local('2026/09/bad.php');
+        DB::add_cloud_only_file('/2026/09/ok.jpg', 4);
+        DB::add_cloud_only_file('/2026/09/bad.php', 5);
+        $this->startedReverseSync();
+
+        (new SyncManager())->process_reverse_batch(30.0);
+
+        $this->assertSame('fine', file_get_contents($this->base . '/2026/09/ok.jpg'));
+        $this->assertFileDoesNotExist($this->base . '/2026/09/bad.php');
     }
 }

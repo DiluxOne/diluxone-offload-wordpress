@@ -178,11 +178,9 @@ class PluginAjaxTest extends IntegrationTestCase {
         wp_set_current_user($this->subscriber_id);
         foreach (self::registeredActions() as $action) {
             // A subscriber can mint the nonce; the capability check is what must stop them.
-            foreach (['diluxone_offload_admin', 'diluxone_offload_admin_nonce'] as $nonce_action) {
-                $r = $this->call($action, [], $nonce_action);
-                $accepted = is_array($r['json']) && !empty($r['json']['success']);
-                $this->assertFalse($accepted, "$action accepted a subscriber (nonce $nonce_action)");
-            }
+            $r = $this->call($action, [], 'diluxone_offload_admin');
+            $accepted = is_array($r['json']) && !empty($r['json']['success']);
+            $this->assertFalse($accepted, "$action accepted a subscriber");
         }
     }
 
@@ -249,12 +247,12 @@ class PluginAjaxTest extends IntegrationTestCase {
         ConfigManager::set_state(PluginState::SYNCED);
         $this->assertSame(PluginState::SYNCED, ConfigManager::get_state(), 'precondition');
 
-        $on = $this->call('diluxone_offload_activate_offloading', [], 'diluxone_offload_admin_nonce');
+        $on = $this->call('diluxone_offload_activate_offloading', [], 'diluxone_offload_admin');
         $this->assertNotNull($on['json'], 'raw=' . $on['raw']);
         $this->assertTrue($on['json']['success'], print_r($on['json'], true));
         $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
 
-        $off = $this->call('diluxone_offload_deactivate_offloading', [], 'diluxone_offload_admin_nonce');
+        $off = $this->call('diluxone_offload_deactivate_offloading', [], 'diluxone_offload_admin');
         $this->assertTrue($off['json']['success'], print_r($off['json'], true));
         // Deliberate product rule: turning offloading off drops back to
         // CONFIGURED, not SYNCED — the user must sync again before enabling
@@ -265,7 +263,7 @@ class PluginAjaxTest extends IntegrationTestCase {
     public function test_activate_offloading_refuses_before_a_sync(): void {
         wp_set_current_user($this->admin_id);
         ConfigManager::set_state(PluginState::CONFIGURED);
-        $r = $this->call('diluxone_offload_activate_offloading', [], 'diluxone_offload_admin_nonce');
+        $r = $this->call('diluxone_offload_activate_offloading', [], 'diluxone_offload_admin');
         $this->assertFalse($r['json']['success'] ?? true);
         $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
     }

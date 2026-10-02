@@ -244,6 +244,15 @@ test-e2e: ## Run the Playwright end-to-end suite against the wp-env dev site (ne
 	@mkdir -p build
 	npx playwright test
 
+.PHONY: coverage-e2e
+coverage-e2e: ## End-to-end suite with Chromium's V8 coverage of assets/js/*.js: per-file lines and branches → build/e2e-coverage/ (summary.md, index.html, lcov.info; needs `make env` first).
+	@rm -rf build/e2e-coverage && mkdir -p build
+	@E2E_COVERAGE=1 npx playwright test; status=$$?; node tests/E2E/coverage/report.mjs && exit $$status
+
+.PHONY: coverage-e2e-php
+coverage-e2e-php: ## End-to-end suite with Xdebug line coverage of the plugin's PHP over every request it makes (pages, ajax, admin-post, WP-CLI) → build/e2e-php-coverage/ (clover.xml, summary.txt; restarts wp-env with Xdebug and back; needs `make env` + `make cov-image`).
+	@COV_IMAGE=$(COV_IMAGE) DOCKER_USER=$(DOCKER_USER) bash tests/E2E/php-coverage/run.sh
+
 .PHONY: screenshots
 screenshots: ## Retake the wordpress.org listing screenshots (.wordpress-org/) on the dev site against a real Azure account (AZURE_E2E_ACCOUNT/KEY or .env.e2e; needs `make env`).
 	npx playwright test -c playwright.screenshots.config.ts

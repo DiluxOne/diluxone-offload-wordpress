@@ -144,4 +144,9 @@ class AwsSignatureV4Test extends TestCase {
 	public function test_the_host_header_carries_a_non_default_port( string $url, string $host ): void {
 		$this->assertSame( $host, AwsSignatureV4::host( $url ) );
 	}
+
+	public function test_empty_pairs_in_a_query_are_left_out_of_the_canonical_query(): void {
+		$creq = $this->s3()->canonical_request( 'GET', 'https://s3.example.com/b/?prefix=a&&uploads=&', array( 'Host' => 's3.example.com' ), AwsSignatureV4::UNSIGNED_PAYLOAD );
+		$this->assertSame( 'prefix=a&uploads=', explode( "\n", $creq )[2] );
+	}
 }

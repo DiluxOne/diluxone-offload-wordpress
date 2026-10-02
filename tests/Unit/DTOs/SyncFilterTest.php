@@ -212,4 +212,25 @@ class SyncFilterTest extends TestCase {
 		$this->assertSame( 1048576, \DiluxOneOffload\DTOs\PluginSettings::fromPost( array( 'max_file_size' => '0' ) )->getMaxFileSize() );
 		$this->assertSame( 500 * 1048576, \DiluxOneOffload\DTOs\PluginSettings::fromPost( array( 'max_file_size' => '9999' ) )->getMaxFileSize() );
 	}
+
+	// ── Reasons, rule by rule ───────────────────────────────
+
+	public function test_a_hidden_file_says_why_it_was_left_out(): void {
+		$this->assertSame( 'Hidden file (starts with .)', ( new SyncFilter() )->getExclusionReason( '2026/01/.DS_Store', 10 ) );
+	}
+
+	public function test_a_system_file_says_why_it_was_left_out(): void {
+		$f = new SyncFilter( '*', 0, array(), true, false );
+		$this->assertSame( 'System file', $f->getExclusionReason( 'index.php', 10 ) );
+	}
+
+	public function test_an_extension_off_the_list_is_named_in_lower_case(): void {
+		$f = new SyncFilter( 'jpg, png' );
+		$this->assertSame( 'File extension not allowed: .exe', $f->getExclusionReason( 'tools/Setup.EXE', 10 ) );
+		$this->assertNull( $f->getExclusionReason( 'a/Photo.PNG', 10 ), 'the list is matched without case and spaces' );
+	}
+
+	public function test_a_file_without_an_extension_is_refused_by_an_allow_list(): void {
+		$this->assertSame( 'File extension not allowed: .', ( new SyncFilter( 'jpg' ) )->getExclusionReason( 'README', 10 ) );
+	}
 }

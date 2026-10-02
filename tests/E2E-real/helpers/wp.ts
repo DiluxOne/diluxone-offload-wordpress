@@ -93,3 +93,63 @@ export function shortBatches( site: Site, on: boolean ): void {
 			: `rm -f ${ file }`
 	);
 }
+
+/** PHP that yields the string `s`, whatever quotes, spaces or accents it carries. */
+export function phpString( s: string ): string {
+	return `base64_decode( '${ Buffer.from( s ).toString( 'base64' ) }' )`;
+}
+
+export interface TrackedRow {
+	/** The row's path below the site's uploads directory, with a leading slash. */
+	file: string;
+	/** The object key it stands for, under the site's prefix. */
+	key: string;
+	synced: number;
+	/** The full name of the upload the row left unfinished, '' when none. */
+	upload: string;
+}
+
+/** The tracking row of the file whose name ends in `/name`, or null when the table has none. */
+export function trackedRow( site: Site, name: string, url?: string ): TrackedRow | null {
+	const php = `global $wpdb; $r = $wpdb->get_row( $wpdb->prepare( 'SELECT file, synced, upload_id FROM ' . \\DiluxOneOffload\\DiluxOneOffloadDB::get_table_name() . ' WHERE file LIKE %s', '%/' . $wpdb->esc_like( ${ phpString( name ) } ) ) ); echo wp_json_encode( $r ? array( 'file' => (string) $r->file, 'key' => \\DiluxOneOffload\\DiluxOneOffloadDB::key_from_path( (string) $r->file ), 'synced' => (int) $r->synced, 'upload' => (string) \\DiluxOneOffload\\DiluxOneOffloadDB::upload_name_of( $r->upload_id ) ) : null );`;
+	return JSON.parse( wp( site, [ 'eval', php ], url ) ) as TrackedRow | null;
+}
+
+/** How many tracking rows have a path containing `fragment`. */
+export function trackedRowsLike( site: Site, fragment: string, url?: string ): number {
+	const php = `global $wpdb; echo (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . \\DiluxOneOffload\\DiluxOneOffloadDB::get_table_name() . ' WHERE file LIKE %s', '%' . $wpdb->esc_like( ${ phpString( fragment ) } ) . '%' ) );`;
+	return Number( wp( site, [ 'eval', php ], url ) );
+}
+
+/** Put `secret` in the saved provider config's `field`, the way a key rotated elsewhere looks to the site. */
+export function setStoredSecret( site: Site, provider: string, field: string, secret: string, url?: string ): void {
+	wp( site, [ 'eval', `$c = \\DiluxOneOffload\\ConfigManager::get_current_provider_config(); $c[${ phpString( field ) }] = ${ phpString( secret ) }; \\DiluxOneOffload\\ConfigManager::save_config( array( 'cloud_provider' => ${ phpString( provider ) }, 'provider_config' => $c ) );` ], url );
+}
+
+/** The connection health the plugin keeps (status, consecutive_failures, error_code…). */
+export function connectionHealth( site: Site, url?: string ): { status: string; consecutive_failures: number; error_code: string } {
+	return JSON.parse( wp( site, [ 'eval', 'echo wp_json_encode( \\DiluxOneOffload\\ConfigManager::get_connection_health() );' ], url ) );
+}
+
+/**
+ * Import one host fixture into the Media Library through WP-CLI, under
+ * `name`: with offloading on, that is an upload through the stream wrapper.
+ * Returns the attachment ID, or 0 when WordPress refused the file.
+ */
+export function importAs( site: Site, fixture: string, name: string, url?: string ): number {
+	const inside = `/tmp/dlx-import/${ name }`;
+	shell( site, `mkdir -p /tmp/dlx-import && cp "${ REPO_IN_CONTAINER }/build/real-fixtures/${ fixture }" "${ inside }"` );
+	try {
+		return Number( wp( site, [ 'media', 'import', inside, '--porcelain' ], url ).split( '\n' ).pop()?.trim() ) || 0;
+	} catch {
+		return 0;
+	} finally {
+		shell( site, `rm -f "${ inside }"` );
+	}
+}
+
+/** The attachment's files as WordPress names them: the attached file, every size and every backup an edit kept, relative to uploads/. */
+export function attachmentFiles( site: Site, id: number, url?: string ): string[] {
+	const php = `$f = (string) get_post_meta( ${ id }, '_wp_attached_file', true ); $d = dirname( $f ); $m = (array) wp_get_attachment_metadata( ${ id } ); $out = array( $f ); foreach ( (array) ( $m['sizes'] ?? array() ) as $s ) { $out[] = $d . '/' . $s['file']; } if ( ! empty( $m['original_image'] ) ) { $out[] = $d . '/' . $m['original_image']; } foreach ( (array) get_post_meta( ${ id }, '_wp_attachment_backup_sizes', true ) as $s ) { if ( is_array( $s ) && ! empty( $s['file'] ) ) { $out[] = $d . '/' . $s['file']; } } echo wp_json_encode( array_values( array_unique( $out ) ) );`;
+	return JSON.parse( wp( site, [ 'eval', php ], url ) ) as string[];
+}

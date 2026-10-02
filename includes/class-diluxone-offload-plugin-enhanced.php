@@ -861,7 +861,7 @@ class Plugin {
 	 * AJAX: Activate offloading
 	 */
 	public function ajax_activate_offloading(): void {
-		check_ajax_referer( 'diluxone_offload_admin_nonce', 'nonce' );
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
@@ -882,7 +882,7 @@ class Plugin {
 	 * AJAX: Deactivate offloading
 	 */
 	public function ajax_deactivate_offloading(): void {
-		check_ajax_referer( 'diluxone_offload_admin_nonce', 'nonce' );
+		check_ajax_referer( 'diluxone_offload_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized', 'diluxone-offload' ) );
@@ -1388,14 +1388,22 @@ class Plugin {
 			$last_heartbeat     = $sync_meta['last_heartbeat'] ?? 0;
 			$status             = $sync_meta['status'] ?? 'unknown';
 
-			// ⭐ NEW: Check for heartbeat timeout (90 seconds)
-			$heartbeat_timeout = 90; // 90 seconds without heartbeat = expired session
-			if ( time() - $last_heartbeat > $heartbeat_timeout ) {
+			// Check if sync is terminated (completed, completed_with_errors, or failed)
+			$is_terminated = in_array( $status, array( 'completed', 'completed_with_errors', 'failed' ), true );
+
+			// 90 seconds without a heartbeat abandons a sync that is still
+			// running. A finished sync's heartbeat stops too, and its metadata
+			// stays: reading that as abandoned dropped a synced or offloading
+			// site to CONFIGURED whenever Sync was opened later.
+			$heartbeat_timeout = 90;
+			if ( ! $is_terminated && time() - $last_heartbeat > $heartbeat_timeout ) {
 				// Timeout: no tab is actively controlling the sync
 				Logger::warning( '[DiluxOne Offload Multi-Tab] Sync session expired due to inactivity (no heartbeat for ' . ( time() - $last_heartbeat ) . ' seconds)' );
 
-				// Reset state to CONFIGURED (sync was abandoned)
-				ConfigManager::set_state( PluginState::CONFIGURED );
+				// Back to CONFIGURED only from SYNCING: never a state the plugin moved on to.
+				if ( PluginState::SYNCING === ConfigManager::get_state() ) {
+					ConfigManager::set_state( PluginState::CONFIGURED );
+				}
 				ConfigManager::clear_sync_progress();
 
 				wp_send_json_success(
@@ -1406,9 +1414,6 @@ class Plugin {
 					)
 				);
 			}
-
-			// Check if sync is terminated (completed, completed_with_errors, or failed)
-			$is_terminated = in_array( $status, array( 'completed', 'completed_with_errors', 'failed' ), true );
 
 			// Determine state from this tab's perspective
 			if ( $is_terminated ) {
