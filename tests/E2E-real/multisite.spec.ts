@@ -157,12 +157,9 @@ test.describe.serial( 'multisite journey', () => {
 		}
 	} );
 
-	// BUG: deleting an attachment while offloading is active, before Delete
-	// Local Files, removes its objects and its tracking rows but leaves its
-	// local copies on the server's disk: the stream wrapper's unlink() deletes
-	// only the object, and nothing deletes the native file. With its row gone,
-	// Delete Local Files never frees that disk, and Disconnect does not know it.
-	test.fixme( 'deleting an attachment while its local copies are still there removes them too', async () => {
+	// Deleting an attachment while offloading is active, before Delete Local
+	// Files, removes its local copies too, not only its objects and rows.
+	test( 'deleting an attachment while its local copies are still there removes them too', async () => {
 		const id = otherSeeded.find( ( n ) => attachedFile( site, n, other ).endsWith( '/tiny-10k.png' ) ) ?? 0;
 		const files = attachmentFiles( site, id, other );
 		for ( const file of files ) expect( filesUnder( site, otherUploads ) ).toContain( file );

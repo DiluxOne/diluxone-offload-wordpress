@@ -671,14 +671,9 @@ test.describe.serial( 'single site journey', () => {
 		}
 	} );
 
-	// BUG (assets/js/admin-sync.js, showSyncOptionsModal): when the pre-check
-	// finds only new files (new_files > 0, nothing pending from before), the
-	// "nothing pending and something synced" shortcut ignores new_files and
-	// shows the completed summary without uploading anything. The scan has
-	// already added the new files to the table as pending, so the sync is left
-	// "interrupted: N done, 1 pending" while the summary said it finished, and
-	// Enable Offloading would serve a URL with no object behind it.
-	test.fixme( 'Complete Sync uploads a file added to uploads/ since the last sync', async ( { page } ) => {
+	// Complete Sync uploads a file added to uploads/ since the last sync: the
+	// "nothing pending" shortcut used to skip new files and report success.
+	test( 'Complete Sync uploads a file added to uploads/ since the last sync', async ( { page } ) => {
 		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
 		const added = `${ subdir }/added-${ run.runId }.txt`;
 		shell( site, `cp "${ REPO_IN_CONTAINER }/build/real-fixtures/notes.txt" "${ uploadsDir }/${ added }"` );
@@ -703,15 +698,9 @@ test.describe.serial( 'single site journey', () => {
 		await expect( page.locator( '.wrap.diluxone-offload-admin' ) ).toContainText( /Not Configured/ );
 	} );
 
-	// BUG (uninstall.php): the uninstall never cancels the multipart upload.
-	// The plugin is inactive when it is deleted, so uninstall.php loads its
-	// classes through includes/enhanced-autoloader.php, whose map has no entry
-	// for DiluxOneOffloadDB (everywhere else the class is require_once'd by
-	// hand). DiluxOneOffloadDB::table_exists() throws "Class not found", the
-	// catch (\Throwable) swallows it, and the upload stays on the service,
-	// billed, though readme.txt says uninstalling cancels it. Reproduced by
-	// hand against the local S3 server: ListMultipartUploads still lists it.
-	test.fixme( 'uninstalling cancels the multipart upload a cancelled sync left half sent', async ( { page } ) => {
+	// Uninstalling cancels the multipart upload a cancelled sync left: the
+	// autoloader, all uninstall.php has, now maps DiluxOneOffloadDB.
+	test( 'uninstalling cancels the multipart upload a cancelled sync left half sent', async ( { page } ) => {
 		test.skip( run.provider === 'azure', 'Azure has no upload to cancel: the plugin\'s abort is a no-op there, and the service discards uncommitted blocks on its own after seven days' );
 		// Connected again (the step before removed the provider), and a sync cancelled mid-video.
 		await ui.goTab( page, base, 'connection' );

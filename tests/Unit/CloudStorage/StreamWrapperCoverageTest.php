@@ -472,6 +472,44 @@ class StreamWrapperCoverageTest extends TestCase {
 		$this->assertFalse( self::getStatic( 'stat_cache' )['uploads/2026/10/a.jpg'] );
 	}
 
+	/** Deleting an attachment while its local copy is still here removes the copy too, once the object is gone. */
+	public function test_a_successful_unlink_removes_the_local_copy_of_this_site_only(): void {
+		$base = WP_CONTENT_DIR . '/uploads';
+		@mkdir( $base . '/2026/10', 0777, true );
+		file_put_contents( $base . '/2026/10/copy.jpg', 'local bytes' );
+		file_put_contents( $base . '/2026/10/kept.jpg', 'another file' );
+		$client = $this->mockClient();
+		$client->shouldReceive( 'delete_file' )->with( 'uploads/2026/10/copy.jpg' )->andReturn( array( 'success' => true ) );
+		$client->shouldReceive( 'delete_file' )->with( 'elsewhere/2026/10/kept.jpg' )->andReturn( array( 'success' => true ) );
+		$client->shouldReceive( 'delete_file' )->with( 'uploads/../2026/10/kept.jpg' )->andReturn( array( 'success' => true ) );
+		try {
+			$this->assertTrue( unlink( self::P . '://uploads/2026/10/copy.jpg' ) );
+			$this->assertFileDoesNotExist( $base . '/2026/10/copy.jpg', 'the local copy goes with the object' );
+
+			unlink( self::P . '://elsewhere/2026/10/kept.jpg' );
+			unlink( self::P . '://uploads/../2026/10/kept.jpg' );
+			$this->assertFileExists( $base . '/2026/10/kept.jpg', 'a key outside this site, or one that climbs out of uploads/, never touches the disk' );
+		} finally {
+			@unlink( $base . '/2026/10/copy.jpg' );
+			@unlink( $base . '/2026/10/kept.jpg' );
+		}
+	}
+
+	/** A delete the provider did not confirm keeps the local copy: it may be the only one. */
+	public function test_a_failed_unlink_keeps_the_local_copy(): void {
+		$base = WP_CONTENT_DIR . '/uploads';
+		@mkdir( $base . '/2026/10', 0777, true );
+		file_put_contents( $base . '/2026/10/only.jpg', 'local bytes' );
+		$client = $this->mockClient();
+		$client->shouldReceive( 'delete_file' )->once()->andReturn( array( 'success' => false, 'error' => 'HTTP 503' ) );
+		try {
+			unlink( self::P . '://uploads/2026/10/only.jpg' );
+			$this->assertFileExists( $base . '/2026/10/only.jpg' );
+		} finally {
+			@unlink( $base . '/2026/10/only.jpg' );
+		}
+	}
+
 	public function test_unlink_without_a_client_fails(): void {
 		$GLOBALS['_test_wp_options']['diluxone_offload_config'] = array( 'cloud_provider' => '', 'provider_config' => array() );
 

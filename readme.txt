@@ -249,6 +249,8 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Complete Sync uploads the files added to uploads/ since the last sync; it used to report success and leave them out.
+* Deleting an attachment while offloading is on removes its copies left on this server too, not only the objects in the cloud.
 * Deactivating the plugin before the first sync keeps its state; it used to come back as "synced".
 * A site whose server path has a folder named cache, temp or tmp above `uploads/` syncs its files; every file used to be skipped. Those folders inside `uploads/` are still left out.
 * Cloud Provider › Credentials shows the answer of Test Connection; it was written but stayed hidden.

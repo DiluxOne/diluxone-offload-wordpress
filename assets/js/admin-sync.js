@@ -302,17 +302,18 @@ jQuery(document).ready(function($) {
 	// ⭐ NEW: Show sync options modal (Continue/From Scratch)
 	function showSyncOptionsModal(data, fromScratch, retryFailed) {
 
-		// Nothing pending and something synced: skip the modal and go straight
-		// to the Enable Offloading screen — there is nothing left to upload.
-		if (data.pending_files === 0 && data.synced_files > 0) {
+		// Nothing pending, nothing new and something synced: skip the modal and
+		// go straight to the Enable Offloading screen — there is nothing left
+		// to upload. New files found by the scan still go through the sync.
+		if (data.pending_files === 0 && !(data.new_files > 0) && data.synced_files > 0) {
 
 			// Prepare the modal to show the result.
 			$('#sync-modal').show();
 			$('#sync-container').hide();
 			$('#sync-modal-content').show();
 			$('#sync-modal-summary').hide();
-				$('#sync-modal-progress').hide();
-	
+			$('#sync-modal-progress').hide();
+
 			// Hand the pre-check numbers straight to onSyncComplete.
 			onSyncComplete({
 				status: 'completed',

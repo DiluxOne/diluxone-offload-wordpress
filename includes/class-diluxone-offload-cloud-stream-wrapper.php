@@ -1413,6 +1413,7 @@ class CloudStreamWrapper {
 		// blob may still be there, and the row stays until the next reconcile.
 		if ( $result['success'] && class_exists( '\DiluxOneOffload\DiluxOneOffloadDB' ) ) {
 			\DiluxOneOffload\DiluxOneOffloadDB::forget_file( \DiluxOneOffload\DiluxOneOffloadDB::path_from_key( $parsed_path ) );
+			self::delete_local_copy( $parsed_path );
 		}
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -1426,6 +1427,31 @@ class CloudStreamWrapper {
 
 		// ⭐ ALWAYS return true (goal achieved: file doesn't exist)
 		return true;
+	}
+
+	/**
+	 * Delete the copy of an object that is still on this server, once the
+	 * object itself is gone. Deleting an attachment before Delete Local Files
+	 * removed only the objects: with their rows forgotten, the copies on disk
+	 * were never freed. Only this site's own files: the key must carry this
+	 * site's prefix, and the path below it may not climb out of uploads/.
+	 *
+	 * @param string $key Object key, e.g. `uploads/2026/09/photo.jpg`.
+	 * @return void
+	 */
+	private static function delete_local_copy( string $key ): void {
+		$prefix = self::key_prefix() . '/';
+		if ( 0 !== strpos( $key, $prefix ) ) {
+			return;
+		}
+		$relative = substr( $key, strlen( $prefix ) );
+		if ( '' === $relative || false !== strpos( $relative, '..' ) ) {
+			return;
+		}
+		$local = rtrim( self::native_upload_basedir(), '/' ) . '/' . $relative;
+		if ( is_file( $local ) ) {
+			wp_delete_file( $local );
+		}
 	}
 
 	/**
