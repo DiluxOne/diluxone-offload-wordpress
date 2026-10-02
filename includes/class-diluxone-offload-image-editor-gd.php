@@ -61,8 +61,8 @@ class DiluxOneOffload_Image_Editor_GD extends \WP_Image_Editor_GD {
 	 */
 	public function load() {
 		// Already loaded: a GD resource before PHP 8, a GdImage object from
-		// PHP 8 on (is_resource() is false for it), as WordPress' own editor checks.
-		if ( $this->image ) {
+		// PHP 8 on (is_resource() alone is false for it).
+		if ( is_resource( $this->image ) || is_object( $this->image ) ) {
 			return true;
 		}
 
