@@ -2112,7 +2112,7 @@ class Admin {
 		}
 
 		if ( ! ConfigManager::save_provider_config( $provider_config ) ) {
-			wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved: the database did not accept them. Try again; if it keeps failing, the PHP error log says why.', 'diluxone-offload' ) ) );
+			wp_send_json_error( array( 'message' => esc_html__( 'Credentials were not saved. Try again.', 'diluxone-offload' ) ) );
 		}
 
 		delete_transient( 'diluxone_offload_connection_test_passed_' . get_current_user_id() );

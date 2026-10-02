@@ -4069,10 +4069,5 @@ msgid "Failed files list cleared."
 msgstr "Se ha vaciado la lista de archivos fallidos."
 
 #: includes/class-diluxone-offload-admin.php:2115
-msgid ""
-"Credentials were not saved: the database did not accept them. Try again; if "
-"it keeps failing, the PHP error log says why."
-msgstr ""
-"No se han guardado las credenciales: la base de datos no las ha aceptado. "
-"Inténtalo de nuevo; si sigue fallando, el registro de errores de PHP indica "
-"el motivo."
+msgid "Credentials were not saved. Try again."
+msgstr "No se han guardado las credenciales. Inténtalo de nuevo."

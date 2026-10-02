@@ -4096,10 +4096,5 @@ msgid "Failed files list cleared."
 msgstr "Die Liste der fehlgeschlagenen Dateien wurde geleert."
 
 #: includes/class-diluxone-offload-admin.php:2115
-msgid ""
-"Credentials were not saved: the database did not accept them. Try again; if "
-"it keeps failing, the PHP error log says why."
-msgstr ""
-"Die Zugangsdaten wurden nicht gespeichert: Die Datenbank hat sie nicht "
-"angenommen. Versuche es erneut; wenn es weiter fehlschlägt, nennt das PHP-"
-"Fehlerprotokoll den Grund."
+msgid "Credentials were not saved. Try again."
+msgstr "Die Zugangsdaten wurden nicht gespeichert. Versuche es erneut."
