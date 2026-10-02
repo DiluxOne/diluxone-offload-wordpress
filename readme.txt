@@ -249,6 +249,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Opening Sync & Offloading › Sync more than 90 seconds after a sync finished no longer resets the plugin to "configured", which turned offloading off without a word.
 * Complete Sync uploads the files added to uploads/ since the last sync; it used to report success and leave them out.
 * Deleting an attachment while offloading is on removes its copies left on this server too, not only the objects in the cloud.
 * Deactivating the plugin before the first sync keeps its state; it used to come back as "synced".

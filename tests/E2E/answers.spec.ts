@@ -1091,16 +1091,12 @@ test.describe.serial( 'A finished sync, revisited later', () => {
 	} );
 
 	// The Sync tab asks diluxone_offload_get_sync_state on every load. A sync
-	// that finished keeps its metadata (status "completed", its last heartbeat
-	// frozen); more than 90 seconds later the handler's heartbeat-expiry check
-	// (Plugin_Enhanced::ajax_get_sync_state, before the "terminated" check)
-	// takes it for an abandoned sync and sets the plugin to CONFIGURED. Just
-	// opening the Sync tab then forgets a finished sync and, with offloading
-	// on, turns offloading off. Seen in the journey too, when its tests take
-	// longer than 90 s ("synced: every file is in the bucket…" finds
-	// "configured").
+	// that finished keeps its metadata, its last heartbeat frozen; the 90-second
+	// expiry used to take it for an abandoned sync and set the plugin to
+	// CONFIGURED, turning offloading off. Expiry now applies to a running sync
+	// only, and only from SYNCING.
 	for ( const state of [ 'SYNCED', 'OFFLOADING_ACTIVE' ] as const ) {
-		test.fixme( `opening the Sync tab two minutes after a sync finished leaves the plugin ${ state.toLowerCase() }`, async ( { page } ) => {
+		test( `opening the Sync tab two minutes after a sync finished leaves the plugin ${ state.toLowerCase() }`, async ( { page } ) => {
 			emptyTracking();
 			configureFakeS3( state );
 			track( [ [ '/2026/10/one.png', 'synced' ] ] );

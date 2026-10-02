@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-02T01:18:18+00:00\n"
+"POT-Creation-Date: 2026-10-02T08:05:26+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -1478,7 +1478,7 @@ msgstr ""
 #: includes/class-diluxone-offload-plugin-enhanced.php:1144
 #: includes/class-diluxone-offload-plugin-enhanced.php:1284
 #: includes/class-diluxone-offload-plugin-enhanced.php:1336
-#: includes/class-diluxone-offload-plugin-enhanced.php:1492
+#: includes/class-diluxone-offload-plugin-enhanced.php:1497
 msgid "Unauthorized"
 msgstr ""
 
@@ -1491,7 +1491,7 @@ msgid "Credentials do not match tested values. Please test again."
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:2115
-msgid "Credentials were not saved: the provider configuration is invalid."
+msgid "Credentials were not saved: the database did not accept them. Try again; if it keeps failing, the PHP error log says why."
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:2124
@@ -1605,16 +1605,16 @@ msgstr ""
 msgid "DiluxOne Offload reaches your storage again, and new uploads go to the cloud as before."
 msgstr ""
 
-#: includes/class-diluxone-offload-image-editor-gd.php:68
+#: includes/class-diluxone-offload-image-editor-gd.php:70
 #: includes/class-diluxone-offload-image-editor-imagick.php:79
 msgid "File doesn&#8217;t exist?"
 msgstr ""
 
-#: includes/class-diluxone-offload-image-editor-gd.php:81
+#: includes/class-diluxone-offload-image-editor-gd.php:83
 msgid "Could not create temp file for cloud download."
 msgstr ""
 
-#: includes/class-diluxone-offload-image-editor-gd.php:154
+#: includes/class-diluxone-offload-image-editor-gd.php:156
 #: includes/class-diluxone-offload-image-editor-imagick.php:168
 msgid "Unable to copy the temp image to the cloud"
 msgstr ""
@@ -1724,13 +1724,13 @@ msgid "Error taking control: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1480
+#: includes/class-diluxone-offload-plugin-enhanced.php:1485
 #, php-format
 msgid "Error getting sync state: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1513
+#: includes/class-diluxone-offload-plugin-enhanced.php:1518
 #, php-format
 msgid "Error getting failed files count: %s"
 msgstr ""

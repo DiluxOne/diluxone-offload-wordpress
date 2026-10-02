@@ -180,6 +180,38 @@ class PluginAjaxExtrasTest extends IntegrationTestCase {
         $this->assertStringContainsString('inconsistent', $r['json']['data']['message']);
     }
 
+    /**
+     * A finished sync keeps its metadata with its heartbeat frozen. Opening Sync
+     * later must not take it for an abandoned one: it used to drop the plugin to
+     * CONFIGURED, which with offloading on turned offloading off.
+     *
+     * @dataProvider statesAfterASync
+     */
+    public function test_a_finished_sync_seen_later_keeps_the_state_it_left(string $state): void {
+        ConfigManager::set_state($state);
+        update_option('diluxone_offload_sync_meta', ['status' => 'completed', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500, 'total_files' => 1], false);
+        $r = $this->call('diluxone_offload_get_sync_state', ['session_id' => 'new']);
+        $this->assertSame('terminated', $r['json']['data']['state']);
+        $this->assertSame($state, ConfigManager::get_state());
+    }
+
+    /** @return array<string, array{string}> */
+    public function statesAfterASync(): array {
+        return [
+            'synced'             => [PluginState::SYNCED],
+            'offloading active'  => [PluginState::OFFLOADING_ACTIVE],
+        ];
+    }
+
+    /** A stale "started" sync expires, but a state the plugin left SYNCING for stays. */
+    public function test_an_expired_sync_never_moves_a_state_that_is_not_syncing(): void {
+        ConfigManager::set_state(PluginState::OFFLOADING_ACTIVE);
+        update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500], false);
+        $r = $this->call('diluxone_offload_get_sync_state', ['session_id' => 'new']);
+        $this->assertSame('expired', $r['json']['data']['state']);
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+    }
+
     public function test_state_of_an_abandoned_sync_is_expired_and_cleaned_up(): void {
         ConfigManager::set_state(PluginState::SYNCING);
         update_option('diluxone_offload_sync_meta', ['status' => 'started', 'sync_session_id' => 'old', 'last_heartbeat' => time() - 500], false);

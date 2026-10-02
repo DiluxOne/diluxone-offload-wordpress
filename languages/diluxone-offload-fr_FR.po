@@ -1460,7 +1460,7 @@ msgstr "Client cloud indisponible."
 #: includes/class-diluxone-offload-plugin-enhanced.php:1144
 #: includes/class-diluxone-offload-plugin-enhanced.php:1284
 #: includes/class-diluxone-offload-plugin-enhanced.php:1336
-#: includes/class-diluxone-offload-plugin-enhanced.php:1492
+#: includes/class-diluxone-offload-plugin-enhanced.php:1497
 msgid "Unauthorized"
 msgstr "Non autorisé."
 
@@ -1473,12 +1473,6 @@ msgid "Credentials do not match tested values. Please test again."
 msgstr ""
 "Les identifiants ne correspondent pas aux valeurs testées. Veuillez tester à"
 " nouveau."
-
-#: includes/class-diluxone-offload-admin.php:2115
-msgid "Credentials were not saved: the provider configuration is invalid."
-msgstr ""
-"Les identifiants n’ont pas été enregistrés : la configuration du fournisseur"
-" est invalide."
 
 #: includes/class-diluxone-offload-admin.php:2154
 #: includes/class-diluxone-offload-admin.php:2229
@@ -1555,18 +1549,18 @@ msgstr ""
 "L'identifiant enregistré « %s » ne peut pas être déchiffré. Les salts "
 "WordPress ont peut-être changé depuis son enregistrement."
 
-#: includes/class-diluxone-offload-image-editor-gd.php:68
+#: includes/class-diluxone-offload-image-editor-gd.php:70
 #: includes/class-diluxone-offload-image-editor-imagick.php:79
 msgid "File doesn&#8217;t exist?"
 msgstr "Le fichier n'existe pas"
 
-#: includes/class-diluxone-offload-image-editor-gd.php:81
+#: includes/class-diluxone-offload-image-editor-gd.php:83
 msgid "Could not create temp file for cloud download."
 msgstr ""
 "Impossible de créer le fichier temporaire pour le téléchargement depuis le "
 "cloud."
 
-#: includes/class-diluxone-offload-image-editor-gd.php:154
+#: includes/class-diluxone-offload-image-editor-gd.php:156
 #: includes/class-diluxone-offload-image-editor-imagick.php:168
 msgid "Unable to copy the temp image to the cloud"
 msgstr "Impossible de copier l'image temporaire vers le cloud"
@@ -1691,13 +1685,13 @@ msgid "Error taking control: %s"
 msgstr "Erreur lors de la prise de contrôle : %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1480
+#: includes/class-diluxone-offload-plugin-enhanced.php:1485
 #, php-format
 msgid "Error getting sync state: %s"
 msgstr "Erreur lors de la récupération de l'état de synchronisation : %s"
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1513
+#: includes/class-diluxone-offload-plugin-enhanced.php:1518
 #, php-format
 msgid "Error getting failed files count: %s"
 msgstr "Erreur lors de la récupération du nombre de fichiers en échec : %s"
@@ -4110,3 +4104,12 @@ msgstr ""
 #: includes/class-diluxone-offload-admin.php:2304
 msgid "Failed files list cleared."
 msgstr "La liste des fichiers en échec a été vidée."
+
+#: includes/class-diluxone-offload-admin.php:2115
+msgid ""
+"Credentials were not saved: the database did not accept them. Try again; if "
+"it keeps failing, the PHP error log says why."
+msgstr ""
+"Les identifiants n’ont pas été enregistrés : la base de données ne les a pas"
+" acceptés. Réessayez ; si l’échec persiste, le journal d’erreurs PHP en "
+"donne la raison."

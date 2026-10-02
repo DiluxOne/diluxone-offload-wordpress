@@ -60,7 +60,9 @@ class DiluxOneOffload_Image_Editor_GD extends \WP_Image_Editor_GD {
 	 * @return true|\WP_Error True if loaded; \WP_Error on failure.
 	 */
 	public function load() {
-		if ( is_resource( $this->image ) ) {
+		// Already loaded: a GD resource before PHP 8, a GdImage object from
+		// PHP 8 on (is_resource() is false for it), as WordPress' own editor checks.
+		if ( $this->image ) {
 			return true;
 		}
 

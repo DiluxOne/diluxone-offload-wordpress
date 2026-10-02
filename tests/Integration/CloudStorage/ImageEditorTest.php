@@ -309,13 +309,6 @@ class ImageEditorTest extends IntegrationTestCase {
 
         $this->assertTrue($editor->load());
 
-        if (count($temps->getValue($editor)) !== 1) {
-            // load() returns early only for is_resource($this->image); from
-            // PHP 8 GD hands a \GdImage object, so the early return never
-            // fires and every load() fetches the blob again into one more
-            // temp file. WordPress's own GD editor checks `if ( $this->image )`.
-            $this->markTestIncomplete('BUG: on PHP 8 a second load() of the GD editor fetches the blob again into another temp file (is_resource() is false for a GdImage).');
-        }
         $this->assertCount(1, $temps->getValue($editor));
     }
 }
