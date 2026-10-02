@@ -4,6 +4,7 @@ namespace Tests\Integration\RealS3;
 use Tests\Integration\IntegrationTestCase;
 use DiluxOneOffload\Providers\AwsSignatureV4;
 use DiluxOneOffload\Providers\S3CompatibleProvider;
+use DiluxOneOffload\Providers\S3Presets;
 use Tests\Integration\SendsParts;
 
 /**
@@ -77,8 +78,9 @@ class RealS3ProviderTest extends IntegrationTestCase {
         parent::tearDown();
     }
 
-    private static function provider(string $secret): S3CompatibleProvider {
-        return new S3CompatibleProvider([
+    /** @param array<string, string> $serving Settings › Serving as get_cloud_client() passes it: cache_control, storage_class. */
+    private static function provider(string $secret, array $serving = []): S3CompatibleProvider {
+        return new S3CompatibleProvider($serving + [
             'preset'            => self::$settings['preset'],
             'endpoint'          => self::$settings['endpoint'],
             'region'            => self::$settings['region'],
@@ -294,5 +296,98 @@ class RealS3ProviderTest extends IntegrationTestCase {
         $this->assertSame('', $page['next'], 'three objects fit one page');
         $this->assertSame(array_column(self::$provider->list_files(self::$prefix . 'uploads/paged/'), 'path'), array_column($page['files'], 'path'));
         $this->assertSame(1024, $page['files'][0]['size']);
+    }
+
+    /**
+     * What a signed HEAD of an object says it was stored with.
+     *
+     * @return array{cache-control: string, x-amz-storage-class: string}
+     */
+    private static function objectHead(string $key): array {
+        $path    = implode('/', array_map('rawurlencode', explode('/', $key)));
+        $url     = rtrim((string) self::$settings['endpoint'], '/') . '/' . self::$bucket . '/' . $path;
+        $signer  = new AwsSignatureV4((string) self::$settings['access_key_id'], (string) self::$settings['secret_access_key'], (string) self::$settings['region']);
+        $headers = $signer->sign('HEAD', $url, [], AwsSignatureV4::EMPTY_PAYLOAD);
+        unset($headers['Host']);
+        $r = wp_remote_head($url, ['headers' => $headers, 'timeout' => 60]);
+        if (is_wp_error($r) || 200 !== wp_remote_retrieve_response_code($r)) {
+            throw new \RuntimeException("HEAD {$key} failed: " . (is_wp_error($r) ? $r->get_error_message() : wp_remote_retrieve_response_code($r)));
+        }
+        return [
+            'cache-control'       => (string) wp_remote_retrieve_header($r, 'cache-control'),
+            // S3 leaves the default class unsaid.
+            'x-amz-storage-class' => (string) wp_remote_retrieve_header($r, 'x-amz-storage-class') ?: 'STANDARD',
+        ];
+    }
+
+    /** A whole file the way the sync sends one under the chunk threshold: its curl handle, run. Null when it landed. */
+    private static function sendWhole(S3CompatibleProvider $provider, string $local, string $key): ?string {
+        $h = $provider->prepare_batch_upload_handle(['local_path' => $local, 'remote_path' => $key]);
+        if (empty($h['success'])) {
+            return (string) $h['error'];
+        }
+        $body   = (string) curl_exec($h['handle']);
+        $status = (int) curl_getinfo($h['handle'], CURLINFO_HTTP_CODE);
+        $error  = curl_error($h['handle']);
+        if (is_resource($h['file_handle'] ?? null)) {
+            fclose($h['file_handle']);
+        }
+        return '' !== $error ? $error : $provider->verify_upload_response($status, $body);
+    }
+
+    /**
+     * Writes one object by every way the plugin has: one PUT, parts in one
+     * call, the sync's whole-file handle, the sync's parts and commit, and a
+     * server-side copy (a rename). Returns the keys.
+     *
+     * @return string[]
+     */
+    private function writeEveryWay(S3CompatibleProvider $provider, string $folder): array {
+        $small = $this->tempFile(4096, 'png');
+        $large = $this->tempFile(6 * 1048576, 'mp4');
+        $keys  = [];
+        foreach (['one-put.png' => $small, 'parts.mp4' => $large] as $name => $local) {
+            $up = $provider->upload_file($local, $keys[] = $this->key("{$folder}/{$name}"));
+            $this->assertTrue($up['success'], $name . ': ' . ($up['error'] ?? ''));
+        }
+        $this->assertNull(self::sendWhole($provider, $small, $keys[] = $this->key("{$folder}/sync-put.png")));
+        $chunked = $provider->begin_chunked_upload(['local_path' => $large, 'remote_path' => $keys[] = $this->key("{$folder}/sync-parts.mp4")]);
+        $this->assertTrue($chunked['success'], $chunked['error'] ?? '');
+        foreach ($chunked['upload']->missingParts() as $part) {
+            $this->assertNull(self::sendPart($provider, $chunked['upload'], $part));
+        }
+        $this->assertNull(self::commitParts($provider, $chunked['upload']));
+        $copy = $provider->copy_blob($keys[0], $keys[] = $this->key("{$folder}/renamed.png"));
+        $this->assertTrue($copy['success'], $copy['error'] ?? '');
+        return $keys;
+    }
+
+    /** Settings › Serving's Cache-Control is stored with every new object, whichever way it went up, and a copy keeps it. */
+    public function test_every_way_up_stores_the_cache_control_and_a_copy_keeps_it(): void {
+        $provider = self::provider(self::$settings['secret_access_key'], ['cache_control' => 'public, max-age=123']);
+        foreach ($this->writeEveryWay($provider, 'cache') as $key) {
+            $this->assertSame('public, max-age=123', self::objectHead($key)['cache-control'], $key);
+        }
+        $plain = $this->key('cache/none.png');
+        $this->assertTrue(self::$provider->upload_file($this->tempFile(1024, 'png'), $plain)['success']);
+        $this->assertNotSame('public, max-age=123', self::objectHead($plain)['cache-control'], 'with the setting off nothing of ours is stored');
+    }
+
+    /**
+     * The infrequent class is asked for on every way up and on a copy (which
+     * does not carry it over by itself), and only on a service that offers it
+     * (Amazon S3, R2); any other service stores the object in its default class.
+     */
+    public function test_the_infrequent_class_is_asked_for_only_where_the_service_offers_it(): void {
+        $offers   = S3Presets::offers_infrequent((string) self::$settings['preset']);
+        $provider = self::provider(self::$settings['secret_access_key'], ['storage_class' => 'infrequent']);
+        foreach ($this->writeEveryWay($provider, 'class') as $key) {
+            $class = self::objectHead($key)['x-amz-storage-class'];
+            if ($offers) {
+                $this->assertSame('STANDARD_IA', $class, $key);
+            } else {
+                $this->assertNotSame('STANDARD_IA', $class, $key);
+            }
+        }
     }
 }

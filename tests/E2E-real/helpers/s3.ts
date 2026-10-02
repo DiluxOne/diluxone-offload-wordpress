@@ -9,6 +9,7 @@ import {
 	GetObjectCommand,
 	PutObjectCommand,
 	DeleteObjectCommand,
+	ListPartsCommand,
 } from '@aws-sdk/client-s3';
 import { createHash } from 'node:crypto';
 
@@ -166,5 +167,22 @@ export async function deleteObject( target: S3Target, bucket: string, key: strin
 		await client( target ).send( new DeleteObjectCommand( { Bucket: bucket, Key: key } ) );
 	} catch ( e ) {
 		if ( ! /NoSuchKey|NotFound/.test( ( e as Error ).name ) ) throw e;
+	}
+}
+
+/** What an object was stored with: its Cache-Control, its storage class (S3 leaves STANDARD unsaid) and its type. */
+export async function objectProps( target: S3Target, bucket: string, key: string ): Promise< { cacheControl: string; storageClass: string; contentType: string } > {
+	const head = await client( target ).send( new HeadObjectCommand( { Bucket: bucket, Key: key } ) );
+	return { cacheControl: head.CacheControl ?? '', storageClass: head.StorageClass ?? 'STANDARD', contentType: head.ContentType ?? '' };
+}
+
+/** The parts an unfinished multipart upload holds, or -1 when the service knows no such upload (finished or aborted). */
+export async function uploadParts( target: S3Target, bucket: string, key: string, uploadId: string ): Promise< number > {
+	try {
+		const page = await client( target ).send( new ListPartsCommand( { Bucket: bucket, Key: key, UploadId: uploadId } ) );
+		return ( page.Parts ?? [] ).length;
+	} catch ( e ) {
+		if ( /NoSuchUpload|NotFound|NoSuchKey/.test( ( e as Error ).name ) ) return -1;
+		throw e;
 	}
 }

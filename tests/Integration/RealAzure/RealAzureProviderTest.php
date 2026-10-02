@@ -278,4 +278,95 @@ class RealAzureProviderTest extends IntegrationTestCase {
         $this->assertSame(array_column(self::$provider->list_files('uploads/paged/'), 'path'), array_column($page['files'], 'path'));
         $this->assertSame(1024, $page['files'][0]['size']);
     }
+
+    /** @param array<string, string> $serving Settings › Serving as get_cloud_client() passes it: cache_control, storage_class. */
+    private static function serving(array $serving): AzureProvider {
+        return new AzureProvider($serving + [
+            'storage_account' => self::$account,
+            'container_name'  => self::$container,
+            'access_key'      => self::$key,
+        ]);
+    }
+
+    /**
+     * What a SharedKey-signed HEAD of a blob says it was stored with.
+     *
+     * @return array{cache-control: string, x-ms-access-tier: string}
+     */
+    private static function blobHead(string $remote): array {
+        $date = gmdate('D, d M Y H:i:s T');
+        $path = implode('/', array_map('rawurlencode', explode('/', $remote)));
+        $sts  = "HEAD\n\n\n\n\n\n\n\n\n\n\n\nx-ms-date:{$date}\nx-ms-version:2020-04-08\n/" . self::$account . '/' . self::$container . '/' . $path;
+        $r    = wp_remote_head('https://' . self::$account . '.blob.core.windows.net/' . self::$container . '/' . $path, [
+            'timeout' => 60,
+            'headers' => ['x-ms-date' => $date, 'x-ms-version' => '2020-04-08', 'Authorization' => 'SharedKey ' . self::$account . ':' . base64_encode(hash_hmac('sha256', $sts, base64_decode(self::$key), true))],
+        ]);
+        if (is_wp_error($r) || 200 !== wp_remote_retrieve_response_code($r)) {
+            throw new \RuntimeException("HEAD {$remote} failed: " . (is_wp_error($r) ? $r->get_error_message() : wp_remote_retrieve_response_code($r)));
+        }
+        return [
+            'cache-control'    => (string) wp_remote_retrieve_header($r, 'cache-control'),
+            'x-ms-access-tier' => (string) wp_remote_retrieve_header($r, 'x-ms-access-tier'),
+        ];
+    }
+
+    /** A whole file the way the sync sends one under the chunk threshold: its curl handle, run. Null when it landed. */
+    private static function sendWhole(AzureProvider $provider, string $local, string $remote): ?string {
+        $h = $provider->prepare_batch_upload_handle(['local_path' => $local, 'remote_path' => $remote]);
+        if (empty($h['success'])) {
+            return (string) $h['error'];
+        }
+        $body   = (string) curl_exec($h['handle']);
+        $status = (int) curl_getinfo($h['handle'], CURLINFO_HTTP_CODE);
+        $error  = curl_error($h['handle']);
+        if (is_resource($h['file_handle'] ?? null)) {
+            fclose($h['file_handle']);
+        }
+        return '' !== $error ? $error : $provider->verify_upload_response($status, $body);
+    }
+
+    /**
+     * Writes one blob by every way the plugin has: one Put Blob, blocks in
+     * one call, the sync's whole-file handle, the sync's blocks and block
+     * list, and a server-side copy (a rename). Returns the names.
+     *
+     * @return string[]
+     */
+    private function writeEveryWay(AzureProvider $provider, string $folder): array {
+        $small = $this->tempFile(4096, 'png');
+        $large = $this->tempFile(5 * 1048576, 'mp4');
+        $keys  = [];
+        foreach (['one-put.png' => $small, 'blocks.mp4' => $large] as $name => $local) {
+            $up = $provider->upload_file($local, $keys[] = "uploads/{$folder}/{$name}");
+            $this->assertTrue($up['success'], $name . ': ' . ($up['error'] ?? ''));
+        }
+        $this->assertNull(self::sendWhole($provider, $small, $keys[] = "uploads/{$folder}/sync-put.png"));
+        $chunked = $provider->begin_chunked_upload(['local_path' => $large, 'remote_path' => $keys[] = "uploads/{$folder}/sync-blocks.mp4"]);
+        $this->assertTrue($chunked['success'], $chunked['error'] ?? '');
+        foreach ($chunked['upload']->missingParts() as $part) {
+            $this->assertNull(self::sendPart($provider, $chunked['upload'], $part));
+        }
+        $this->assertNull(self::commitParts($provider, $chunked['upload']));
+        $copy = $provider->copy_blob($keys[0], $keys[] = "uploads/{$folder}/renamed.png");
+        $this->assertTrue($copy['success'], $copy['error'] ?? '');
+        return $keys;
+    }
+
+    /** Settings › Serving's Cache-Control is stored with every new blob, whichever way it went up, and a copy keeps it. */
+    public function test_every_way_up_stores_the_cache_control_and_a_copy_keeps_it(): void {
+        foreach ($this->writeEveryWay(self::serving(['cache_control' => 'public, max-age=123']), 'cache') as $remote) {
+            $this->assertSame('public, max-age=123', self::blobHead($remote)['cache-control'], $remote);
+        }
+        $this->assertTrue(self::$provider->upload_file($this->tempFile(1024, 'png'), 'uploads/cache/none.png')['success']);
+        $this->assertSame('', self::blobHead('uploads/cache/none.png')['cache-control'], 'with the setting off nothing is stored');
+    }
+
+    /** The infrequent class is the Cool tier, asked for on every way up and on a copy, which does not carry the tier over by itself. */
+    public function test_the_infrequent_class_stores_every_new_blob_in_the_cool_tier(): void {
+        foreach ($this->writeEveryWay(self::serving(['storage_class' => 'infrequent']), 'class') as $remote) {
+            $this->assertSame('Cool', self::blobHead($remote)['x-ms-access-tier'], $remote);
+        }
+        $this->assertTrue(self::$provider->upload_file($this->tempFile(1024, 'png'), 'uploads/class/default.png')['success']);
+        $this->assertNotSame('Cool', self::blobHead('uploads/class/default.png')['x-ms-access-tier'], 'the default class is the account\'s');
+    }
 }

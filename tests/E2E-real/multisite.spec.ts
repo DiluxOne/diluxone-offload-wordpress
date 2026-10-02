@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, bytesDiffer, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
-import { BASE_URL, wp, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl } from './helpers/wp';
+import { BASE_URL, wp, shell, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl, attachmentFiles, trackedRowsLike } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
 
@@ -129,6 +129,46 @@ test.describe.serial( 'multisite journey', () => {
 		expect( await blobExists( run, `uploads/sites/${ blogId }/${ file }` ) ).toBe( true );
 		expect( await blobExists( run, `uploads/${ file }` ), 'never under the main site' ).toBe( false );
 		expect( attachmentUrl( site, otherUploadId, other ) ).toContain( `${ publicUrlPrefix( run ) }uploads/sites/${ blogId }/` );
+	} );
+
+	test( 'deleting an attachment on the other site removes its objects only, never the main site\'s of the same name', async () => {
+		const id = otherSeeded.find( ( n ) => attachedFile( site, n, other ).endsWith( '/small-300k.png' ) ) ?? 0;
+		expect( id ).toBeGreaterThan( 0 );
+		const files = attachmentFiles( site, id, other );
+		expect( files.length, 'the original and its thumbnails' ).toBeGreaterThan( 1 );
+		for ( const file of files ) expect( await blobExists( run, `uploads/sites/${ blogId }/${ file }` ), `${ file } is under the other site` ).toBe( true );
+		// The main site's objects of that name (WordPress may have numbered them, -1, -2, on a reused site).
+		const mainNamed = async () => ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) && path.basename( k ).startsWith( 'small-300k' ) );
+		const mainSame = await mainNamed();
+		expect( mainSame.length, 'the main site has objects of the same name' ).toBeGreaterThan( 0 );
+		const mainRows = trackedRowsLike( site, 'small-300k' );
+		expect( trackedRowsLike( site, 'small-300k', other ) ).toBe( files.length );
+
+		wp( site, [ 'post', 'delete', String( id ), '--force' ], other );
+		otherSeeded = otherSeeded.filter( ( n ) => n !== id );
+		try {
+			for ( const file of files ) expect( await blobExists( run, `uploads/sites/${ blogId }/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+			expect( trackedRowsLike( site, 'small-300k', other ), 'and its rows' ).toBe( 0 );
+			expect( await mainNamed(), 'the main site keeps its objects' ).toEqual( mainSame );
+			expect( trackedRowsLike( site, 'small-300k' ), 'and its rows' ).toBe( mainRows );
+		} finally {
+			// The local copies the attachment had on the other site (see the next step).
+			for ( const file of files ) shell( site, `rm -f "${ otherUploads }/${ file }"` );
+		}
+	} );
+
+	// BUG: deleting an attachment while offloading is active, before Delete
+	// Local Files, removes its objects and its tracking rows but leaves its
+	// local copies on the server's disk: the stream wrapper's unlink() deletes
+	// only the object, and nothing deletes the native file. With its row gone,
+	// Delete Local Files never frees that disk, and Disconnect does not know it.
+	test.fixme( 'deleting an attachment while its local copies are still there removes them too', async () => {
+		const id = otherSeeded.find( ( n ) => attachedFile( site, n, other ).endsWith( '/tiny-10k.png' ) ) ?? 0;
+		const files = attachmentFiles( site, id, other );
+		for ( const file of files ) expect( filesUnder( site, otherUploads ) ).toContain( file );
+		wp( site, [ 'post', 'delete', String( id ), '--force' ], other );
+		otherSeeded = otherSeeded.filter( ( n ) => n !== id );
+		for ( const file of files ) expect( filesUnder( site, otherUploads ), `${ file } is gone from the disk` ).not.toContain( file );
 	} );
 
 	test( 'deleting local copies on one site does not touch the other', async ( { page } ) => {
