@@ -51,6 +51,31 @@ class StreamWrapperTest extends IntegrationTestCase {
         return $this->client;
     }
 
+    /**
+     * Deleting an attachment frees its local copy once the object is gone,
+     * and only this site's: on the network's main site a key under another
+     * site's uploads/sites/<id>/ never touches that site's disk.
+     */
+    public function test_unlink_frees_this_sites_local_copy_and_never_another_sites(): void {
+        $this->assertTrue(is_main_site(), 'precondition: the network\'s main site');
+        $own   = $this->native_basedir . '/2026/10/own-copy.jpg';
+        $other = $this->native_basedir . '/sites/2/2026/10/other-copy.jpg';
+        wp_mkdir_p(dirname($own));
+        wp_mkdir_p(dirname($other));
+        file_put_contents($own, 'own');
+        file_put_contents($other, 'other');
+        try {
+            $this->assertTrue(unlink($this->cloud('2026/10/own-copy.jpg')));
+            $this->assertFileDoesNotExist($own, 'the local copy goes with the object');
+
+            unlink('diluxoneoffload://uploads/sites/2/2026/10/other-copy.jpg');
+            $this->assertFileExists($other, 'another site\'s local file stays');
+        } finally {
+            @unlink($own);
+            @unlink($other);
+        }
+    }
+
     private function cloud(string $relative): string {
         $base = wp_upload_dir()['basedir'];
         $this->assertStringStartsWith('diluxoneoffload://', $base, 'precondition: uploads live on the wrapper');

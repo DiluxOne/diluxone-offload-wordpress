@@ -1433,18 +1433,18 @@ class CloudStreamWrapper {
 	 * Delete the copy of an object that is still on this server, once the
 	 * object itself is gone. Deleting an attachment before Delete Local Files
 	 * removed only the objects: with their rows forgotten, the copies on disk
-	 * were never freed. Only this site's own files: the key must carry this
-	 * site's prefix, and the path below it may not climb out of uploads/.
+	 * were never freed. Only this site's own files (owns_key(): on a
+	 * network's main site, another site's `uploads/sites/<id>/` is not its
+	 * own), and the path below the prefix may not climb out of uploads/.
 	 *
 	 * @param string $key Object key, e.g. `uploads/2026/09/photo.jpg`.
 	 * @return void
 	 */
 	private static function delete_local_copy( string $key ): void {
-		$prefix = self::key_prefix() . '/';
-		if ( 0 !== strpos( $key, $prefix ) ) {
+		if ( ! self::owns_key( $key ) ) {
 			return;
 		}
-		$relative = substr( $key, strlen( $prefix ) );
+		$relative = substr( $key, strlen( self::key_prefix() . '/' ) );
 		if ( '' === $relative || false !== strpos( $relative, '..' ) ) {
 			return;
 		}
