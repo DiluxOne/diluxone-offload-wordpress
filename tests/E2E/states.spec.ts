@@ -322,6 +322,9 @@ test.describe.serial( 'With the storage service on the dev site', () => {
 	async function takeOverInAnotherTab( page: Page, context: import( '@playwright/test' ).BrowserContext ): Promise< Page > {
 		resetPlugin();
 		emptyTracking();
+		// The bucket starts empty, as on a first sync: a sync an earlier test
+		// left there would hold Start Sync behind the "already holds files" check.
+		await resetBucket();
 		seedLibrary( Array.from( { length: 24 }, ( _, i ) => ( { name: `tab-${ String( i + 1 ).padStart( 2, '0' ) }.png`, bytes: 5000 + i * 200 } ) ) );
 		configureFakeS3( 'CONFIGURED' );
 		muPlugin( 'short-batches', "add_filter( 'diluxone_offload_sync_batch_seconds', function () { return 0.0; } );" );

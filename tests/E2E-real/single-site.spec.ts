@@ -677,8 +677,12 @@ test.describe.serial( 'single site journey', () => {
 		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
 		const added = `${ subdir }/added-${ run.runId }.txt`;
 		shell( site, `cp "${ REPO_IN_CONTAINER }/build/real-fixtures/notes.txt" "${ uploadsDir }/${ added }"` );
+		// Sync offers Complete Sync when the plugin is configured and the
+		// whole library is already in the table (in Synced it offers Resync All).
+		wp( site, [ 'eval', '\\DiluxOneOffload\\ConfigManager::set_state( \\DiluxOneOffload\\Enums\\PluginState::CONFIGURED );' ] );
 		try {
 			await ui.goTab( page, base, 'sync' );
+			await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Complete Sync/ );
 			expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
 			await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
 			expect( await blobExists( run, `uploads/${ added }` ), 'the new file is in the storage' ).toBe( true );
