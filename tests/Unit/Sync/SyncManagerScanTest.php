@@ -244,6 +244,28 @@ class SyncManagerScanTest extends SyncTestCase {
 		$this->assertSame( array( '/2026/a.jpg' => 2, '/b.png' => 3 ), $rows, 'rows keyed by the path below uploads/, leading slash included' );
 	}
 
+	public function test_a_long_scan_logs_its_progress_once_every_thousand_files(): void {
+		for ( $i = 0; $i < 1001; $i++ ) {
+			$this->file( 'bulk/' . $i . '.jpg' );
+		}
+		$sink     = (string) tempnam( sys_get_temp_dir(), 'dlx-log-' );
+		$previous = (string) ini_get( 'error_log' );
+		ini_set( 'error_log', $sink );
+		\DiluxOneOffload\Logger::set_verbose_logging( true );
+		try {
+			$files = $this->manager()->scan_files_to_sync( true );
+		} finally {
+			\DiluxOneOffload\Logger::set_verbose_logging( false );
+			ini_set( 'error_log', $previous );
+			$log = (string) file_get_contents( $sink );
+			unlink( $sink );
+		}
+
+		$this->assertCount( 1001, $files );
+		$this->assertSame( 1, substr_count( $log, 'Processed ' ), 'one progress line for 1001 files' );
+		$this->assertStringContainsString( 'Processed 1000 files, accepted 1000', $log );
+	}
+
 	public function test_scanning_inserts_in_batches_of_500(): void {
 		for ( $i = 0; $i < 501; $i++ ) {
 			$this->file( 'many/' . $i . '.jpg' );

@@ -276,6 +276,31 @@ class ReverseSyncTest extends IntegrationTestCase {
         $this->assertFileDoesNotExist($path . '.dlxpart');
     }
 
+    public function test_a_download_that_cannot_be_moved_into_place_is_a_failure_and_leaves_no_part_file(): void {
+        $this->client->blobs = ['uploads/2026/09/clash.jpg' => 'from the cloud'];
+        // Something that is not a file already holds the attachment's path.
+        $path = $this->base . '/2026/09/clash.jpg';
+        wp_mkdir_p($path);
+        file_put_contents($path . '/inside.txt', 'not ours');
+        $sm = new SyncManager();
+        $sm->start_reverse_sync('scratch');
+
+        try {
+            @$sm->process_reverse_batch(30.0);
+        } finally {
+            $inside = (string) @file_get_contents($path . '/inside.txt');
+            @unlink($path . '/inside.txt');
+            @rmdir($path);
+        }
+
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT deleted, errors, error_message FROM `' . self::$table_name . '` WHERE file = %s', '/2026/09/clash.jpg'), ARRAY_A);
+        $this->assertSame(1, (int) $row['deleted'], 'still cloud-only: not marked as downloaded');
+        $this->assertSame('Could not move the downloaded file into place', $row['error_message']);
+        $this->assertSame('not ours', $inside, 'what was at the path is untouched');
+        $this->assertFileDoesNotExist($path . '.dlxpart', 'the downloaded bytes are not left behind');
+    }
+
     public function test_reverse_batch_records_a_failed_download(): void {
         $this->client->blobs = ['uploads/2026/09/bad.jpg' => 'x'];
         $this->client->download_status = 500;

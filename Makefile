@@ -244,6 +244,11 @@ test-e2e: ## Run the Playwright end-to-end suite against the wp-env dev site (ne
 	@mkdir -p build
 	npx playwright test
 
+.PHONY: coverage-e2e
+coverage-e2e: ## End-to-end suite with Chromium's V8 coverage of assets/js/*.js: per-file lines and branches → build/e2e-coverage/ (summary.md, index.html, lcov.info; needs `make env` first).
+	@rm -rf build/e2e-coverage && mkdir -p build
+	@E2E_COVERAGE=1 npx playwright test; status=$$?; node tests/E2E/coverage/report.mjs && exit $$status
+
 .PHONY: screenshots
 screenshots: ## Retake the wordpress.org listing screenshots (.wordpress-org/) on the dev site against a real Azure account (AZURE_E2E_ACCOUNT/KEY or .env.e2e; needs `make env`).
 	npx playwright test -c playwright.screenshots.config.ts

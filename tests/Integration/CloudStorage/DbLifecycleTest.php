@@ -208,4 +208,21 @@ class DbLifecycleTest extends IntegrationTestCase {
         }
         $this->assertTrue(DB::table_exists(), 'recreated for the tests that follow');
     }
+
+    public function test_the_key_migration_leaves_a_table_without_a_file_column_alone(): void {
+        global $wpdb;
+        $scratch = $wpdb->prefix . 'dlx_scratch_' . bin2hex(random_bytes(3));
+        $wpdb->query("CREATE TABLE `{$scratch}` (`id` INT NOT NULL PRIMARY KEY)");
+        $migrate = new \ReflectionMethod(DB::class, 'migrate_legacy_key');
+        if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+            $migrate->setAccessible( true );
+        }
+        try {
+            $this->assertTrue($migrate->invoke(null, $scratch), 'nothing to migrate is not a failure');
+            $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$scratch}`");
+        } finally {
+            $wpdb->query("DROP TABLE IF EXISTS `{$scratch}`");
+        }
+        $this->assertSame(['id'], $columns, 'no column was added or rebuilt');
+    }
 }

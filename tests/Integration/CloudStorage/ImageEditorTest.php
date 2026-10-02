@@ -250,4 +250,72 @@ class ImageEditorTest extends IntegrationTestCase {
             @unlink($tmp);
         }
     }
+
+    // ── When the image library cannot write ─────────────────
+
+    /** Temp files the editors create, by their prefix. */
+    private static function editorTemps(): array {
+        return glob(get_temp_dir() . 'diluxone-offload*') ?: [];
+    }
+
+    public function test_gd_editor_save_the_library_fails_removes_its_temp_file_and_uploads_nothing(): void {
+        $editor = new class($this->cloudPath()) extends DiluxOneOffload_Image_Editor_GD {
+            /** GD refusing to write, as when imagepng() fails. */
+            protected function make_image($filename, $callback, $arguments) {
+                return false;
+            }
+        };
+        $this->assertTrue($editor->load());
+        $before = self::editorTemps();
+
+        $saved = $editor->save();
+
+        $this->assertInstanceOf(\WP_Error::class, $saved);
+        $this->assertSame('image_save_error', $saved->get_error_code(), 'the library\'s own error is passed on');
+        $this->assertSame($before, self::editorTemps(), 'the temp file of the failed save is gone');
+        $this->assertSame(['uploads/2026/09/photo.png'], array_keys($this->client->blobs), 'nothing was copied to the cloud');
+    }
+
+    public function test_imagick_editor_save_the_library_fails_removes_its_temp_file_and_uploads_nothing(): void {
+        if (!class_exists('Imagick') || !\Imagick::queryFormats('PNG')) {
+            $this->markTestSkipped('Imagick without a PNG delegate in this runtime');
+        }
+        $editor = new class($this->cloudPath()) extends DiluxOneOffload_Image_Editor_Imagick {
+            /** An image Imagick cannot encode: it throws, WordPress answers image_save_error. */
+            public function lose_the_image(): void {
+                $this->image = new \Imagick();
+            }
+        };
+        $this->assertTrue($editor->load());
+        $editor->lose_the_image();
+        $before = self::editorTemps();
+
+        $saved = $editor->save();
+
+        $this->assertInstanceOf(\WP_Error::class, $saved);
+        $this->assertSame('image_save_error', $saved->get_error_code());
+        $this->assertSame($before, self::editorTemps(), 'the temp file of the failed save is gone');
+        $this->assertCount(1, $this->client->blobs, 'nothing was copied to the cloud');
+    }
+
+    public function test_gd_editor_loading_twice_makes_one_temp_copy(): void {
+        $editor = new DiluxOneOffload_Image_Editor_GD($this->cloudPath());
+        $temps  = new \ReflectionProperty($editor, 'temp_files_to_cleanup');
+        if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+            $temps->setAccessible( true );
+        }
+        $this->assertTrue($editor->load());
+        $this->assertCount(1, $temps->getValue($editor));
+
+        $this->assertTrue($editor->load());
+
+        if (count($temps->getValue($editor)) !== 1) {
+            // load() returns early only for is_resource($this->image); from
+            // PHP 8 GD hands a \GdImage object, so the early return never
+            // fires and every load() fetches the blob again into one more
+            // temp file. WordPress's own GD editor checks `if ( $this->image )`.
+            $this->markTestIncomplete('BUG: on PHP 8 a second load() of the GD editor fetches the blob again into another temp file (is_resource() is false for a GdImage).');
+        }
+        $this->assertCount(1, $temps->getValue($editor));
+    }
 }

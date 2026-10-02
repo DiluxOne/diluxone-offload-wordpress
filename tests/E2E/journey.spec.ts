@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './helpers/test';
 import { emptyTracking, muPlugin, resetPlugin, wp } from './helpers/wp';
 import {
 	FAKE,
