@@ -587,7 +587,10 @@ test.describe.serial( 'A whole journey against a storage service on the dev site
 		await page.locator( 'input[type="file"][name="async-upload"]' ).setInputFiles( file );
 		await page.locator( '#html-upload' ).click();
 		await page.waitForURL( /upload\.php/, { timeout: 120_000 } );
-		await expect( page.locator( 'body' ) ).not.toContainText( /Fatal error|could not|error/i );
+		// A PHP fatal, or an upload error WordPress shows (its uploader template
+		// carries a hidden "Dismiss errors" label, so the page text is not the test).
+		await expect( page.locator( 'body' ) ).not.toContainText( /Fatal error/i );
+		await expect( page.locator( '.notice-error:visible, .error:visible, .upload-error:visible, .media-upload-error:visible' ) ).toHaveCount( 0 );
 
 		const keys = Object.keys( await bucketObjects() ).filter( ( k ) => k.includes( 'journey-upload-300k' ) );
 		expect( keys.length, 'the original and its intermediate sizes' ).toBeGreaterThan( 1 );

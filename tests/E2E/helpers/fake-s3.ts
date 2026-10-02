@@ -125,7 +125,13 @@ const FIXTURE_DIR = path.resolve( __dirname, '../../../build/e2e-fixtures' );
 export function pngFixture( name: string, bytes: number ): string {
 	fs.mkdirSync( FIXTURE_DIR, { recursive: true } );
 	const file = path.join( FIXTURE_DIR, name );
-	if ( ! fs.existsSync( file ) ) fs.writeFileSync( file, png( bytes ) );
+	// Written in one step: 'wx' fails when the file is already there (same
+	// name, same bytes) instead of checking first and writing after.
+	try {
+		fs.writeFileSync( file, png( bytes ), { flag: 'wx' } );
+	} catch ( e ) {
+		if ( ( e as NodeJS.ErrnoException ).code !== 'EEXIST' ) throw e;
+	}
 	return file;
 }
 
