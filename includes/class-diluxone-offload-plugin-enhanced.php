@@ -863,11 +863,10 @@ class Plugin {
 		// is switched on while any file is pending or failed. The files Clear
 		// Failed & Enable just discarded stay on this server on purpose: the
 		// discard noted their paths on the server, and only those are not
-		// counted as new.
+		// counted as new. The note is spent once offloading is on.
 		if ( PluginState::SYNCED === ConfigManager::get_state() ) {
 			$left_local = get_transient( self::LEFT_LOCAL_TRANSIENT );
-			delete_transient( self::LEFT_LOCAL_TRANSIENT );
-			$found = $this->record_new_local_files( is_array( $left_local ) ? $left_local : array() );
+			$found      = $this->record_new_local_files( is_array( $left_local ) ? $left_local : array() );
 			if ( $found['count'] > 0 ) {
 				wp_send_json_error(
 					array(
@@ -896,6 +895,7 @@ class Plugin {
 		}
 
 		if ( CloudStreamWrapper::activate_offloading() ) {
+			delete_transient( self::LEFT_LOCAL_TRANSIENT );
 			wp_send_json_success( 'Offloading activated' );
 		} else {
 			wp_send_json_error( esc_html__( 'Failed to activate offloading', 'diluxone-offload' ) );

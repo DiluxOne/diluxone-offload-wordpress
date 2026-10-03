@@ -337,8 +337,8 @@ class PluginAjaxTest extends IntegrationTestCase {
         $this->assertSame(PluginState::SYNCED, ConfigManager::get_state());
     }
 
-    /** The discard spares only the files it discarded, and only for the activation that follows it. */
-    public function test_the_discard_spares_only_its_own_files_and_only_once(): void {
+    /** The discard spares only the files it discarded, until offloading is on. */
+    public function test_the_discard_spares_only_its_own_files_until_offloading_is_on(): void {
         wp_set_current_user($this->admin_id);
         $this->fixture('2026/10/left-local.jpg', 'kept here');
         DB::add_file('/2026/10/left-local.jpg', 9);
@@ -353,11 +353,13 @@ class PluginAjaxTest extends IntegrationTestCase {
         $this->assertSame(1, $r['json']['data']['new_files'], 'the file added since is new; the discarded one is not');
         $this->assertSame(1, (int) DB::get_stats()['pending_files']);
 
-        // The note is spent: a later activation takes the discarded file for a new one.
-        DB::discard_unsynced_files();
-        $again = $this->call('diluxone_offload_activate_offloading');
-        $this->assertSame('new_files', $again['json']['data']['reason'], $again['raw']);
-        $this->assertSame(2, $again['json']['data']['new_files']);
+        // A refusal does not spend the note: once the new file is up, the
+        // retry still leaves the discarded one local and switches on.
+        DB::mark_synced('/2026/10/added-later.jpg');
+        $on = $this->call('diluxone_offload_activate_offloading');
+        $this->assertTrue($on['json']['success'], print_r($on['json'], true));
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+        $this->assertFalse(get_transient('diluxone_offload_left_local'), 'and the note is spent once offloading is on');
     }
 
     public function test_activate_offloading_refuses_before_a_sync(): void {
