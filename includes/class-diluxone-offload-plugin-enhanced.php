@@ -41,7 +41,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Plugin {
 
-	/** Transient with the paths Clear Failed & Enable discarded, read by the activation it fires next. */
+	/** Transient with the paths Clear Failed & Enable discarded, skipped by activation until offloading is on (or the 15 minutes run out). */
 	private const LEFT_LOCAL_TRANSIENT = 'diluxone_offload_left_local';
 
 	/** @var Plugin|null Singleton instance */
