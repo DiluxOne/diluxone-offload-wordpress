@@ -35,6 +35,10 @@ abstract class AdminTestCase extends TestCase {
 			define( 'ARRAY_A', 'ARRAY_A' );
 		}
 
+		// The class file runs Admin::init() when it is first loaded: load it
+		// before the hooks are emptied, so its hooks never land in the test
+		// that happens to load it first (the order is random).
+		class_exists( Admin::class );
 		$GLOBALS['_test_wp_options']    = array();
 		$GLOBALS['_test_wp_transients'] = array();
 		$GLOBALS['_test_wp_hooks']      = array();
