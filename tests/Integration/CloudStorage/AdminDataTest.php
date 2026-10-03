@@ -327,6 +327,20 @@ class AdminDataTest extends IntegrationTestCase {
         $this->assertSame('unhealthy', ConfigManager::get_connection_health()['status'], 'a new key that passes says nothing about the saved one');
     }
 
+    /** A synced library offers to look for files added since the sync, before offloading is enabled. */
+    public function test_the_synced_screen_offers_scan_and_complete_sync(): void {
+        $this->configure(PluginState::SYNCED);
+        $this->useFakeClient();
+        DB::add_file('/2026/10/a.jpg', 10);
+        DB::mark_synced('/2026/10/a.jpg');
+
+        $html = $this->render('diluxone-offload-sync', 'sync');
+
+        $this->assertMatchesRegularExpression('#<button id="start-sync-btn"[^>]*>\s*<span[^>]*></span>\s*Scan and Complete Sync#', $html);
+        $this->assertStringContainsString('Look for files added since the last sync and upload them', $html);
+        $this->assertStringContainsString('Resync All Files', $html, 'starting over is still offered');
+    }
+
     // ── A7: the failed list is paged ────────────────────────
 
     public function test_the_failed_list_is_paged_and_counted(): void {

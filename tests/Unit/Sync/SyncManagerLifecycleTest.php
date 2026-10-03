@@ -17,13 +17,14 @@ class SyncManagerLifecycleTest extends SyncTestCase {
 
 	// ── start_sync ──────────────────────────────────────────
 
-	public function test_a_sync_starts_only_from_configured(): void {
+	/** Configured or synced (files added since the last sync); never while syncing or offloading. */
+	public function test_a_sync_starts_only_from_configured_or_synced(): void {
 		$this->state( PluginState::SYNCING );
 		$this->assertSame( array( 'success' => false, 'message' => 'Cannot start sync in current state: syncing' ), $this->manager()->start_sync() );
 
-		$this->state( PluginState::SYNCED );
-		$this->assertFalse( $this->manager()->start_sync()['success'], 'a normal start from synced is refused' );
-		$this->assertSame( array(), $this->db->calls );
+		$this->state( PluginState::OFFLOADING_ACTIVE );
+		$this->assertSame( array( 'success' => false, 'message' => 'Cannot start sync in current state: offloading_active' ), $this->manager()->start_sync() );
+		$this->assertSame( array(), $this->db->calls, 'refused before the table is touched' );
 	}
 
 	public function test_a_sync_without_a_provider_is_refused(): void {

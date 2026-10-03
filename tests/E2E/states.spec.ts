@@ -6,6 +6,8 @@ import {
 	configureFakeS3,
 	forgetStats,
 	installFakeS3,
+	bucketObjects,
+	placeLocalFile,
 	pluginState,
 	putObject,
 	resetBucket,
@@ -518,6 +520,96 @@ test.describe.serial( 'With the storage service on the dev site', () => {
 		await modal.locator( '.close-cancel-sync-modal' ).click();
 		await expect( modal ).toBeHidden();
 		expect( pluginState() ).toBe( 'synced' );
+	} );
+} );
+
+test.describe.serial( 'Files added after the sync finished, before offloading', () => {
+	test.setTimeout( 180_000 );
+
+	/** A synced library on the fake service, reached through the UI: Start Sync, Upload from Scratch, Later. */
+	async function syncedLibrary( page: Page ): Promise< void > {
+		resetPlugin();
+		emptyTracking();
+		forgetStats();
+		await resetBucket();
+		seedLibrary( [ { name: 'before-a.png', bytes: 5000 }, { name: 'before-b.png', bytes: 6000 } ] );
+		configureFakeS3( 'CONFIGURED' );
+		await page.goto( SYNC );
+		await page.locator( '#start-sync-btn' ).click();
+		await page.locator( '#scratch-upload-btn' ).click();
+		await expect( page.locator( '#sync-modal-summary #later-btn' ) ).toBeVisible( { timeout: 120_000 } );
+		const reloaded = page.waitForEvent( 'load', { timeout: 60_000 } );
+		await page.locator( '#sync-modal-summary #later-btn' ).click();
+		await reloaded;
+		expect( pluginState() ).toBe( 'synced' );
+	}
+
+	const inBucket = async ( name: string ) => Object.keys( await bucketObjects() ).some( ( k ) => k.endsWith( '/' + name ) );
+
+	test.beforeAll( async () => installFakeS3() );
+	test.afterAll( async () => {
+		resetPlugin();
+		clearLibrary();
+		forgetStats();
+		await uninstallFakeS3();
+	} );
+
+	test( 'Enable Offloading finds the new file, says so, and uploads it before enabling', async ( { page } ) => {
+		await syncedLibrary( page );
+		placeLocalFile( '2026/10/added-after-sync.png', 3000 );
+
+		await page.goto( OFFLOADING );
+		await page.locator( '#enable-offloading-btn' ).click();
+		const summary = page.locator( '#sync-modal-summary' );
+		await expect( summary ).toContainText( 'New files since the last sync', { timeout: 60_000 } );
+		await expect( summary ).toContainText( '1 file was added since the last sync: it has to be uploaded before offloading is enabled.' );
+		expect( pluginState(), 'nothing is switched on yet' ).toBe( 'synced' );
+		expect( await inBucket( 'added-after-sync.png' ) ).toBe( false );
+
+		const reloaded = page.waitForEvent( 'load', { timeout: 150_000 } );
+		await summary.locator( '#upload-new-and-enable-btn' ).click();
+		await reloaded;
+		expect( pluginState() ).toBe( 'offloading_active' );
+		expect( await inBucket( 'added-after-sync.png' ), 'the new file went up before offloading' ).toBe( true );
+		expect( trackingCounts() ).toMatchObject( { pending: 0, failed: 0 } );
+	} );
+
+	test( 'Cancel on that dialog leaves offloading off, and the file pending', async ( { page } ) => {
+		await syncedLibrary( page );
+		placeLocalFile( '2026/10/kept-pending.png', 3000 );
+		await page.goto( OFFLOADING );
+		await page.locator( '#enable-offloading-btn' ).click();
+		await expect( page.locator( '#sync-modal-summary' ) ).toContainText( 'New files since the last sync', { timeout: 60_000 } );
+		await page.locator( '#sync-modal-summary #sync-modal-cancel' ).click();
+		await expect( page.locator( '#sync-modal' ) ).toBeHidden();
+		expect( pluginState() ).toBe( 'synced' );
+		expect( trackingCounts().pending ).toBe( 1 );
+	} );
+
+	test( 'Scan and Complete Sync on a synced library uploads what was added since', async ( { page } ) => {
+		await syncedLibrary( page );
+		placeLocalFile( '2026/10/found-by-scan.png', 3000 );
+
+		await page.goto( SYNC );
+		await expect( page.locator( '#start-sync-btn' ) ).toContainText( 'Scan and Complete Sync' );
+		await page.locator( '#start-sync-btn' ).click();
+		await expect( page.locator( '#sync-container' ) ).toContainText( /New files:\s*1/, { timeout: 60_000 } );
+		await page.locator( '#continue-upload-btn' ).click();
+		await expect( page.locator( '#sync-modal-summary #later-btn' ) ).toBeVisible( { timeout: 120_000 } );
+		expect( await inBucket( 'found-by-scan.png' ) ).toBe( true );
+		const reloaded = page.waitForEvent( 'load', { timeout: 60_000 } );
+		await page.locator( '#sync-modal-summary #later-btn' ).click();
+		await reloaded;
+		expect( pluginState() ).toBe( 'synced' );
+		expect( trackingCounts() ).toMatchObject( { pending: 0, failed: 0 } );
+	} );
+
+	test( 'with nothing added, Scan and Complete Sync goes straight to Enable Offloading', async ( { page } ) => {
+		await syncedLibrary( page );
+		await page.goto( SYNC );
+		await page.locator( '#start-sync-btn' ).click();
+		await expect( page.locator( '#sync-modal-summary #enable-offloading-btn' ) ).toBeVisible( { timeout: 60_000 } );
+		await expect( page.locator( '#sync-modal-summary' ) ).toContainText( 'Sync Completed Successfully!' );
 	} );
 } );
 
