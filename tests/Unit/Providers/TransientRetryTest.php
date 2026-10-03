@@ -173,6 +173,33 @@ class TransientRetryTest extends TestCase {
 	}
 
 	/**
+	 * A 429 that says how long to wait is waited that long, up to the cap.
+	 *
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_throttled_answer_s_retry_after_is_honoured_up_to_the_cap( \Closure $make, int $created, int $deleted ): void {
+		$provider = $make();
+		$cap      = new \ReflectionProperty( get_class( $provider ), 'max_retry_after' );
+		if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+			$cap->setAccessible( true );
+		}
+		$cap->setValue( null, 1 );
+		try {
+			$throttled            = self::reply( 429 );
+			$throttled['headers'] = array( 'retry-after' => '30' );
+			$this->answers( array( $throttled, self::reply( $deleted ) ) );
+			$started = hrtime( true );
+			$this->assertTrue( $provider->delete_file( 'uploads/a.png' )['success'] );
+			$waited = ( hrtime( true ) - $started ) / 1e9;
+			$this->assertGreaterThanOrEqual( 1.0, $waited, 'Retry-After was honoured' );
+			$this->assertLessThan( 3.0, $waited, 'but only up to the cap, not 30 s' );
+		} finally {
+			$cap->setValue( null, 5 );
+		}
+	}
+
+	/**
 	 * @dataProvider providers
 	 * @param \Closure(): CloudStorageClientInterface $make
 	 */

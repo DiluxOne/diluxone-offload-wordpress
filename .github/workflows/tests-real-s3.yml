@@ -147,10 +147,7 @@ jobs:
         # is what a failed journey alone does not say. The logger never
         # writes credentials.
         if: failure()
-        run: |
-          mkdir -p build/real-results
-          npx wp-env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null || true
-          npx wp-env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null || true
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
@@ -281,10 +278,7 @@ jobs:
         # is what a failed journey alone does not say. The logger never
         # writes credentials.
         if: failure()
-        run: |
-          mkdir -p build/real-results
-          npx wp-env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null || true
-          npx wp-env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null || true
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
@@ -415,10 +409,7 @@ jobs:
         # is what a failed journey alone does not say. The logger never
         # writes credentials.
         if: failure()
-        run: |
-          mkdir -p build/real-results
-          npx wp-env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null || true
-          npx wp-env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null || true
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
@@ -549,10 +540,7 @@ jobs:
         # is what a failed journey alone does not say. The logger never
         # writes credentials.
         if: failure()
-        run: |
-          mkdir -p build/real-results
-          npx wp-env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null || true
-          npx wp-env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null || true
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()

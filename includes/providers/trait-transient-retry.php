@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * SDKs retry them. A 429 says to slow down: Google allows one change a second
  * to the same object, so a delete right after WordPress writes an image (an
  * edit, a thumbnail) is refused once; its retry waits at least
- * `$throttle_pause`. Any other 4xx answer is never retried (the request is
+ * `$throttle_pause`, or the answer's Retry-After up to `$max_retry_after`.
+ * Any other 4xx answer is never retried (the request is
  * wrong, or the key is), and neither is a timeout, which already spent its
  * time: the request that waited is the owner's, in a browser.
  *
@@ -51,6 +52,14 @@ trait TransientRetry {
 	protected static $throttle_pause = 1000000;
 
 	/**
+	 * The longest a 429's Retry-After is honoured, in seconds: past it the
+	 * owner would wait in the browser longer than a slow answer is allowed.
+	 *
+	 * @var int
+	 */
+	protected static $max_retry_after = 5;
+
+	/**
 	 * Seconds after which an answer, even a transient one, is not asked again.
 	 *
 	 * @var float
@@ -76,7 +85,11 @@ trait TransientRetry {
 			}
 			$pause = static::$retry_pauses[ $attempt ];
 			if ( ! is_wp_error( $response ) && 429 === (int) wp_remote_retrieve_response_code( $response ) ) {
-				$pause = max( $pause, static::$throttle_pause );
+				// Retry-After in seconds (the date form is not used by these
+				// services), honoured up to $max_retry_after.
+				$after = wp_remote_retrieve_header( $response, 'retry-after' );
+				$after = is_string( $after ) && ctype_digit( $after ) ? min( (int) $after, static::$max_retry_after ) * 1000000 : 0;
+				$pause = max( $pause, static::$throttle_pause, $after );
 			}
 			usleep( $pause );
 			++$attempt;
