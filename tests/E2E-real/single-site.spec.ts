@@ -671,18 +671,17 @@ test.describe.serial( 'single site journey', () => {
 		}
 	} );
 
-	// Complete Sync uploads a file added to uploads/ since the last sync: the
-	// "nothing pending" shortcut used to skip new files and report success.
-	test( 'Complete Sync uploads a file added to uploads/ since the last sync', async ( { page } ) => {
+	// A file added after the sync finished, offloading still off: Scan and
+	// Complete Sync on the synced screen uploads it (the screen used to offer
+	// only Resync All, and nothing ever looked for it).
+	test( 'Scan and Complete Sync on a synced library uploads a file added to uploads/ since', async ( { page } ) => {
+		expect( pluginState( site ) ).toBe( 'synced' );
 		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
 		const added = `${ subdir }/added-${ run.runId }.txt`;
 		shell( site, `cp "${ REPO_IN_CONTAINER }/build/real-fixtures/notes.txt" "${ uploadsDir }/${ added }"` );
-		// Sync offers Complete Sync when the plugin is configured and the
-		// whole library is already in the table (in Synced it offers Resync All).
-		wp( site, [ 'eval', '\\DiluxOneOffload\\ConfigManager::set_state( \\DiluxOneOffload\\Enums\\PluginState::CONFIGURED );' ] );
 		try {
 			await ui.goTab( page, base, 'sync' );
-			await expect( page.locator( '#start-sync-btn' ) ).toContainText( /Complete Sync/ );
+			await expect( page.locator( '#start-sync-btn' ) ).toContainText( 'Scan and Complete Sync' );
 			expect( await ui.runSyncToCompletion( page, 'continue' ) ).toBe( 'success' );
 			await ui.clickAndAwaitReload( page, '#sync-modal-summary #later-btn' );
 			expect( await blobExists( run, `uploads/${ added }` ), 'the new file is in the storage' ).toBe( true );
@@ -691,6 +690,30 @@ test.describe.serial( 'single site journey', () => {
 		} finally {
 			shell( site, `rm -f "${ uploadsDir }/${ added }"` );
 		}
+	} );
+
+	// Enable Offloading on a synced library with a file added since: it says
+	// so, uploads it, and only then turns offloading on. It used to switch on
+	// with the file never uploaded, a broken URL.
+	test( 'Enable Offloading uploads a file added since the sync before it turns offloading on', async ( { page } ) => {
+		expect( pluginState( site ) ).toBe( 'synced' );
+		const subdir = wp( site, [ 'eval', 'echo ltrim( wp_upload_dir()["subdir"], "/" );' ] );
+		const added = `${ subdir }/before-offloading-${ run.runId }.txt`;
+		shell( site, `cp "${ REPO_IN_CONTAINER }/build/real-fixtures/notes.txt" "${ uploadsDir }/${ added }"` );
+		try {
+			await ui.goTab( page, base, 'offloading' );
+			await page.locator( '#enable-offloading-btn' ).click();
+			await expect( page.locator( '#sync-modal-summary' ) ).toContainText( '1 file was added since the last sync', { timeout: 60_000 } );
+			expect( pluginState( site ), 'nothing switched on yet' ).toBe( 'synced' );
+			await ui.clickAndAwaitReload( page, '#sync-modal-summary #upload-new-and-enable-btn', 300_000 );
+			expect( pluginState( site ) ).toBe( 'offloading_active' );
+			expect( await bytesDiffer( run, `uploads/${ added }`, md5Inside( site, `${ uploadsDir }/${ added }` ) ), 'uploaded before offloading' ).toBe( '' );
+		} finally {
+			// Offloading off again (every file still has its local copy), for the steps after this one.
+			wp( site, [ 'eval', '\\DiluxOneOffload\\ConfigManager::disable_offloading();' ] );
+			shell( site, `rm -f "${ uploadsDir }/${ added }"` );
+		}
+		expect( pluginState( site ) ).toBe( 'synced' );
 	} );
 
 	test( 'removing the provider resets the plugin to unconfigured', async ( { page } ) => {
