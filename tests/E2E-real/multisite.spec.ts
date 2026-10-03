@@ -40,7 +40,7 @@ test.describe.serial( 'multisite journey', () => {
 		// wp-env runs the network's site without WP_DEBUG, so neither its pages
 		// nor the WP-CLI commands here write wp-content/debug.log, the log
 		// `make real-debug-logs` saves when a step fails. On for this journey.
-		debugBefore = wp( site, [ 'config', 'get', 'WP_DEBUG' ] );
+		try { debugBefore = wp( site, [ 'config', 'get', 'WP_DEBUG' ] ); } catch { /* not defined */ }
 		wp( site, [ 'config', 'set', 'WP_DEBUG', 'true', '--raw' ] );
 	} );
 
@@ -233,6 +233,7 @@ test.describe.serial( 'multisite journey', () => {
 	} );
 
 	test.afterAll( () => {
+		wp( site, [ 'config', 'set', 'WP_DEBUG', debugBefore === '1' ? 'true' : 'false', '--raw' ] );
 		// The setup of the next run wipes provider config and rows; here only
 		// what would otherwise accumulate: the seeded media and the run site.
 		for ( const id of mainSeeded ) {
@@ -241,6 +242,5 @@ test.describe.serial( 'multisite journey', () => {
 		if ( blogId ) {
 			try { wp( site, [ 'site', 'delete', String( blogId ), '--yes' ] ); } catch { /* gone */ }
 		}
-		wp( site, [ 'config', 'set', 'WP_DEBUG', debugBefore === '1' ? 'true' : 'false', '--raw' ] );
 	} );
 } );
