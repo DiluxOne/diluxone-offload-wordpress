@@ -260,6 +260,7 @@ Unreleased.
 * The size of a file that is only in the cloud is its real size (the Media Library shows it for files without a stored size); it used to be 0.
 * The DiluxOne Offload menu sits at the end of the admin menu, after Settings, where WordPress places a plugin's menu by default.
 * A sync or download request keeps to its time limit when the server's clock is corrected while it runs. Before, a clock set back made the limit look untouched, and the request kept starting uploads past it.
+* A delete or an upload the storage service asks to slow down (a 429; Google allows one change a second to the same file) is tried again after a second. Before, deleting an image right after editing it could leave its files stored, and billed, in the cloud.
 * Uninstalling cancels the S3 multipart uploads a sync left unfinished, so the bucket stops billing parts nobody can complete any more.
 * Before the first sync, Sync & Offloading › Sync checks this site's folder in the container or bucket. If something is already there (an earlier install, a staging copy) it says how many files and how much, and lets you continue with them, empty that folder (typing the container's or bucket's name) or connect another one. Emptying never touches anything outside this site's folder.
 * A sync whose uploads go through ends a pause the connection health had recorded (a key that failed and was fixed since), instead of showing "Paused" for up to five more minutes.

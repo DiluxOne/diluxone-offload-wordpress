@@ -76,7 +76,7 @@ class TransientRetryTest extends TestCase {
 	 * @param \Closure(): CloudStorageClientInterface $make
 	 */
 	public function test_an_upload_that_meets_a_transient_error_goes_through_on_a_retry( \Closure $make, int $created ): void {
-		foreach ( array( 500, 502, 503, 504 ) as $status ) {
+		foreach ( array( 500, 502, 503, 504, 429 ) as $status ) {
 			$GLOBALS['_test_wp_http_log'] = array();
 			$this->answers( array( self::reply( $status, 'internal incident' ), self::reply( $created ) ) );
 			$result = $make()->upload_file( $this->tmp(), 'uploads/2026/09/thumb-150x150.png' );
@@ -112,7 +112,7 @@ class TransientRetryTest extends TestCase {
 	 * @param \Closure(): CloudStorageClientInterface $make
 	 */
 	public function test_a_client_error_is_not_retried( \Closure $make ): void {
-		foreach ( array( 400, 403, 404 ) as $status ) {
+		foreach ( array( 400, 403, 404, 409 ) as $status ) {
 			$GLOBALS['_test_wp_http_log'] = array();
 			$this->answers( array( self::reply( $status ) ) );
 			$this->assertFalse( $make()->upload_file( $this->tmp(), 'uploads/a.png' )['success'] );
@@ -143,6 +143,33 @@ class TransientRetryTest extends TestCase {
 		$this->answers( array( self::reply( 503 ), self::reply( 200 ) ) );
 		$this->assertTrue( $make()->file_exists( 'uploads/a.png' ) );
 		$this->assertCount( 2, $GLOBALS['_test_wp_http_log'] );
+	}
+
+	/**
+	 * Google allows one change a second to the same object: a delete right
+	 * after WordPress wrote the file (an edit, a thumbnail) gets a 429, and
+	 * without a retry the object stays stored and billed after its attachment
+	 * is gone.
+	 *
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_throttled_delete_waits_and_goes_through( \Closure $make, int $created, int $deleted ): void {
+		$provider = $make();
+		$throttle = new \ReflectionProperty( get_class( $provider ), 'throttle_pause' );
+		if ( PHP_VERSION_ID < 80100 ) { // Required before 8.1, deprecated from 8.5.
+			$throttle->setAccessible( true );
+		}
+		$throttle->setValue( null, 200000 );
+		try {
+			$this->answers( array( self::reply( 429, '<Error><Code>SlowDown</Code></Error>' ), self::reply( $deleted ) ) );
+			$started = hrtime( true );
+			$this->assertTrue( $provider->delete_file( 'uploads/2026/10/photo-e1791012026924.png' )['success'] );
+			$this->assertGreaterThanOrEqual( 0.2, ( hrtime( true ) - $started ) / 1e9, 'the retry waited the throttle pause' );
+			$this->assertCount( 2, $GLOBALS['_test_wp_http_log'] );
+		} finally {
+			$throttle->setValue( null, 0 );
+		}
 	}
 
 	/**

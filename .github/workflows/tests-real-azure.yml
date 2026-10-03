@@ -155,6 +155,16 @@ jobs:
           CI: 'true'
         run: make test-integration-real
 
+      - name: Save the sites' WordPress debug logs on failure
+        # What the plugin logged (a provider's answer to a refused request)
+        # is what a failed journey alone does not say. The logger never
+        # writes credentials.
+        if: failure()
+        run: |
+          mkdir -p build/real-results
+          npx wp-env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null || true
+          npx wp-env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null || true
+
       - name: Upload traces, videos and screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v7
