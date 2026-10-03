@@ -5,6 +5,7 @@ use Tests\Integration\IntegrationTestCase;
 use Tests\Integration\FakeCloudClient;
 use Tests\Integration\LocalBlobServer;
 use DiluxOneOffload\ConfigManager;
+use DiluxOneOffload\DiluxOneOffloadDB as DB;
 use DiluxOneOffload\Enums\PluginState;
 use WPAjaxDieContinueException;
 
@@ -258,6 +259,64 @@ class PluginAjaxTest extends IntegrationTestCase {
         // CONFIGURED, not SYNCED — the user must sync again before enabling
         // it, because files may have changed locally in the meantime.
         $this->assertSame(PluginState::CONFIGURED, ConfigManager::get_state());
+    }
+
+    /**
+     * A file added after the sync finished (offloading still off) would be a
+     * broken URL once offloading is on: activation refuses, records it as
+     * pending, and says how many there are.
+     */
+    public function test_activate_offloading_refuses_files_added_since_the_sync_and_records_them(): void {
+        wp_set_current_user($this->admin_id);
+        $this->fixture('2026/10/synced.jpg', 'up');
+        DB::add_file('/2026/10/synced.jpg', 2);
+        DB::mark_synced('/2026/10/synced.jpg');
+        $this->fixture('2026/10/added-later.jpg', 'new bytes');
+        ConfigManager::set_state(PluginState::SYNCED);
+
+        $r = $this->call('diluxone_offload_activate_offloading');
+
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('new_files', $r['json']['data']['reason']);
+        $this->assertSame(1, $r['json']['data']['new_files']);
+        $this->assertStringContainsString('1 file was added since the last sync', $r['json']['data']['message']);
+        $this->assertSame(PluginState::SYNCED, ConfigManager::get_state(), 'offloading stays off');
+        $this->assertSame(1, (int) DB::get_stats()['pending_files'], 'the new file is pending, for the sync to upload');
+
+        // Asked again, the file is no longer new but still pending: refused all the same.
+        $again = $this->call('diluxone_offload_activate_offloading');
+        $this->assertSame('files_not_synced', $again['json']['data']['reason']);
+        $this->assertSame(PluginState::SYNCED, ConfigManager::get_state());
+    }
+
+    /** Once the sync uploaded it (start_sync from SYNCED), offloading turns on. */
+    public function test_a_sync_from_synced_uploads_the_new_files_and_then_offloading_turns_on(): void {
+        wp_set_current_user($this->admin_id);
+        $this->fixture('2026/10/later.jpg', 'later');
+        ConfigManager::set_state(PluginState::SYNCED);
+        $this->assertSame('new_files', $this->call('diluxone_offload_activate_offloading')['json']['data']['reason']);
+
+        $start = $this->call('diluxone_offload_start_sync', ['session_id' => 'tab-A', 'confirmed' => '1']);
+        $this->assertTrue($start['json']['success'], print_r($start['json'], true));
+        for ($i = 0; $i < 10 && 'completed' !== ($this->call('diluxone_offload_process_batch', ['session_id' => 'tab-A'])['json']['data']['status'] ?? ''); $i++);
+        $this->call('diluxone_offload_mark_sync_complete');
+        $this->assertSame(0, (int) DB::get_stats()['pending_files']);
+
+        $on = $this->call('diluxone_offload_activate_offloading');
+        $this->assertTrue($on['json']['success'], print_r($on['json'], true));
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+    }
+
+    /** Clear Failed & Enable leaves the discarded files local on purpose: they are not new files. */
+    public function test_activate_offloading_after_clear_failed_does_not_count_the_files_left_local(): void {
+        wp_set_current_user($this->admin_id);
+        $this->fixture('2026/10/left-local.jpg', 'kept here');
+        ConfigManager::set_state(PluginState::SYNCED);
+
+        $r = $this->call('diluxone_offload_activate_offloading', ['left_local' => '1']);
+
+        $this->assertTrue($r['json']['success'], print_r($r['json'], true));
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
     }
 
     public function test_activate_offloading_refuses_before_a_sync(): void {

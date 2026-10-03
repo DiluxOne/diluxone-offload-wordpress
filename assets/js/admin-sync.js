@@ -849,11 +849,44 @@ jQuery(document).ready(function($) {
 				}
 			});
 		}
+
+		// Enable Offloading found new files and the owner chose to upload them
+		// and enable: once they are all up, enabling follows on its own. The
+		// click waits for the request above that records the finished sync.
+		if (isSuccess && enableAfterSync) {
+			enableAfterSync = false;
+			$('#sync-modal-summary #enable-offloading-btn').trigger('click');
+		}
 	}
 
 	// The request that records a finished sync; resolved (or failed) before
 	// any button that reloads the page is honoured.
 	var markSyncComplete = null;
+
+	// Set when the owner asked to upload the new files and enable offloading.
+	var enableAfterSync = false;
+
+	// Enable Offloading refused because the library has files added since the
+	// last sync (the server recorded them as pending): say how many, and offer
+	// to upload them and enable in one step.
+	function offerNewFiles(info) {
+		let html = outcomeHtml('warn', T.new_files_since_last_sync, info.message || '');
+		html += kvHtml([[T.new_files, (info.new_files || 0).toLocaleString() + (info.new_files_size ? ' (' + info.new_files_size + ')' : ''), 'is-warn']]);
+		html += '<div class="diluxone-offload-buttons">';
+		html += '<button id="upload-new-and-enable-btn" class="button button-primary button-large">' + esc(T.upload_them_and_enable_offloading) + '</button>';
+		html += '<button id="sync-modal-cancel" class="button button-large">' + esc(T.cancel) + '</button>';
+		html += '</div>';
+		$('#sync-modal').show();
+		$('#sync-container').hide();
+		$('#sync-modal-content').hide();
+		$('#sync-modal-progress').hide();
+		$('#sync-modal-summary').html(html).show();
+	}
+
+	$(document).on('click', '#upload-new-and-enable-btn', function() {
+		enableAfterSync = true;
+		executeSyncConfirmed(false, false); // Continue: the new files are pending.
+	});
 
 	function reloadAfterSyncComplete() {
 		$.when(markSyncComplete).always(function() {
@@ -947,8 +980,12 @@ jQuery(document).ready(function($) {
 				if (response.success) {
 					showNotification(esc(T.offloading_enabled_successfully), 'success');
 					setTimeout(() => window.location.reload(), 1000);
+				} else if (response.data && response.data.reason === 'new_files') {
+					$btn.prop('disabled', false).html(originalHtml);
+					offerNewFiles(response.data);
 				} else {
-					showNotification(esc(fmt(T.error_with_reason, response.data || T.unknown_error)), 'error');
+					const reason = (response.data && response.data.message) || response.data || T.unknown_error;
+					showNotification(esc(fmt(T.error_with_reason, reason)), 'error');
 					$btn.prop('disabled', false).html(originalHtml);
 				}
 			},
@@ -1181,13 +1218,15 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				if (response.success) {
 
-					// Then enable offloading
+					// Then enable offloading. left_local: the files just
+					// discarded stay on this server on purpose, not as new files.
 					$.ajax({
 						url: ajaxurl,
 						type: 'POST',
 						data: {
 							action: 'diluxone_offload_activate_offloading',
-							nonce: diluxOneOffloadAdmin.nonce
+							nonce: diluxOneOffloadAdmin.nonce,
+							left_local: 1
 						},
 						success: function(offloadingResponse) {
 							if (offloadingResponse.success) {

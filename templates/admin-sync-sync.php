@@ -453,6 +453,17 @@ $diluxone_offload_ago     = static function ( int $ts ): string {
 
 				<!-- Secondary actions side by side -->
 				<div class="diluxone-offload-actions-row">
+					<!-- Files added since the last sync: scanned and uploaded -->
+					<div class="diluxone-offload-action">
+						<button id="start-sync-btn" class="button button-secondary button-hero">
+							<span class="dashicons dashicons-search"></span>
+							<?php esc_html_e( 'Scan and Complete Sync', 'diluxone-offload' ); ?>
+						</button>
+						<p class="description">
+							<?php esc_html_e( 'Look for files added since the last sync and upload them; the files already in the cloud are skipped.', 'diluxone-offload' ); ?>
+						</p>
+					</div>
+
 					<!-- Resync button -->
 					<div class="diluxone-offload-action">
 						<button class="resync-all-btn button button-secondary button-hero">
