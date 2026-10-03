@@ -60,13 +60,15 @@ class PluginState {
 	}
 
 	/**
-	 * Check if state allows sync to start
+	 * Check if state allows sync to start: a configured plugin, or a synced
+	 * library being completed (a retry of failed files, or the files added
+	 * since the last sync).
 	 *
 	 * @param string $state
 	 * @return bool
 	 */
 	public static function can_start_sync( $state ) {
-		return $state === self::CONFIGURED;
+		return self::CONFIGURED === $state || self::SYNCED === $state;
 	}
 
 	/**

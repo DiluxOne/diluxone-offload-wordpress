@@ -380,8 +380,12 @@ jQuery(document).ready(function($) {
 	}
 
 	// Execute the sync after the user confirms (second call).
-	function executeSyncConfirmed(fromScratch, retryFailed) {
+	function executeSyncConfirmed(fromScratch, retryFailed, enableAfter) {
 		const concurrency = parseInt($('#upload-concurrency-select').val()) || 5;
+
+		// Only the run started by Upload Them and Enable Offloading enables
+		// when it ends; any other run, or a later one, does not.
+		enableAfterSync = !!enableAfter;
 
 
 		// Show progress modal
@@ -853,8 +857,9 @@ jQuery(document).ready(function($) {
 		// Enable Offloading found new files and the owner chose to upload them
 		// and enable: once they are all up, enabling follows on its own. The
 		// click waits for the request above that records the finished sync.
-		if (isSuccess && enableAfterSync) {
-			enableAfterSync = false;
+		const enableNow = isSuccess && enableAfterSync;
+		enableAfterSync = false;
+		if (enableNow) {
 			$('#sync-modal-summary #enable-offloading-btn').trigger('click');
 		}
 	}
@@ -863,7 +868,8 @@ jQuery(document).ready(function($) {
 	// any button that reloads the page is honoured.
 	var markSyncComplete = null;
 
-	// Set when the owner asked to upload the new files and enable offloading.
+	// Set for the run Upload Them and Enable Offloading starts, cleared when
+	// it ends, whatever the outcome.
 	var enableAfterSync = false;
 
 	// Enable Offloading refused because the library has files added since the
@@ -884,8 +890,7 @@ jQuery(document).ready(function($) {
 	}
 
 	$(document).on('click', '#upload-new-and-enable-btn', function() {
-		enableAfterSync = true;
-		executeSyncConfirmed(false, false); // Continue: the new files are pending.
+		executeSyncConfirmed(false, false, true); // Continue: the new files are pending.
 	});
 
 	function reloadAfterSyncComplete() {
@@ -1218,15 +1223,14 @@ jQuery(document).ready(function($) {
 			success: function(response) {
 				if (response.success) {
 
-					// Then enable offloading. left_local: the files just
-					// discarded stay on this server on purpose, not as new files.
+					// Then enable offloading. The discard noted on the server
+					// the files it left local, so they are not taken as new.
 					$.ajax({
 						url: ajaxurl,
 						type: 'POST',
 						data: {
 							action: 'diluxone_offload_activate_offloading',
-							nonce: diluxOneOffloadAdmin.nonce,
-							left_local: 1
+							nonce: diluxOneOffloadAdmin.nonce
 						},
 						success: function(offloadingResponse) {
 							if (offloadingResponse.success) {

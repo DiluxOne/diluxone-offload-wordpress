@@ -379,10 +379,7 @@ class SyncManager {
 		$current_state = ConfigManager::get_state();
 		Logger::info( '[DiluxOne Offload SyncManager] Current state: ' . $current_state );
 
-		// A synced library can be completed too: a retry of failed files, or
-		// the files added since the last sync (Scan and Complete Sync, or
-		// Enable Offloading finding new files).
-		$can_start = PluginState::SYNCED === $current_state || PluginState::can_start_sync( $current_state );
+		$can_start = PluginState::can_start_sync( $current_state );
 
 		if ( ! $can_start ) {
 			Logger::error( '[DiluxOne Offload SyncManager] Cannot start from state: ' . $current_state );
