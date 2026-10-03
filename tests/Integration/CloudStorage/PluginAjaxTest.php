@@ -311,12 +311,53 @@ class PluginAjaxTest extends IntegrationTestCase {
     public function test_activate_offloading_after_clear_failed_does_not_count_the_files_left_local(): void {
         wp_set_current_user($this->admin_id);
         $this->fixture('2026/10/left-local.jpg', 'kept here');
+        DB::add_file('/2026/10/left-local.jpg', 9);
+        foreach (['a', 'b', 'c'] as $e) {
+            DB::increment_error('/2026/10/left-local.jpg', $e);
+        }
+        ConfigManager::set_state(PluginState::SYNCING);
+
+        $this->assertTrue($this->call('diluxone_offload_discard_failed_files')['json']['success']);
+        $r = $this->call('diluxone_offload_activate_offloading');
+
+        $this->assertTrue($r['json']['success'], print_r($r['json'], true));
+        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+    }
+
+    /** What the request says counts for nothing: a script cannot claim files were left local. */
+    public function test_a_request_cannot_skip_the_scan_by_saying_files_were_left_local(): void {
+        wp_set_current_user($this->admin_id);
+        $this->fixture('2026/10/added-later.jpg', 'new bytes');
         ConfigManager::set_state(PluginState::SYNCED);
 
         $r = $this->call('diluxone_offload_activate_offloading', ['left_local' => '1']);
 
-        $this->assertTrue($r['json']['success'], print_r($r['json'], true));
-        $this->assertSame(PluginState::OFFLOADING_ACTIVE, ConfigManager::get_state());
+        $this->assertFalse($r['json']['success'], $r['raw']);
+        $this->assertSame('new_files', $r['json']['data']['reason']);
+        $this->assertSame(PluginState::SYNCED, ConfigManager::get_state());
+    }
+
+    /** The discard spares only the files it discarded, and only for the activation that follows it. */
+    public function test_the_discard_spares_only_its_own_files_and_only_once(): void {
+        wp_set_current_user($this->admin_id);
+        $this->fixture('2026/10/left-local.jpg', 'kept here');
+        DB::add_file('/2026/10/left-local.jpg', 9);
+        DB::increment_error('/2026/10/left-local.jpg', 'boom');
+        $this->fixture('2026/10/added-later.jpg', 'new bytes');
+        ConfigManager::set_state(PluginState::SYNCING);
+
+        $this->call('diluxone_offload_discard_failed_files');
+        $r = $this->call('diluxone_offload_activate_offloading');
+
+        $this->assertSame('new_files', $r['json']['data']['reason'], $r['raw']);
+        $this->assertSame(1, $r['json']['data']['new_files'], 'the file added since is new; the discarded one is not');
+        $this->assertSame(1, (int) DB::get_stats()['pending_files']);
+
+        // The note is spent: a later activation takes the discarded file for a new one.
+        DB::discard_unsynced_files();
+        $again = $this->call('diluxone_offload_activate_offloading');
+        $this->assertSame('new_files', $again['json']['data']['reason'], $again['raw']);
+        $this->assertSame(2, $again['json']['data']['new_files']);
     }
 
     public function test_activate_offloading_refuses_before_a_sync(): void {

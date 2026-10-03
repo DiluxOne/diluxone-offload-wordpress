@@ -41,6 +41,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Plugin {
 
+	/** Transient with the paths Clear Failed & Enable discarded, read by the activation it fires next. */
+	private const LEFT_LOCAL_TRANSIENT = 'diluxone_offload_left_local';
+
 	/** @var Plugin|null Singleton instance */
 
 	private static ?Plugin $instance = null;
@@ -795,9 +798,10 @@ class Plugin {
 	 * the last sync, through WordPress with offloading off, or by hand) as
 	 * pending, so a sync uploads them and offloading waits for it.
 	 *
+	 * @param string[] $left_local Paths, relative to uploads, discarded on purpose: not new.
 	 * @return array{count: int, size: int} How many were found, and their bytes.
 	 */
-	private function record_new_local_files(): array {
+	private function record_new_local_files( array $left_local = array() ): array {
 		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 		$scan_result = $this->sync_manager ? $this->sync_manager->scan_files_to_sync( true ) : array();
@@ -815,6 +819,9 @@ class Plugin {
 		$basedir    = wp_upload_dir()['basedir'];
 		foreach ( $scan_result as $file_info ) {
 			$relative_path = str_replace( $basedir, '', $file_info['local_path'] );
+			if ( in_array( $relative_path, $left_local, true ) ) {
+				continue;
+			}
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), value is %s placeholder
 			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table_name WHERE file = %s", $relative_path ) );
 			if ( 0 === (int) $exists ) {
@@ -853,15 +860,14 @@ class Plugin {
 		// Offloading serves every file from the cloud: one that never went up
 		// would be a broken URL. From SYNCED, the library is scanned again,
 		// files added since the last sync are recorded as pending, and nothing
-		// is switched on while any file is pending or failed. Clear Failed &
-		// Enable sends left_local=1: the files it just discarded stay on this
-		// server on purpose and are not counted as new.
+		// is switched on while any file is pending or failed. The files Clear
+		// Failed & Enable just discarded stay on this server on purpose: the
+		// discard noted their paths on the server, and only those are not
+		// counted as new.
 		if ( PluginState::SYNCED === ConfigManager::get_state() ) {
-			$left_local = isset( $_POST['left_local'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['left_local'] ) );
-			$found      = $left_local ? array(
-				'count' => 0,
-				'size'  => 0,
-			) : $this->record_new_local_files();
+			$left_local = get_transient( self::LEFT_LOCAL_TRANSIENT );
+			delete_transient( self::LEFT_LOCAL_TRANSIENT );
+			$found = $this->record_new_local_files( is_array( $left_local ) ? $left_local : array() );
 			if ( $found['count'] > 0 ) {
 				wp_send_json_error(
 					array(
@@ -1075,11 +1081,15 @@ class Plugin {
 
 		try {
 			// Every file with synced=0 (all failed files, regardless of error
-			// count), with the uploads they left half sent.
-			$result = DiluxOneOffloadDB::discard_unsynced_files();
+			// count), with the uploads they left half sent. Their paths are
+			// noted for the activation Clear Failed & Enable fires next, so
+			// it does not take them for files added since the sync.
+			$left_local = array_column( DiluxOneOffloadDB::get_failed_files(), 'file' );
+			$result     = DiluxOneOffloadDB::discard_unsynced_files();
 
 			if ( $result !== false ) {
 				Logger::info( '[DiluxOne Offload Plugin] Discarded ' . $result . ' failed files from database' );
+				set_transient( self::LEFT_LOCAL_TRANSIENT, $left_local, 15 * MINUTE_IN_SECONDS );
 
 				// Every row left in the table now has `synced = 1` or `deleted = 1`,
 				// so nothing is blocking the sync any more. If we were sitting in
