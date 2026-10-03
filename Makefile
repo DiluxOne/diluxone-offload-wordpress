@@ -286,6 +286,12 @@ sweep-real: ## Delete the real suite's e2e-* containers older than an hour (or M
 	@set -a; [ -f .env.e2e ] && . ./.env.e2e; set +a; \
 	 node tests/E2E-real/sweep-containers.js
 
+.PHONY: real-debug-logs
+real-debug-logs: ## Copy both wp-env sites' WordPress debug logs into build/real-results/ (the real-storage jobs save them when a journey fails).
+	@mkdir -p build/real-results
+	-npx @wordpress/env run cli cat wp-content/debug.log > build/real-results/debug-single-site.log 2>/dev/null
+	-npx @wordpress/env run tests-cli cat wp-content/debug.log > build/real-results/debug-network.log 2>/dev/null
+
 .PHONY: test-integration-real
 test-integration-real: ## PHPUnit against the real provider REAL_PROVIDER names (azure, the default: AZURE_E2E_*; s3: S3_E2E_* or the local server of `make s3-up`).
 	@mkdir -p build

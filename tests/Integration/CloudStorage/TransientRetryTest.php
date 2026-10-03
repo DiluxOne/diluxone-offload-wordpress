@@ -66,6 +66,25 @@ class TransientRetryTest extends IntegrationTestCase {
         $this->assertNotSame('unhealthy', ConfigManager::get_connection_health()['status'] ?? '', 'a retried write is not a connection failure');
     }
 
+    /**
+     * What the real Google suite found: a delete right after WordPress wrote
+     * the file (an edited image, a thumbnail) met a 429, as Google allows one
+     * change a second to the same object, and the object stayed stored.
+     */
+    public function test_a_delete_through_the_wrapper_the_service_throttles_goes_through_after_a_pause(): void {
+        $deletes = [429, 204];
+        $this->scriptHttp(function (string $method) use (&$deletes) {
+            if ($method === 'DELETE') {
+                return self::httpReply(array_shift($deletes) ?? 204, '<Error><Code>SlowDown</Code><Message>Please reduce your request rate.</Message></Error>');
+            }
+            return self::httpReply(404);
+        });
+        $started = hrtime(true);
+        $this->assertTrue(unlink(wp_upload_dir()['basedir'] . '/2026/10/photo-e1791012026924.png'));
+        $this->assertCount(2, $this->httpRequests('DELETE'), 'the 429 was asked again');
+        $this->assertGreaterThanOrEqual(1.0, (hrtime(true) - $started) / 1e9, 'after at least a second');
+    }
+
     public function test_three_internal_errors_in_a_row_are_recorded_as_a_failed_upload(): void {
         $this->scriptPuts([500, 503, 500]);
         $path = wp_upload_dir()['basedir'] . '/2026/09/photo-300x300.png';

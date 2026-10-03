@@ -142,6 +142,13 @@ jobs:
           CI: 'true'
         run: make test-integration-real
 
+      - name: Save the sites' WordPress debug logs on failure
+        # What the plugin logged (a provider's answer to a refused request)
+        # is what a failed journey alone does not say. The logger never
+        # writes credentials.
+        if: failure()
+        run: make real-debug-logs
+
       - name: Upload traces, videos and screenshots on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -265,6 +272,13 @@ jobs:
         env:
           CI: 'true'
         run: make test-integration-real
+
+      - name: Save the sites' WordPress debug logs on failure
+        # What the plugin logged (a provider's answer to a refused request)
+        # is what a failed journey alone does not say. The logger never
+        # writes credentials.
+        if: failure()
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
@@ -390,6 +404,13 @@ jobs:
           CI: 'true'
         run: make test-integration-real
 
+      - name: Save the sites' WordPress debug logs on failure
+        # What the plugin logged (a provider's answer to a refused request)
+        # is what a failed journey alone does not say. The logger never
+        # writes credentials.
+        if: failure()
+        run: make real-debug-logs
+
       - name: Upload traces, videos and screenshots on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -513,6 +534,13 @@ jobs:
         env:
           CI: 'true'
         run: make test-integration-real
+
+      - name: Save the sites' WordPress debug logs on failure
+        # What the plugin logged (a provider's answer to a refused request)
+        # is what a failed journey alone does not say. The logger never
+        # writes credentials.
+        if: failure()
+        run: make real-debug-logs
 
       - name: Upload traces, videos and screenshots on failure
         if: failure()
