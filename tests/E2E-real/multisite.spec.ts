@@ -233,7 +233,7 @@ test.describe.serial( 'multisite journey', () => {
 	} );
 
 	test.afterAll( () => {
-		wp( site, [ 'config', 'set', 'WP_DEBUG', debugBefore === '1' ? 'true' : 'false', '--raw' ] );
+		try { wp( site, [ 'config', 'set', 'WP_DEBUG', debugBefore === '1' ? 'true' : 'false', '--raw' ] ); } catch { /* the cleanup below still runs */ }
 		// The setup of the next run wipes provider config and rows; here only
 		// what would otherwise accumulate: the seeded media and the run site.
 		for ( const id of mainSeeded ) {
