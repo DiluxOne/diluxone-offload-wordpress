@@ -116,6 +116,24 @@ export async function blobExists( run: RealRun, key: string ): Promise< boolean 
 	return run.s3 ? s3.objectExists( run.s3, run.container, key ) : azure.blobExists( run, key );
 }
 
+/**
+ * Whether an object the plugin deleted is gone. The listing is the
+ * authority: Google may answer a HEAD for a public object it served before
+ * from a cache after the object was deleted. When the HEAD and the listing
+ * disagree, the run's log says so, and the listing wins.
+ */
+export async function blobGone( run: RealRun, key: string ): Promise< boolean > {
+	if ( ! ( await blobExists( run, key ) ) ) {
+		return true;
+	}
+	const listed = ( await listKeys( run, key ) ).includes( key );
+	if ( ! listed ) {
+		// eslint-disable-next-line no-console
+		console.log( `[blobGone] ${ key }: HEAD still answers, the listing no longer has it (a cached answer)` );
+	}
+	return ! listed;
+}
+
 export async function blobSize( run: RealRun, key: string ): Promise< number > {
 	return run.s3 ? s3.objectSize( run.s3, run.container, key ) : azure.blobSize( run, key );
 }

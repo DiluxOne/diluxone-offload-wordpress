@@ -58,5 +58,10 @@ foreach ([\DiluxOneOffload\Providers\AzureProvider::class, \DiluxOneOffload\Prov
         $_diluxone_offload_pauses->setAccessible(true);
     }
     $_diluxone_offload_pauses->setValue(null, [0, 0]);
+    $_diluxone_offload_pauses = new \ReflectionProperty($_diluxone_offload_provider, 'throttle_pause');
+    if (PHP_VERSION_ID < 80100) { // Required before 8.1, deprecated from 8.5.
+        $_diluxone_offload_pauses->setAccessible(true);
+    }
+    $_diluxone_offload_pauses->setValue(null, 0);
 }
 unset($_diluxone_offload_provider, $_diluxone_offload_pauses);

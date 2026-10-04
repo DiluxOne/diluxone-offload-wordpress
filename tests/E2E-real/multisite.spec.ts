@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, bytesDiffer, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, bytesDiffer, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
 import { BASE_URL, wp, shell, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl, attachmentFiles, trackedRowsLike } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -25,6 +25,7 @@ test.describe.serial( 'multisite journey', () => {
 	let mainSeeded: number[] = [];
 	let otherSeeded: number[] = [];
 	let otherUploadId = 0;
+	let debugBefore = '';
 
 	test.beforeAll( async () => {
 		run = readRun( 'network' );
@@ -36,6 +37,11 @@ test.describe.serial( 'multisite journey', () => {
 		mainUploads = nativeUploadsDir( site );
 		otherUploads = nativeUploadsDir( site, other );
 		expect( otherUploads ).toContain( `/sites/${ blogId }` );
+		// wp-env runs the network's site without WP_DEBUG, so neither its pages
+		// nor the WP-CLI commands here write wp-content/debug.log, the log
+		// `make real-debug-logs` saves when a step fails. On for this journey.
+		try { debugBefore = wp( site, [ 'config', 'get', 'WP_DEBUG' ] ); } catch { /* not defined */ }
+		wp( site, [ 'config', 'set', 'WP_DEBUG', 'true', '--raw' ] );
 	} );
 
 	test( 'both sites are configured against the same container', async ( { page } ) => {
@@ -58,14 +64,14 @@ test.describe.serial( 'multisite journey', () => {
 			await ui.goTab( page, other, 'sync' );
 			expect( await ui.targetFound( page ) ).toBe( 1 );
 			expect( await ui.emptyTarget( page, run.container ) ).toMatch( /Done: 1 deleted/ );
-			expect( await blobExists( run, otherLeftover ) ).toBe( false );
+			expect( await blobGone( run, otherLeftover ) ).toBe( true );
 			expect( await blobExists( run, mainLeftover ), 'the main site keeps its folder' ).toBe( true );
 
 			// The main site's folder is uploads/ without uploads/sites/: one object, not three.
 			await ui.goTab( page, base, 'sync' );
 			expect( await ui.targetFound( page ) ).toBe( 1 );
 			expect( await ui.emptyTarget( page, run.container ) ).toMatch( /Done: 1 deleted/ );
-			expect( await blobExists( run, mainLeftover ) ).toBe( false );
+			expect( await blobGone( run, mainLeftover ) ).toBe( true );
 			expect( await blobExists( run, strangerSite ), 'another site\'s folder is never the main site\'s' ).toBe( true );
 		} finally {
 			for ( const key of [ mainLeftover, otherLeftover, strangerSite ] ) await deleteObject( run, key );
@@ -147,7 +153,7 @@ test.describe.serial( 'multisite journey', () => {
 		wp( site, [ 'post', 'delete', String( id ), '--force' ], other );
 		otherSeeded = otherSeeded.filter( ( n ) => n !== id );
 		try {
-			for ( const file of files ) expect( await blobExists( run, `uploads/sites/${ blogId }/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+			for ( const file of files ) expect( await blobGone( run, `uploads/sites/${ blogId }/${ file }` ), `${ file } went with its attachment` ).toBe( true );
 			expect( trackedRowsLike( site, 'small-300k', other ), 'and its rows' ).toBe( 0 );
 			expect( await mainNamed(), 'the main site keeps its objects' ).toEqual( mainSame );
 			expect( trackedRowsLike( site, 'small-300k' ), 'and its rows' ).toBe( mainRows );
@@ -227,6 +233,7 @@ test.describe.serial( 'multisite journey', () => {
 	} );
 
 	test.afterAll( () => {
+		try { wp( site, [ 'config', 'set', 'WP_DEBUG', debugBefore === '1' ? 'true' : 'false', '--raw' ] ); } catch { /* the cleanup below still runs */ }
 		// The setup of the next run wipes provider config and rows; here only
 		// what would otherwise accumulate: the seeded media and the run site.
 		for ( const id of mainSeeded ) {

@@ -2,7 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobMd5, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal, objectProps, infrequentClass, unfinishedParts, noUnfinishedParts } from './helpers/storage';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, blobMd5, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal, objectProps, infrequentClass, unfinishedParts, noUnfinishedParts } from './helpers/storage';
 import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER, trackedRow, trackedRowsLike, TrackedRow, setStoredSecret, connectionHealth, importAs, attachmentFiles } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
@@ -430,7 +430,7 @@ test.describe.serial( 'single site journey', () => {
 			for ( const id of ids ) {
 				const files = attachmentFiles( site, id );
 				wp( site, [ 'post', 'delete', String( id ), '--force' ] );
-				for ( const file of files ) expect( await blobExists( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+				for ( const file of files ) expect( await blobGone( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( true );
 			}
 		}
 	} );
@@ -499,7 +499,7 @@ test.describe.serial( 'single site journey', () => {
 		expect( await bytesDiffer( run, key, fileMd5( path.join( FIXTURE_DIR, 'tiny-10k.png' ) ) ) ).toBe( '' );
 		expect( filesUnder( site, uploadsDir ), 'and only there' ).toEqual( before );
 		wp( site, [ 'post', 'delete', String( id ), '--force' ] );
-		expect( await blobExists( run, key ) ).toBe( false );
+		expect( await blobGone( run, key ) ).toBe( true );
 	} );
 
 	test( 'with no local copy, a video over one part, a rename, an image edit and a delete all happen in the storage', async () => {
@@ -522,14 +522,14 @@ test.describe.serial( 'single site journey', () => {
 			const renamedKey = videoKey.replace( /\.mp4$/, '-renamed.mp4' );
 			const rename = ( from: string, to: string ) => wp( site, [ 'eval', `echo rename( 'diluxoneoffload://${ from }', 'diluxoneoffload://${ to }' ) ? 'moved' : 'failed';` ] );
 			expect( rename( videoKey, renamedKey ) ).toBe( 'moved' );
-			expect( await blobExists( run, videoKey ), 'the old name is gone' ).toBe( false );
+			expect( await blobGone( run, videoKey ), 'the old name is gone' ).toBe( true );
 			expect( await bytesDiffer( run, renamedKey, videoMd5 ) ).toBe( '' );
 			expect( ( await objectProps( run, renamedKey ) ).cacheControl, 'the copy keeps the header' ).toBe( DEFAULT_CACHE_CONTROL );
 			expect( trackedRow( site, path.basename( renamedKey ) )?.key ).toBe( renamedKey );
 			expect( trackedRow( site, videoName ) ).toBeNull();
 			expect( rename( renamedKey, videoKey ) ).toBe( 'moved' );
 			expect( await bytesDiffer( run, videoKey, videoMd5 ) ).toBe( '' );
-			expect( await blobExists( run, renamedKey ) ).toBe( false );
+			expect( await blobGone( run, renamedKey ) ).toBe( true );
 
 			// WordPress's image editor, with the original only in the cloud: the
 			// edited image and its sizes are written there, the original is kept.
@@ -558,7 +558,7 @@ test.describe.serial( 'single site journey', () => {
 			// Deleting the attachments deletes every object WordPress names for them, and their rows.
 			const all = [ ...imageFiles, ...attachmentFiles( site, video ) ];
 			for ( const id of ids.splice( 0 ) ) wp( site, [ 'post', 'delete', String( id ), '--force' ] );
-			for ( const file of all ) expect( await blobExists( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( false );
+			for ( const file of all ) expect( await blobGone( run, `uploads/${ file }` ), `${ file } went with its attachment` ).toBe( true );
 			expect( trackedRowsLike( site, `live-${ run.runId }` ) + trackedRowsLike( site, `edit-${ run.runId }` ), 'their rows went too' ).toBe( 0 );
 		} finally {
 			await http.dispose();
