@@ -249,6 +249,7 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 = 2.1.0 =
 Unreleased.
 
+* Enable Offloading looks for files added since the last sync first: it says how many there are and uploads them before offloading is turned on. A file added between the end of the sync and enabling offloading used to stay off the cloud, a broken image once offloading was on. A synced library also offers Scan and Complete Sync on Sync & Offloading › Sync.
 * Opening Sync & Offloading › Sync more than 90 seconds after a sync finished no longer resets the plugin to "configured", which turned offloading off without a word.
 * Complete Sync uploads the files added to uploads/ since the last sync; it used to report success and leave them out.
 * Deleting an attachment while offloading is on removes its copies left on this server too, not only the objects in the cloud.

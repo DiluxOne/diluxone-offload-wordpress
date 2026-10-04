@@ -185,9 +185,9 @@ class ConfigManagerPersistenceTest extends TestCase {
 		}
 	}
 
-	public function test_only_a_configured_plugin_can_start_a_sync(): void {
+	public function test_only_a_configured_or_synced_plugin_can_start_a_sync(): void {
 		foreach ( PluginState::get_all_states() as $state ) {
-			$this->assertSame( PluginState::CONFIGURED === $state, PluginState::can_start_sync( $state ), $state );
+			$this->assertSame( in_array( $state, array( PluginState::CONFIGURED, PluginState::SYNCED ), true ), PluginState::can_start_sync( $state ), $state );
 		}
 	}
 

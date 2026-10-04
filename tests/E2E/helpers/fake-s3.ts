@@ -41,7 +41,13 @@ export async function uninstallFakeS3(): Promise< void > {
 }
 
 async function control( action: string, body?: string, extra = '' ): Promise< any > {
-	const res = await fetch( `${ BUCKET_URL }?e2e=${ action }${ extra }`, { method: body === undefined && action === 'list' ? 'GET' : 'POST', body } );
+	const url = `${ BUCKET_URL }?e2e=${ action }${ extra }`;
+	const init = { method: body === undefined && action === 'list' ? 'GET' : 'POST', body };
+	// Node's fetch keeps the connection open between calls, and Apache closes
+	// an idle one after a few seconds: a call sent as it closes fails with
+	// "other side closed" before the server sees it. Every control action is
+	// idempotent, so that one failure is sent again, once, on a new connection.
+	const res = await fetch( url, init ).catch( () => fetch( url, init ) );
 	expect( res.ok, `fake S3 control "${ action }"` ).toBe( true );
 	return res.json();
 }

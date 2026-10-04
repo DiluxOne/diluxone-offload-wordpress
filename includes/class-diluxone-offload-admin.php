@@ -834,6 +834,8 @@ class Admin {
 						'pending_files'                    => __( 'pending files', 'diluxone-offload' ),
 						'please_resolve_errors_first_using_clear' => __( 'Please resolve errors first using "Clear Failed & Enable" or retry failed files.', 'diluxone-offload' ),
 						'enabling_cloud_storage_offloading' => __( 'Enabling cloud storage offloading...', 'diluxone-offload' ),
+						'new_files_since_last_sync'        => __( 'New files since the last sync', 'diluxone-offload' ),
+						'upload_them_and_enable_offloading' => __( 'Upload Them and Enable Offloading', 'diluxone-offload' ),
 						'enabling'                         => __( 'Enabling...', 'diluxone-offload' ),
 						'offloading_enabled_successfully'  => __( 'Offloading enabled successfully!', 'diluxone-offload' ),
 						'connection_error'                 => __( 'Connection error', 'diluxone-offload' ),

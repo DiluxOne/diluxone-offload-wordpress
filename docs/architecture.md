@@ -81,7 +81,8 @@ Transitions:
 - `NOT_CONFIGURED → CONFIGURED`: user enters provider credentials and they validate.
 - `CONFIGURED → SYNCING`: user clicks **Start Sync**.
 - `SYNCING → SYNCED`: sync completes.
-- `SYNCED → OFFLOADING_ACTIVE`: user enables offloading; stream wrapper takes over.
+- `SYNCED → SYNCING`: a synced library is completed: **Scan and Complete Sync**, a retry of failed files, or the files Enable Offloading found (`PluginState::can_start_sync()` accepts `CONFIGURED` and `SYNCED`).
+- `SYNCED → OFFLOADING_ACTIVE`: user enables offloading; stream wrapper takes over. `Plugin::ajax_activate_offloading()` first scans the library: files added since the last sync are recorded as pending and it refuses (`new_files`, with the count), and it refuses while any file is pending or failed (`files_not_synced`). The only files it does not count are the ones Clear Failed & Enable just discarded, whose paths the discard noted in a transient, spent once offloading is on.
 - `OFFLOADING_ACTIVE → SYNCED`: user deactivates offloading.
 
 There is deliberately no `DISCONNECTING` and no `ERROR` state. Reverse sync (downloading files back from the cloud) runs while the plugin stays in `OFFLOADING_ACTIVE`; when it finishes, the user clicks **Deactivate Offloading** to go back to `SYNCED`. Errors live at the file level (sync failures) and at the connection level (connection health), never at the plugin level.

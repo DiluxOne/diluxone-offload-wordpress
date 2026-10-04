@@ -41,6 +41,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Plugin {
 
+	/** Transient with the paths Clear Failed & Enable discarded, skipped by activation until offloading is on (or the 15 minutes run out). */
+	private const LEFT_LOCAL_TRANSIENT = 'diluxone_offload_left_local';
+
 	/** @var Plugin|null Singleton instance */
 
 	private static ?Plugin $instance = null;
@@ -255,40 +258,9 @@ class Plugin {
 
 			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
-			$stats       = DiluxOneOffloadDB::get_stats();
-			$scan_result = $this->sync_manager->scan_files_to_sync( true );
-
-			$new_files      = array();
-			$new_files_size = 0;
-
-			if ( ! empty( $scan_result ) ) {
-				global $wpdb;
-				$table_name = DiluxOneOffloadDB::get_table_name();
-
-				foreach ( $scan_result as $file_info ) {
-					$relative_path = str_replace( wp_upload_dir()['basedir'], '', $file_info['local_path'] );
-                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), value is %s placeholder
-					$exists = $wpdb->get_var(
-						$wpdb->prepare(
-							"SELECT COUNT(*) FROM $table_name WHERE file = %s",
-							$relative_path
-						)
-					);
-
-					if ( (int) $exists === 0 ) {
-						$new_files[]     = array(
-							'path' => $relative_path,
-							'size' => $file_info['size'],
-						);
-						$new_files_size += $file_info['size'];
-					}
-				}
-
-				if ( ! empty( $new_files ) ) {
-					DiluxOneOffloadDB::add_files_batch( $new_files );
-					$stats = DiluxOneOffloadDB::get_stats();
-				}
-			}
+			$found          = $this->record_new_local_files();
+			$new_files_size = $found['size'];
+			$stats          = DiluxOneOffloadDB::get_stats();
 
 			$total_files      = (int) ( $stats['total_files'] ?? 0 );
 			$synced_files     = (int) ( $stats['synced_files'] ?? 0 );
@@ -303,8 +275,8 @@ class Plugin {
 					'data'                  => array(
 						'total_files'              => $total_files,
 						'synced_files'             => $synced_files,
-						'pending_files'            => $pending_files - count( $new_files ),
-						'new_files'                => count( $new_files ),
+						'pending_files'            => $pending_files - $found['count'],
+						'new_files'                => $found['count'],
 						'total_size'               => $total_size,
 						'synced_size'              => $transferred_size,
 						'pending_size'             => max( 0, $total_size - $transferred_size - $new_files_size ),
@@ -773,49 +745,13 @@ class Plugin {
 			// Get stats from DB (current state)
 			$stats = DiluxOneOffloadDB::get_stats();
 
-			// ⭐ ALWAYS scan filesystem to detect new files (even in retry mode)
-			// This compares filesystem vs DB to find new files not yet tracked
-			$scan_result = $this->sync_manager->scan_files_to_sync( true );
-
-			$new_files      = array();
-			$new_files_size = 0;
-
-			if ( ! empty( $scan_result ) ) {
-				// Compare scanned files with DB to find new ones
-				global $wpdb;
-				$table_name = DiluxOneOffloadDB::get_table_name();
-
-				foreach ( $scan_result as $file_info ) {
-					$relative_path = str_replace( wp_upload_dir()['basedir'], '', $file_info['local_path'] );
-
-					// Check if file exists in DB
-                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), value is %s placeholder
-					$exists = $wpdb->get_var(
-						$wpdb->prepare(
-							"SELECT COUNT(*) FROM $table_name WHERE file = %s",
-							$relative_path
-						)
-					);
-
-					if ( (int) $exists === 0 ) {
-						// File not in DB = new file
-						Logger::info( '[DiluxOne Offload Calculate Sync] NEW FILE FOUND: ' . $relative_path . ' (size: ' . size_format( $file_info['size'] ) . ')' );
-						$new_files[]     = array(
-							'path' => $relative_path,
-							'size' => $file_info['size'],
-						);
-						$new_files_size += $file_info['size'];
-					}
-				}
-
-				// Add new files to DB (if any)
-				if ( ! empty( $new_files ) ) {
-					DiluxOneOffloadDB::add_files_batch( $new_files );
-					Logger::info( '[DiluxOne Offload Plugin] Found and added ' . count( $new_files ) . ' new files to DB (' . size_format( $new_files_size ) . ')' );
-
-					// Refresh stats after adding new files
-					$stats = DiluxOneOffloadDB::get_stats();
-				}
+			// Always look for files the table does not know yet (even in retry
+			// mode): they are recorded as pending and counted here.
+			$found          = $this->record_new_local_files();
+			$new_files_size = $found['size'];
+			if ( $found['count'] > 0 ) {
+				Logger::info( '[DiluxOne Offload Plugin] Found and added ' . $found['count'] . ' new files to DB (' . size_format( $new_files_size ) . ')' );
+				$stats = DiluxOneOffloadDB::get_stats();
 			}
 
 			// Get file statistics
@@ -827,7 +763,7 @@ class Plugin {
 			$pending_size     = $total_size - $transferred_size;
 
 			// Calculate sizes for each category
-			$new_files_count   = count( $new_files );
+			$new_files_count   = $found['count'];
 			$old_pending_files = $pending_files - $new_files_count; // Pending from previous sync
 			$old_pending_size  = $pending_size - $new_files_size;
 
@@ -858,6 +794,56 @@ class Plugin {
 	}
 
 	/**
+	 * Record the local files the tracking table does not know yet (added since
+	 * the last sync, through WordPress with offloading off, or by hand) as
+	 * pending, so a sync uploads them and offloading waits for it.
+	 *
+	 * @param string[] $left_local Paths, relative to uploads, discarded on purpose: not new.
+	 * @return array{count: int, size: int} How many were found, and their bytes.
+	 */
+	private function record_new_local_files( array $left_local = array() ): array {
+		require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
+
+		$scan_result = $this->sync_manager ? $this->sync_manager->scan_files_to_sync( true ) : array();
+		$new_files   = array();
+		$size        = 0;
+		if ( empty( $scan_result ) ) {
+			return array(
+				'count' => 0,
+				'size'  => 0,
+			);
+		}
+
+		global $wpdb;
+		$table_name = DiluxOneOffloadDB::get_table_name();
+		$basedir    = wp_upload_dir()['basedir'];
+		foreach ( $scan_result as $file_info ) {
+			$relative_path = str_replace( $basedir, '', $file_info['local_path'] );
+			if ( in_array( $relative_path, $left_local, true ) ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted DiluxOneOffloadDB::get_table_name(), value is %s placeholder
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table_name WHERE file = %s", $relative_path ) );
+			if ( 0 === (int) $exists ) {
+				$new_files[] = array(
+					'path' => $relative_path,
+					'size' => $file_info['size'],
+				);
+				$size       += (int) $file_info['size'];
+			}
+		}
+
+		if ( ! empty( $new_files ) ) {
+			DiluxOneOffloadDB::add_files_batch( $new_files );
+		}
+
+		return array(
+			'count' => count( $new_files ),
+			'size'  => $size,
+		);
+	}
+
+	/**
 	 * AJAX: Activate offloading
 	 */
 	public function ajax_activate_offloading(): void {
@@ -871,7 +857,45 @@ class Plugin {
 			wp_send_json_error( esc_html__( 'Sync manager not available', 'diluxone-offload' ) );
 		}
 
+		// Offloading serves every file from the cloud: one that never went up
+		// would be a broken URL. From SYNCED, the library is scanned again,
+		// files added since the last sync are recorded as pending, and nothing
+		// is switched on while any file is pending or failed. The files Clear
+		// Failed & Enable just discarded stay on this server on purpose: the
+		// discard noted their paths on the server, and only those are not
+		// counted as new. The note is spent once offloading is on.
+		if ( PluginState::SYNCED === ConfigManager::get_state() ) {
+			$left_local = get_transient( self::LEFT_LOCAL_TRANSIENT );
+			$found      = $this->record_new_local_files( is_array( $left_local ) ? $left_local : array() );
+			if ( $found['count'] > 0 ) {
+				wp_send_json_error(
+					array(
+						'reason'         => 'new_files',
+						'new_files'      => $found['count'],
+						'new_files_size' => size_format( $found['size'] ),
+						'message'        => esc_html(
+							sprintf(
+								/* translators: %d: number of files */
+								_n( '%d file was added since the last sync: it has to be uploaded before offloading is enabled.', '%d files were added since the last sync: they have to be uploaded before offloading is enabled.', $found['count'], 'diluxone-offload' ),
+								$found['count']
+							)
+						),
+					)
+				);
+			}
+			$stats = DiluxOneOffloadDB::get_stats();
+			if ( (int) ( $stats['pending_files'] ?? 0 ) > 0 || (int) ( $stats['failed_files'] ?? 0 ) > 0 ) {
+				wp_send_json_error(
+					array(
+						'reason'  => 'files_not_synced',
+						'message' => esc_html__( 'Some files are not in the cloud yet: complete the sync, or clear the failed ones, before enabling offloading.', 'diluxone-offload' ),
+					)
+				);
+			}
+		}
+
 		if ( CloudStreamWrapper::activate_offloading() ) {
+			delete_transient( self::LEFT_LOCAL_TRANSIENT );
 			wp_send_json_success( 'Offloading activated' );
 		} else {
 			wp_send_json_error( esc_html__( 'Failed to activate offloading', 'diluxone-offload' ) );
@@ -1057,11 +1081,15 @@ class Plugin {
 
 		try {
 			// Every file with synced=0 (all failed files, regardless of error
-			// count), with the uploads they left half sent.
-			$result = DiluxOneOffloadDB::discard_unsynced_files();
+			// count), with the uploads they left half sent. Their paths are
+			// noted for the activation Clear Failed & Enable fires next, so
+			// it does not take them for files added since the sync.
+			$left_local = array_column( DiluxOneOffloadDB::get_failed_files(), 'file' );
+			$result     = DiluxOneOffloadDB::discard_unsynced_files();
 
 			if ( $result !== false ) {
 				Logger::info( '[DiluxOne Offload Plugin] Discarded ' . $result . ' failed files from database' );
+				set_transient( self::LEFT_LOCAL_TRANSIENT, $left_local, 15 * MINUTE_IN_SECONDS );
 
 				// Every row left in the table now has `synced = 1` or `deleted = 1`,
 				// so nothing is blocking the sync any more. If we were sitting in
