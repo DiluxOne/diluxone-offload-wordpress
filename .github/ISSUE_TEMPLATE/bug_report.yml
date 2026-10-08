@@ -1,5 +1,6 @@
 name: 🐛 Bug report
 description: Report a defect — something is broken or behaves unexpectedly.
+type: Bug
 title: "[Bug]: "
 labels: ["bug", "needs-triage"]
 body:

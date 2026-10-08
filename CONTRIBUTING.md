@@ -1,45 +1,20 @@
 # Contributing to DiluxOne Offload
 
-Thanks for helping. This page covers issues, pull requests and what CI enforces. The organisation's [contributing guide](https://github.com/DiluxOne/.github/blob/main/CONTRIBUTING.md) has the general rules; this one adds what is specific to the plugin.
+Thanks for helping. How a change reaches any DiluxOne repository (start from an accepted issue, branch names, commit and pull request titles, the description, the review, what CI checks, AI-assisted work) is in the organisation's [contributing guide](https://github.com/DiluxOne/.github/blob/main/CONTRIBUTING.md), and for an AI agent in [`AGENTS.md`](AGENTS.md). This page adds only what is specific to the plugin.
 
-## Bugs, ideas and questions
+## Questions, bugs and ideas
 
-- **A bug or a feature request:** open a [new issue](https://github.com/DiluxOne/diluxone-offload-wordpress/issues/new/choose) with the matching template. Claude reads it first, labels it and replies once (it may ask for versions, steps or logs, or try to reproduce a bug with a unit test); the maintainer decides what happens next. What is free, paid, planned and not planned is in [`docs/roadmap.md`](docs/roadmap.md).
 - **Using the plugin** (how do I…?, my upload does not work): the [wordpress.org support forum](https://wordpress.org/support/plugin/diluxone-offload/), where answers stay public for the next person.
-- **A security vulnerability:** [SECURITY.md](SECURITY.md), never a public issue.
+- **A bug or a feature request:** open a [new issue](https://github.com/DiluxOne/diluxone-offload-wordpress/issues/new/choose) with the matching form. What is free, paid, planned and not planned is in [`docs/roadmap.md`](docs/roadmap.md).
+- **A security vulnerability:** privately, as the organisation's [security policy](https://github.com/DiluxOne/.github/blob/main/SECURITY.md) explains, never in a public issue.
 
-## Pull requests
+## Before the pull request
 
-1. Branch from `main`: in your fork if you are an outside contributor, in the repository if you are a maintainer. Name it `<type>/<kebab-case>`, for example `fix/sync-retry-count`.
-2. Make the change with its tests at every layer it touches (unit, integration, end-to-end, the real-storage suite on a single site and on a network, and the listing screenshots when a screen changes; see [`docs/testing-and-quality.md`](docs/testing-and-quality.md)), and update any doc that describes what you changed. A change a user notices adds one bullet to the newest `= X.Y.Z =` entry of `readme.txt`, under its `Unreleased.` line; leave that line alone ([`docs/release.md`](docs/release.md)).
-3. Run `make pre-pr` (needs `make env` and `make env-multisite`): `make check` (PHPCS, PHPStan, Psalm, unit tests), the string extraction CI fails on any warning of (`make i18n-check`), the unit tests on PHP 7.4, the docs check (links, retired names), the integration and end-to-end suites, Plugin Check, and the local review (`make review-local`), which checks the branch, the title, the commits and, with `REVIEW_ARGS="--body-file pr.md"`, the description as CI will, and runs the same Claude review on the same brief through the Claude Code CLI on your own account. Without the CLI it stops at the brief, for your own agent to read. It reads the organisation's shared scripts from [DiluxOne/.github](https://github.com/DiluxOne/.github), a public repository it clones into `build/`. The unit tests on PHP 8.0 to 8.5, the real-storage suites and CodeQL run only in CI.
-4. Open the pull request and fill in the template: 📝 What changes and 💡 Why are required, 🧪 How I tested it and 📸 Screenshots help the review. The description becomes the commit body on `main`, word for word, so write it for the person who reads the history in a year: plain words, short paragraphs.
-5. If AI took part, end the description with one line: `🤖 AI-assisted · <model> (<maker>)`. The rules for contributing with AI are in [`docs/ai.md`](docs/ai.md).
+Make the change with its tests at every layer it touches (unit, integration, end-to-end, the real-storage suites on a single site and on a network, and the listing screenshots when a screen changes; see [`docs/testing-and-quality.md`](docs/testing-and-quality.md)), and update any doc that describes what you changed. A change a user notices adds one bullet to the newest `= X.Y.Z =` entry of `readme.txt`, under its `Unreleased.` line; leave that line alone ([`docs/release.md`](docs/release.md)).
 
-Pull requests are squash-merged: the title becomes the commit title on `main`, the description its body, and the branch's `Co-authored-by` trailers are kept. Nothing reaches `main` without a green pull request, maintainers included.
+Then run `make pre-pr` (needs `make env` and `make env-multisite`): `make check` (PHPCS, PHPStan, Psalm, unit tests), the string extraction CI fails on any warning of (`make i18n-check`), the unit tests on PHP 7.4, the docs check (links, retired names), the integration and end-to-end suites, Plugin Check in strict mode, the kind's review rules (`make review-rules`) and the local review (`make review-local`, the organisation's `dx check`). The unit tests on PHP 8.0 to 8.5, the real-storage suites against cloud accounts and CodeQL run only in CI.
 
-### Titles and commits
-
-[Conventional Commits](https://www.conventionalcommits.org/): `<type>(<optional-scope>): <subject>`, with type one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, at most 100 characters, no trailing period. The same format applies to the pull request title and to every commit on the branch. Bodies are plain paragraphs, one line each, never hard-wrapped.
-
-```
-feat(provider): add S3 cloud storage provider
-fix(admin): surface decrypt failures in the connection-health banner
-```
-
-### What CI enforces
-
-The shared [`conventions`](https://github.com/DiluxOne/.github/blob/main/.github/workflows/conventions.yml) workflow fails a pull request when the branch name, the title or a commit breaks the format above, when a commit carries a `Claude-Session:` trailer, when "📝 What changes" or "💡 Why" is empty, when the description ends with a "Generated with …" footer, when a relative link in the docs is broken, or when a retired product name comes back.
-
-Then the quality gates: syntax and unit tests on PHP 7.4 to 8.5, PHPCS with the WordPress Coding Standards, PHPStan level 8, Psalm taint analysis, i18n extraction, WordPress Plugin Check on the shipped tree, readme and version alignment, integration tests on a wp-env network and Playwright end-to-end tests with a fake cloud client. What each one catches, and how to run it: [`docs/testing-and-quality.md`](docs/testing-and-quality.md).
-
-Every job that runs on a pull request is a required check on `main`, except CodeQL, which runs only when JavaScript changes.
-
-### The review
-
-Claude reviews every pull request from a branch of this repository, guided by [`docs/architecture.md`](docs/architecture.md), [`AGENTS.md`](AGENTS.md) and the organisation's WordPress review profile. It comments inline on blockers and majors, lists minor findings in its summary, labels the risk, the complexity and the type of the change (`type:*`, read from the diff; it corrects the title's type to match, and a `type:*` label a person sets wins), and checks that the description matches the code. Editing the title or description re-runs only the conventions and that check, never the suites; an edited description counts as unchecked until the next push. Fix the code and push, or answer in the thread mentioning `@dilux-bot`; every conversation must be resolved before merging. A change rated low risk and low complexity, on low-risk paths, from a trusted author, merges on its own once everything is green; everything else the maintainer merges. Details and the rules for AI-assisted work: [`docs/ai.md`](docs/ai.md).
-
-### Forks and the real-storage suite
+## Forks and the real-storage suites
 
 One more check, the **real-storage suite** ([`tests-real-azure.yml`](.github/workflows/tests-real-azure.yml)), drives every plugin screen as a user, on a single site and on a multisite network, against a real Azure storage account, and verifies every transfer byte for byte. It needs the repository's Azure credentials, so it runs only on pull requests from branches of this repository that change code (like the other slow suites; see [`docs/testing-and-quality.md`](docs/testing-and-quality.md), "What runs when"), on every push to `main`, and by hand. **It does not run on pull requests from forks**, nor does the Claude review: no code from outside the repository ever runs with the keys. If you contribute from a fork, the other checks tell you what they can, the maintainer reviews, and the suite runs on `main` after the merge; if it fails there, a follow-up pull request fixes it. Its S3 counterpart ([`tests-real-s3.yml`](.github/workflows/tests-real-s3.yml)) runs the same journeys against an S3-compatible server started inside the job, with no secret, so it runs on forks too (`make s3-up && make test-real REAL_PROVIDER=s3` locally). The same workflow runs the journeys against Cloudflare R2, Backblaze B2 and Google Cloud Storage with the repository's secrets for each, under the Azure suite's rules: not on forks, not on drafts.
 
@@ -61,8 +36,8 @@ The full list, with the architecture and the review priorities, is in [`docs/arc
 
 ## Versions and releases
 
-Versions follow the DiluxOne policy ([`docs/release.md`](docs/release.md#versions)): a major for a big new capability or anything that breaks, a minor for additions to what exists, a patch for fixes, security and performance; a breaking change ships only in a major. Nobody types them: the next version is computed from the `type:*` labels the review sets on merged pull requests (a breaking change → major, a feature → minor, a fix → patch; a maintainer's `version:major` makes a big capability a major), and `main`'s markers say the last version released, or the one being released once its release pull request merged. Every push to `main` publishes a development build, `<next>-dev.<N>`, as the one **Development build** pre-release in [Releases](https://github.com/DiluxOne/diluxone-offload-wordpress/releases) (always the latest, replaced each time), for anyone to try. The changelog is written as the changes merge, under the `Unreleased.` line of the newest `readme.txt` entry; the maintainer removes that line (and sets the markers to the version) when it is ready, approves the deployment, and the pipeline publishes. Never bump the version or remove that line in your pull request. The whole flow, with who does what: [`docs/release.md`](docs/release.md).
+Nobody types a version: it is computed from the `type:*` labels the review sets on merged pull requests, and every push to `main` publishes a development build, `<next>-dev.<N>`, as the one **Development build** pre-release in [Releases](https://github.com/DiluxOne/diluxone-offload-wordpress/releases). Never bump the version or remove the `Unreleased.` line in your pull request. The whole flow, with who does what: [`docs/release.md`](docs/release.md).
 
-## Code of Conduct and licence
+## Licence
 
-By participating you agree to the organisation's [Code of Conduct](https://github.com/DiluxOne/.github/blob/main/CODE_OF_CONDUCT.md). Your contributions are licensed under the [GPL-2.0-or-later](LICENSE).
+Your contributions are licensed under the [GPL-2.0-or-later](LICENSE).
