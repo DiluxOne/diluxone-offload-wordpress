@@ -26,8 +26,8 @@ name: Real-storage suite (Azure)
 # and its author, and comments on that pull request.
 
 on:
-  # Called by pull-request.yml on its pull requests, pushes to main and weekly
-  # run, so the Claude review waits for it; Run workflow runs it alone.
+  # Called by plugin-checks.yml on its pull requests, pushes to main and weekly
+  # run; Run workflow runs it alone.
   workflow_call:
   workflow_dispatch:
 
@@ -52,7 +52,7 @@ jobs:
     # this job failing never skips the suite.
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Runs the central's script from the mutable v2 tag: nothing beyond
+    # Runs the central's script from the mutable v5 tag: nothing beyond
     # reading the checkout, whatever the workflow as a whole may write.
     permissions:
       contents: read
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: DiluxOne/.github
-          ref: v2
+          ref: v5
           path: .dx-central
           persist-credentials: false
       - id: changes

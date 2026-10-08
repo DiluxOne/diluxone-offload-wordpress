@@ -3,7 +3,7 @@ name: CodeQL
 # CodeQL semantic security analysis. Scoped to JavaScript only because
 # CodeQL does not support PHP: PHP is covered by Plugin Check (security
 # category), PHPStan and Psalm taint analysis in the shared plugin checks
-# (pull-request.yml). The plugin's JavaScript
+# (plugin-checks.yml). The plugin's JavaScript
 # surface is small (`assets/js/admin.js`) but bundles the admin UI logic
 # that handles credentials and AJAX calls, so it warrants scanning.
 

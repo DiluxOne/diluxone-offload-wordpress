@@ -32,7 +32,7 @@ on:
 # runs with all those secrets is exactly the reviewed code at that commit. A Dependabot bump of that pin is a
 # secret-bearing change and is reviewed as one (`.github/**` is high risk).
 #
-# The shared workflow is pinned to a commit, not to the moving `v2` tag:
+# The shared workflow is pinned to a commit, not to the moving `v5` tag:
 # this is the one workflow that runs with the publishing credentials, and
 # what it does must not change under it without a pull request here.
 # Dependabot keeps the pin current.
@@ -43,7 +43,7 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@bc17c89fcf6999dcab1a9df00527156e81091367 # v2.4.0 (DiluxOne/.github#12)
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@43156ce8f53b8cf560faf23e3c2da3e12111d916 # v5.2.1
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
