@@ -145,13 +145,20 @@ export async function blobMd5( run: RealRun, key: string ): Promise< string > {
 /**
  * '' when the object holds exactly the bytes whose MD5 is `expected`;
  * otherwise what was read, read again two seconds later, and what the
- * service says about the object. A mismatch has come and gone on Google
- * Cloud Storage; the second read says whether the object or the read was
- * wrong. It never turns a mismatch into a pass.
+ * service says about the object. It never turns a mismatch of the object
+ * into a pass.
+ *
+ * Google Cloud Storage serves a public object from its built-in cache for
+ * as long as the object's Cache-Control allows (a week, the plugin's
+ * default), even to an authenticated read, and no request can bypass it.
+ * The suite reuses one bucket and the same names on every run with new
+ * bytes, so a read can return an earlier run's copy of a correct object.
+ * There, the MD5 Google computed of what it stores decides.
  */
 export async function bytesDiffer( run: RealRun, key: string, expected: string ): Promise< string > {
 	const first = await blobMd5( run, key );
 	if ( first === expected ) return '';
+	if ( run.s3?.preset === 'gcs' && ( await s3.storedMd5( run.s3, run.container, key ) ) === expected ) return '';
 	await new Promise( ( resolve ) => setTimeout( resolve, 2000 ) );
 	const second = await blobMd5( run, key );
 	const facts = run.s3 ? await s3.objectFacts( run.s3, run.container, key ) : `size ${ await blobSize( run, key ) }`;

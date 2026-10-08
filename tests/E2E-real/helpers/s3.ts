@@ -149,6 +149,17 @@ export async function objectFacts( target: S3Target, bucket: string, key: string
 	return `size ${ head.ContentLength }, ETag ${ head.ETag }, last modified ${ head.LastModified?.toISOString() }`;
 }
 
+/**
+ * The MD5 the service computed of what it stores, from the object's ETag,
+ * or '' when the ETag is not one (a multipart or composite object). Read
+ * from the object's metadata, never from a cached copy of its bytes.
+ */
+export async function storedMd5( target: S3Target, bucket: string, key: string ): Promise< string > {
+	const head = await client( target ).send( new HeadObjectCommand( { Bucket: bucket, Key: key } ) );
+	const etag = ( head.ETag ?? '' ).replace( /"/g, '' ).toLowerCase();
+	return /^[0-9a-f]{32}$/.test( etag ) ? etag : '';
+}
+
 /** MD5 of the object's bytes, from a fresh download: a multipart ETag is not one. */
 export async function objectMd5( target: S3Target, bucket: string, key: string ): Promise< string > {
 	const object = await client( target ).send( new GetObjectCommand( { Bucket: bucket, Key: key } ) );
