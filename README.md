@@ -78,10 +78,10 @@ make env-multisite  # the tests site as a network, for the multisite tests
 1. **Start from an accepted issue**, and branch from `main` as `<type>/<number>-<kebab-case>`, for example `fix/61-sync-retry-count` (`dx start <number>`, from [DiluxOne/.github](https://github.com/DiluxOne/.github/blob/main/docs/agents.md)).
 2. **Make the change with its tests at every layer it touches** (unit, integration, end-to-end, the real-storage suites when storage behaviour changes, the screenshots when a screen changes), the docs that describe it, and a changelog line when a user will notice it ([`docs/testing-and-quality.md`](docs/testing-and-quality.md)).
 3. **Commit** with [Conventional Commit](https://www.conventionalcommits.org/) headers of 72 characters or fewer.
-4. **Write the pull request description** in `build/pr.md`, with the sections of the organisation's [template](https://github.com/DiluxOne/.github/blob/main/pull_request_template.md) and `Closes #<number>`.
+4. **Write the pull request description** in `.git/dx/pr.md`, which `dx start` wrote with the sections of the organisation's [template](https://github.com/DiluxOne/.github/blob/main/pull_request_template.md), already closing the issue.
 5. **Run everything the pull request will be checked on, here, first:**
    ```bash
-   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
+   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
    ```
 6. **Fix what it finds.** The local review writes each finding, with its file and line, to `.git/dx-review/findings.md`. Fix, commit, run step 5 again (it reviews only what changed) until it says **Ready for a pull request**.
 7. **Open the pull request.** The same checks and the same review run again on GitHub, plus the few that need the cloud's keys. Every push to an open pull request is another paid review and another wait, so it opens clean and is reviewed once.
