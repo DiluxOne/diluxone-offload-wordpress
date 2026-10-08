@@ -2,6 +2,15 @@
 # DiluxOne/.github (policy/review-policy.default.yml). Read before the Claude
 # review; the review can raise the risk these rules set, never lower it.
 
+# The kind of project: adds the WordPress plugin pack of DiluxOne/.github
+# (kinds/wordpress-plugin): its review profile, its rules (every suppression
+# listed in .github/review-suppressions.yml) and strict Plugin Check.
+kind: wordpress-plugin
+
+# Names the plugin had before DiluxOne Offload, which must not come back in a
+# tracked file (the organisation's docs check, and `make docs-check` here).
+retired-names: 'offload\+|offload plus|dilux cloud|dilux-cloud-storage|offload-dlx|dilux one cloud|DILUX_CS_'
+
 # Code where a mistake loses media, leaks credentials or breaks every site:
 # always high risk, always a human merge.
 high-risk:
