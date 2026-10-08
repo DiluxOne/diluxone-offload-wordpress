@@ -234,9 +234,10 @@ PCP_ARGS := --categories=plugin_repo,security,performance,accessibility,general 
 
 .PHONY: plugin-check
 plugin-check: pcp-env ## Run wordpress.org's Plugin Check on the built dist, strict as CI: a warning fails.
-	@cd "$(PCP_DIR)" && out="$$(npx @wordpress/env run cli wp plugin check diluxone-offload --format=csv $(PCP_ARGS) 2>&1)"; \
+	@cd "$(PCP_DIR)" && { out="$$(npx @wordpress/env run cli wp plugin check diluxone-offload --format=csv $(PCP_ARGS) 2>&1)"; status=$$?; \
 	echo "$$out"; \
-	if echo "$$out" | grep -qE ',(ERROR|WARNING),'; then echo "✖ Plugin Check found errors or warnings (strict)."; exit 1; fi
+	if echo "$$out" | grep -qE ',(ERROR|WARNING),'; then echo "✖ Plugin Check found errors or warnings (strict)."; exit 1; fi; \
+	if [ "$$status" -ne 0 ]; then echo "✖ Plugin Check did not run to the end (exit $$status): nothing was checked."; exit 1; fi; }
 
 .PHONY: plugin-check-all
 plugin-check-all: pcp-env ## Plugin Check on the built dist, including warnings and notices.
