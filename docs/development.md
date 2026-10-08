@@ -2,7 +2,7 @@
 
 How to run the plugin from source, what tools you need, and the day-to-day commands you'll use.
 
-For contribution rules (branch naming, commit conventions, PR workflow), see [`CONTRIBUTING.md`](../CONTRIBUTING.md). For the test-and-quality stack, see [`testing-and-quality.md`](testing-and-quality.md). For how a change becomes a version, development builds and the release, see [`release.md`](release.md).
+For contribution rules (issues, branch naming, commit conventions, PR workflow), see the organisation's [contributing guide](https://github.com/DiluxOne/.github/blob/main/CONTRIBUTING.md) and [`CONTRIBUTING.md`](../CONTRIBUTING.md). For the test-and-quality stack, see [`testing-and-quality.md`](testing-and-quality.md). For how a change becomes a version, development builds and the release, see [`release.md`](release.md).
 
 ## What you need
 
@@ -50,10 +50,11 @@ When `make env` finishes, open <http://localhost:8888>. Log in with `admin` / `p
 | `make test-real` | The real-storage suite against a real Azure account (see `CONTRIBUTING.md`); `REAL_PROVIDER=s3` runs it against S3-compatible storage instead. |
 | `make s3-up` / `make s3-down` | Start or remove the local S3-compatible server the S3 suite runs against: RustFS (MinIO no longer publishes images) on wp-env's network, reachable as `http://s3local:9000` from WordPress and from this machine. The first run adds `127.0.0.1 s3local` to `/etc/hosts` (with `sudo`). The `S3_E2E_*` variables point the suite at another service (`S3_E2E_PRESET`, `S3_E2E_ENDPOINT`, `S3_E2E_REGION`, `S3_E2E_ACCESS_KEY_ID`, `S3_E2E_SECRET_ACCESS_KEY`, `S3_E2E_PUBLIC_URL`, and `S3_E2E_BUCKET` for a fixed, already public bucket the suite empties before each journey instead of creating its own). |
 | `make dist` | Build `build/diluxone-offload/`, what wordpress.org receives, stamped with the development version (`<next>-dev.<N>`, see [`release.md`](release.md#development-builds)) and the commit it was built from; the same build every push to `main` publishes as the **Development build** pre-release. `STAMP=0` leaves the tree's own version. |
-| `make plugin-check` | wordpress.org's Plugin Check on the built dist. |
-| `make review-local` | The pull request's conventions, risk floor and Claude review, before the pull request exists (`REVIEW_ARGS="--body-file pr.md"`, `--title`, `--no-claude`). Clones [DiluxOne/.github](https://github.com/DiluxOne/.github) into `build/.dx-central` at the moving tag `v2` (what CI calls) and says which commit that is, since moving the tag changes what runs; `REVIEW_CENTRAL=<path>` uses your own checkout. |
+| `make plugin-check` | wordpress.org's Plugin Check on the built dist, strict as CI: a warning fails. |
+| `make review-rules` | The `wordpress-plugin` kind's review rules on the built dist, as CI's "Review rules" check: every suppression listed with its reason in `.github/review-suppressions.yml`. |
+| `make review-local` | The pull request's conventions, accepted-issue gate, risk floor and Claude review, before the pull request exists (`REVIEW_ARGS="--body-file pr.md"`, `--title`, `--no-claude`). Clones [DiluxOne/.github](https://github.com/DiluxOne/.github) into `build/.dx-central` at the moving tag `v5` (what CI calls) and says which commit that is, since moving the tag changes what runs; `REVIEW_CENTRAL=<path>` uses your own checkout. |
 | `make docs-check` | What CI's docs job checks: relative links in every Markdown file resolve (lychee, the version CI runs) and no retired product name is back. |
-| `make pre-pr` | One after the other: `make check`, `make i18n-check`, `make test-unit-min` (PHP 7.4), `make docs-check`, the integration suite, the end-to-end suite, Plugin Check and `make review-local`. Needs `make env` and `make env-multisite`. |
+| `make pre-pr` | One after the other: `make check`, `make i18n-check`, `make test-unit-min` (PHP 7.4), `make docs-check`, the integration suite, the end-to-end suite, Plugin Check, `make review-rules` and `make review-local`. Needs `make env` and `make env-multisite`. |
 | `make deploy-test` | Copy the working tree (minus `.distignore`) into a real site's `wp-content/plugins/diluxone-offload/` for a manual smoke test, stamped like `make dist`, plus the `.mo` files into `wp-content/languages/plugins/`. The site defaults to `~/repos/cst-website`; override with `SITE=/path/to/wordpress`. |
 | `make release` | `make check` plus a version-alignment dry-run; fails if the PHP `Version:` header and the `readme.txt` `Stable tag:` would not match at tag time. |
 | `make clean` | Wipe caches and build artefacts. |
@@ -82,7 +83,7 @@ from the repository name:
 
 | Where | What |
 |---|---|
-| `.github/workflows/pull-request.yml` | `slug: diluxone-offload` for the shared plugin checks, which build the shipped tree under that name before Plugin Check and i18n read it. |
+| `.github/workflows/plugin-checks.yml` | `slug: diluxone-offload` for the shared plugin checks, which build the shipped tree under that name before Plugin Check and i18n read it. |
 | `.github/workflows/release.yml` | `slug: diluxone-offload` for the shared release workflow, or it targets a non-existent SVN path. |
 | `Makefile` (`deploy-test`) | Copies into `wp-content/plugins/diluxone-offload/`, and the `.mo` files into `wp-content/languages/plugins/`. |
 

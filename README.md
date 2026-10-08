@@ -59,13 +59,13 @@ A paid service is being built to sync your files to the cloud for you, from outs
 
 | You want to | Do this |
 | --- | --- |
-| Report a bug or ask for a feature | [Open an issue](https://github.com/DiluxOne/diluxone-offload-wordpress/issues/new/choose) with its template. Claude labels it and replies once, and may try to reproduce the bug with a test; a person decides what happens next ([`CONTRIBUTING.md`](CONTRIBUTING.md#bugs-ideas-and-questions)). |
-| Report a vulnerability | Privately, as [`SECURITY.md`](SECURITY.md) explains. Never in a public issue. |
+| Report a bug or ask for a feature | [Open an issue](https://github.com/DiluxOne/diluxone-offload-wordpress/issues/new/choose) with its form. Claude labels it and replies once; a person decides what happens next, and accepts it (the `accepted` label) when it is to be done ([`CONTRIBUTING.md`](CONTRIBUTING.md#questions-bugs-and-ideas)). |
+| Report a vulnerability | Privately, as the organisation's [security policy](https://github.com/DiluxOne/.github/blob/main/SECURITY.md) explains. Never in a public issue. |
 | Change the code or the docs | **Fork** the repository (or branch it, if you are a maintainer), clone it and follow the steps below. Pull requests are welcome. |
 
 ## How a change is made: people and agents follow the same steps
 
-This project is **AI-first**: it is built with AI coding agents under human review, and it is set up so that yours can work on it too. With an agent (Claude Code, Codex, Cursor, …), clone the repository and tell it: **"read [`AGENTS.md`](AGENTS.md) and follow it"**. It walks the agent through the whole process. Without one, you follow **the same steps**; [`CONTRIBUTING.md`](CONTRIBUTING.md) says them for people. Either way, what is checked is the same, and nothing depends on which one of you typed the code.
+This project is **AI-first**: it is built with AI coding agents under human review, and it is set up so that yours can work on it too. With an agent (Claude Code, Codex, Cursor, …), clone the repository and tell it: **"read [`AGENTS.md`](AGENTS.md) and follow it"**. It walks the agent through the whole process. Without one, you follow **the same steps**; the organisation's [contributing guide](https://github.com/DiluxOne/.github/blob/main/CONTRIBUTING.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) say them for people. Either way, what is checked is the same, and nothing depends on which one of you typed the code.
 
 ```bash
 git clone https://github.com/<you>/diluxone-offload-wordpress.git   # your fork
@@ -75,13 +75,13 @@ make env            # WordPress at http://localhost:8888, admin / password, with
 make env-multisite  # the tests site as a network, for the multisite tests
 ```
 
-1. **Branch from `main`**: `<type>/<kebab-case>`, for example `fix/sync-retry-count`.
+1. **Start from an accepted issue**, and branch from `main` as `<type>/<number>-<kebab-case>`, for example `fix/61-sync-retry-count` (`dx start <number>`, from [DiluxOne/.github](https://github.com/DiluxOne/.github/blob/main/docs/agents.md)).
 2. **Make the change with its tests at every layer it touches** (unit, integration, end-to-end, the real-storage suites when storage behaviour changes, the screenshots when a screen changes), the docs that describe it, and a changelog line when a user will notice it ([`docs/testing-and-quality.md`](docs/testing-and-quality.md)).
-3. **Commit** with [Conventional Commit](https://www.conventionalcommits.org/) headers of at most 100 characters ([`CONTRIBUTING.md`](CONTRIBUTING.md#titles-and-commits)).
-4. **Write the pull request description** in `build/pr.md`, with the sections of the [template](.github/pull_request_template.md).
+3. **Commit** with [Conventional Commit](https://www.conventionalcommits.org/) headers of 72 characters or fewer.
+4. **Write the pull request description** in `.git/dx/pr.md`, which `dx start` wrote with the sections of the organisation's [template](https://github.com/DiluxOne/.github/blob/main/pull_request_template.md), already closing the issue.
 5. **Run everything the pull request will be checked on, here, first:**
    ```bash
-   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file build/pr.md"
+   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
    ```
 6. **Fix what it finds.** The local review writes each finding, with its file and line, to `.git/dx-review/findings.md`. Fix, commit, run step 5 again (it reviews only what changed) until it says **Ready for a pull request**.
 7. **Open the pull request.** The same checks and the same review run again on GitHub, plus the few that need the cloud's keys. Every push to an open pull request is another paid review and another wait, so it opens clean and is reviewed once.
@@ -102,9 +102,10 @@ flowchart TB
         L3["make docs-check<br/>links resolve, no retired names"]
         L4["make test-integration<br/>PHPUnit on a WordPress network (wp-env)"]
         L5["make test-e2e<br/>Playwright, every screen, no cloud account"]
-        L6["make plugin-check<br/>wordpress.org's Plugin Check"]
-        L7["make review-local<br/>conventions · risk floor · Claude review"]
-        L1 --> L1b --> L2 --> L3 --> L4 --> L5 --> L6 --> L7
+        L6["make plugin-check<br/>wordpress.org's Plugin Check, strict"]
+        L6b["make review-rules<br/>the kind's rules, suppressions with their reason"]
+        L7["make review-local<br/>conventions · accepted issue · risk floor · Claude review"]
+        L1 --> L1b --> L2 --> L3 --> L4 --> L5 --> L6 --> L6b --> L7
         L8["optional: make s3-up && make test-real REAL_PROVIDER=s3<br/>real-storage journeys on a local S3 server, no keys"]
     end
 
@@ -112,12 +113,12 @@ flowchart TB
 
     subgraph CI["☁️ On GitHub, on every pull request"]
         direction TB
-        C1["Conventions<br/>branch, title, commits, description, links"]
-        C2["Fast suite<br/>syntax + unit tests on PHP 7.4 to 8.5 · PHPCS · PHPStan · Psalm · i18n · Plugin Check · readme and versions"]
-        C3["Claude review<br/>risk, complexity and type labels"]
+        C1["Conventions and the accepted issue<br/>branch, title, commits, description, links (the organisation's)"]
+        C3["Claude review<br/>risk, complexity and type labels (the organisation's)"]
+        C2["Fast suite<br/>syntax + unit tests on PHP 7.4 to 8.5 · PHPCS · PHPStan · Psalm · i18n · Plugin Check · review rules · readme and versions"]
         C4["Slow suite<br/>integration · end-to-end"]
         C5["Real-storage suites, single site and network<br/>S3 server in CI (forks too) · Azure · Cloudflare R2 · Backblaze B2 · Google Cloud Storage (repository keys)"]
-        C1 --> C2 --> C3
+        C1 --> C3
         C2 --> C4
         C2 --> C5
     end
@@ -130,7 +131,7 @@ flowchart TB
 
 | Check | On your machine | On GitHub |
 | --- | --- | --- |
-| Conventions: branch, title, commits, description | `make review-local` | ✅ |
+| Conventions: branch, title, commits, description, accepted issue | `make review-local` | ✅ |
 | PHPCS, PHPStan level 8, Psalm taint, unit tests | `make check` | ✅ |
 | Unit tests on PHP 7.4 | `make test-unit-min` | ✅ |
 | Unit tests on PHP 8.0 to 8.5 | no | ✅ |
@@ -138,14 +139,15 @@ flowchart TB
 | i18n extraction, any warning fails | `make i18n-check` | ✅ |
 | Integration tests (WordPress + MySQL, multisite) | `make test-integration` | ✅ |
 | End-to-end tests (every screen, no cloud account) | `make test-e2e` | ✅ |
-| wordpress.org Plugin Check | `make plugin-check` | ✅ |
+| wordpress.org Plugin Check, strict | `make plugin-check` | ✅ |
+| The kind's review rules (suppressions with their reason) | `make review-rules` | ✅ |
 | The Claude review | `make review-local`, on your Claude account | ✅ on the organisation's account; not on forks |
 | Real-storage journeys against an S3 server | `make s3-up && make test-real REAL_PROVIDER=s3` | ✅, forks included |
 | Real-storage journeys against Azure, R2, B2, Google | only with keys (maintainers) | ✅ with the repository's keys; on forks, after the merge |
 | Listing screenshots | `make screenshots`, when a screen changes | no |
 | CodeQL (JavaScript) | no | ✅ when JavaScript changes |
 
-What each gate catches and how to run it alone: [`docs/testing-and-quality.md`](docs/testing-and-quality.md). What CI cannot run on a fork, and why: [`CONTRIBUTING.md`](CONTRIBUTING.md#forks-and-the-real-storage-suite).
+What each gate catches and how to run it alone: [`docs/testing-and-quality.md`](docs/testing-and-quality.md). What CI cannot run on a fork, and why: [`CONTRIBUTING.md`](CONTRIBUTING.md#forks-and-the-real-storage-suites).
 
 ## People stay in charge
 
@@ -156,9 +158,10 @@ The agents write, test and review; people decide. The maintainer reads every dif
 | Question | Read |
 | --- | --- |
 | **I am an AI agent, or I work with one: what do I do?** | [`AGENTS.md`](AGENTS.md) |
-| How do I contribute: issues, branches, pull requests, what CI enforces, forks | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| How do I contribute: issues, branches, pull requests, what CI enforces | The organisation's [contributing guide](https://github.com/DiluxOne/.github/blob/main/CONTRIBUTING.md) |
+| What is specific to this plugin: forks and the real-storage suites, code rules | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | How is AI used here, and what are the rules for AI-assisted work | [`docs/ai.md`](docs/ai.md) |
-| How do I report a vulnerability | [`SECURITY.md`](SECURITY.md) |
+| How do I report a vulnerability | The organisation's [security policy](https://github.com/DiluxOne/.github/blob/main/SECURITY.md) |
 | How do I set up my machine, which Make targets exist | [`docs/development.md`](docs/development.md) |
 | What does each quality gate check, and when does it run | [`docs/testing-and-quality.md`](docs/testing-and-quality.md) |
 | How is the plugin built, which rules must its code follow | [`docs/architecture.md`](docs/architecture.md) |

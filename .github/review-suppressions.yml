@@ -1,0 +1,95 @@
+# Every nonce, sanitising, SQL and filesystem check this plugin suppresses with a
+# phpcs comment, with why that line is safe in its own terms. Plugin Check
+# honours the comment; the wordpress.org reviewer reads the line without it,
+# so the kind's suppression-unlisted rule (DiluxOne/.github, kinds/
+# wordpress-plugin) fails a suppression that is not listed here. A changed
+# line changes its fingerprint and the entry has to be reviewed again.
+suppressions:
+  - file: includes/class-diluxone-offload-admin.php
+    sniff: WordPress.Security.NonceVerification.Recommended
+    fingerprint: 787448f80541
+    reason: "Which admin page and tab to draw: both are sanitize_key()'d and compared with the plugin's own list of pages and tabs; nothing is saved and nothing is printed from them."
+  - file: includes/class-diluxone-offload-admin.php
+    sniff: WordPress.Security.NonceVerification.Recommended
+    fingerprint: c3ec5d2515b4
+    reason: "Redirects an old ?tab= link to the page that replaced it: the value is sanitize_key()'d and only looked up in a fixed map of old tab names; nothing is saved or printed from it."
+  - file: includes/class-diluxone-offload-admin.php
+    sniff: WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+    fingerprint: 291ec2543107
+    reason: "Only tested with is_scalar() so an array becomes an empty string; the value itself is unslashed and sanitized on the next line before it is used. This same function verifies the nonce and manage_options before it reads $_POST."
+  - file: includes/class-diluxone-offload-cloud-stream-wrapper.php
+    sniff: WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+    fingerprint: fe0dc00f56a9
+    reason: "This file is the plugin's PHP stream wrapper: fopen, fread, fwrite, fclose and file_get_contents here operate on the wrapper's local temporary buffer file, and WP_Filesystem cannot implement the stream wrapper protocol."
+  - file: includes/class-diluxone-offload-db.php
+    sniff: WordPress.DB.PreparedSQL.NotPrepared
+    fingerprint: 570d9ed25d99
+    reason: "The plugin's own table (wp_diluxone_offload_files): every interpolated identifier is the table name built from $wpdb->prefix and a constant, and every value goes through $wpdb->prepare() placeholders."
+  - file: includes/class-diluxone-offload-db.php
+    sniff: WordPress.DB.PreparedSQL.NotPrepared
+    fingerprint: 44a5429c4dd1
+    reason: "The query is a fixed string with only the plugin's own table name, from $wpdb->prefix and a constant; the one value, the limit, is the %d placeholder of this prepare()."
+  - file: includes/class-diluxone-offload-image-editor-gd.php
+    sniff: WordPress.WP.AlternativeFunctions.unlink_unlink
+    fingerprint: 9dcc95554590
+    reason: "Deletes the temporary file the GD editor created in get_temp_dir() to work on a cloud image; never a file under uploads/ and never a path from input."
+  - file: includes/class-diluxone-offload-image-editor-imagick.php
+    sniff: WordPress.WP.AlternativeFunctions.unlink_unlink
+    fingerprint: 9dcc95554590
+    reason: "Deletes the temporary file the Imagick editor created in get_temp_dir() to work on a cloud image; never a file under uploads/ and never a path from input."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 0a77bdca0ce6
+    reason: "Interpolates only the plugin's own table name, from $wpdb->prefix and a constant; the file path is the %s placeholder of prepare()."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: f6aaccdfbf9a
+    reason: "Interpolates only the plugin's own table name, from $wpdb->prefix and a constant; the query has no other variable part."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: e48ad46e2a60
+    reason: "Interpolates only the plugin's own table name, from $wpdb->prefix and a constant; the query has no other variable part."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 9fefb5ca1038
+    reason: "Interpolates only the plugin's own table name, from $wpdb->prefix and a constant; the file path is the %s placeholder of prepare()."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 6a2607d9f762
+    reason: "Interpolates only the plugin's own table name, $wpdb->prefix and a constant; the query has no other variable part."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 2113b1fcfcf8
+    reason: "Interpolates only the plugin's own table name, $wpdb->prefix and a constant; the batch size is the %d placeholder of prepare()."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: f2c48f5cec34
+    reason: "Interpolates only the plugin's own table name, $wpdb->prefix and a constant; the query has no other variable part."
+  - file: includes/class-diluxone-offload-plugin-enhanced.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 19ce68fb82ba
+    reason: "Interpolates only the plugin's own table name, $wpdb->prefix and a constant; the query has no other variable part."
+  - file: includes/class-diluxone-offload-sync-manager.php
+    sniff: WordPress.WP.AlternativeFunctions.curl_curl_multi_init
+    fingerprint: 1d0d16135be4
+    reason: "Runs many uploads and downloads in parallel with curl_multi, streaming each body from or to disk; the WordPress HTTP API has no parallel requests and no streamed request body. The SQL in this file targets only the plugin's own table, named from $wpdb->prefix and a constant, with values as prepare() placeholders."
+  - file: includes/class-diluxone-offload-sync-manager.php
+    sniff: WordPress.WP.AlternativeFunctions.rename_rename
+    fingerprint: 2d3770348ec7
+    reason: "Moves the finished download from its .part file onto the attachment's own path under uploads/, both resolved by WordPress for that attachment; WP_Filesystem has no atomic rename for a local file."
+  - file: includes/providers/class-azure-provider.php
+    sniff: WordPress.WP.AlternativeFunctions.curl_curl_init
+    fingerprint: c5b041c40d2a
+    reason: "Talks to the Azure Blob REST API with cURL: the WordPress HTTP API cannot stream a request body from a file, which a large upload needs to stay out of memory; the file functions read that local file or a temporary one."
+  - file: includes/providers/class-s3-compatible-provider.php
+    sniff: WordPress.WP.AlternativeFunctions.curl_curl_init
+    fingerprint: 96aae653e00e
+    reason: "Talks to the S3 REST API with cURL: the WordPress HTTP API cannot stream a request body from a file, which a large upload needs to stay out of memory; the file functions read that local file or a temporary one."
+  - file: includes/providers/trait-part-upload.php
+    sniff: WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
+    fingerprint: f352d7e13d73
+    reason: "Streams one part of a chunked upload from the local file into a cURL handle at its offset, so a part never sits in memory; the WordPress HTTP API cannot stream a request body."
+  - file: uninstall.php
+    sniff: WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    fingerprint: 959a3f849395
+    reason: "Drops the plugin's own table on uninstall; the name is $wpdb->prefix and a constant, not input."

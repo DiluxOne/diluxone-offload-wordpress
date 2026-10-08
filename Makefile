@@ -160,7 +160,7 @@ STAMP        ?= 1
 
 build/next-version.py:
 	@mkdir -p build
-	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v2/scripts/next-version.py -o "$@"
+	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v5/scripts/next-version.py -o "$@"
 
 # stamp <dir>: the three version markers of the copy under <dir> become the
 # development version, and a `Build:` header line (absent in the tree)
@@ -227,9 +227,16 @@ pcp-env:
 	@cd "$(PCP_DIR)" && (npx @wordpress/env run cli wp plugin is-installed plugin-check >/dev/null 2>&1 \
 	  || npx @wordpress/env run cli wp plugin install plugin-check --activate >/dev/null)
 
+# Strict, as CI runs it (the wordpress-plugin pack of DiluxOne/.github,
+# kinds/wordpress-plugin/pack.yml): its categories, the experimental checks,
+# and every warning fails, as it does for the reviewer.
+PCP_ARGS := --categories=plugin_repo,security,performance,accessibility,general --include-experimental --ignore-codes=stable_tag_mismatch
+
 .PHONY: plugin-check
-plugin-check: pcp-env ## Run wordpress.org's Plugin Check on the built dist.
-	@cd "$(PCP_DIR)" && npx @wordpress/env run cli wp plugin check diluxone-offload --format=table --severity=5
+plugin-check: pcp-env ## Run wordpress.org's Plugin Check on the built dist, strict as CI: a warning fails.
+	@cd "$(PCP_DIR)" && out="$$(npx @wordpress/env run cli wp plugin check diluxone-offload --format=csv $(PCP_ARGS) 2>&1)"; \
+	echo "$$out"; \
+	if echo "$$out" | grep -qE ',(ERROR|WARNING),'; then echo "✖ Plugin Check found errors or warnings (strict)."; exit 1; fi
 
 .PHONY: plugin-check-all
 plugin-check-all: pcp-env ## Plugin Check on the built dist, including warnings and notices.
@@ -358,31 +365,43 @@ check: lint stan psalm test ## Run the fast quality gates (lint, stan, psalm, un
 # The organisation's local review (DiluxOne/.github, scripts/local-review.sh):
 # the pull request's conventions, risk floor and Claude review, run before the
 # pull request exists. The script is the organisation's own, trusted at the
-# moving tag REVIEW_CENTRAL_REF (v2, what CI calls too); it is cloned into
+# moving tag REVIEW_CENTRAL_REF (v5, what CI calls too); it is cloned into
 # build/.dx-central and refreshed on every run. REVIEW_CENTRAL=<path> uses a
 # checkout of your own instead, to try a change to the review itself.
 REVIEW_CENTRAL     ?= build/.dx-central
-REVIEW_CENTRAL_REF ?= v2
+REVIEW_CENTRAL_REF ?= v5
 
-.PHONY: review-local
-review-local: ## The pull request's review before it exists: conventions, risk floor, Claude review (REVIEW_ARGS="--body-file pr.md", "--title …", "--no-claude").
+.PHONY: dx-central
+dx-central:
 	@if [ "$(REVIEW_CENTRAL)" = build/.dx-central ]; then \
 	  [ -d build/.dx-central/.git ] || { rm -rf build/.dx-central && git -c advice.detachedHead=false clone -q --depth 1 --branch $(REVIEW_CENTRAL_REF) https://github.com/DiluxOne/.github build/.dx-central; }; \
 	  git -C build/.dx-central fetch -q --depth 1 origin $(REVIEW_CENTRAL_REF) && git -C build/.dx-central checkout -q FETCH_HEAD; \
 	  echo "DiluxOne/.github at $(REVIEW_CENTRAL_REF) ($$(git -C build/.dx-central rev-parse --short HEAD)): moving that tag changes what runs here."; \
 	fi
+
+.PHONY: review-local
+review-local: dx-central ## The pull request's review before it exists: conventions, risk floor, Claude review (REVIEW_ARGS="--body-file pr.md", "--title …", "--no-claude").
 	bash "$(REVIEW_CENTRAL)/scripts/local-review.sh" $(REVIEW_ARGS)
+
+# The check "Review rules (wordpress-plugin)" of CI: the kind's rules
+# (DiluxOne/.github, kinds/wordpress-plugin/rules.yml) on the shipped tree,
+# every suppression listed with its reason in .github/review-suppressions.yml.
+.PHONY: review-rules
+review-rules: dx-central ## The kind's review rules on the shipped tree, as CI's "Review rules" check.
+	@$(MAKE) --no-print-directory dist STAMP=0 >/dev/null
+	$(DOCKER_RUN) $(PHP_IMAGE) php "$(REVIEW_CENTRAL)/scripts/review-rules.php" --kind wordpress-plugin --repo . --tree "$(DIST_DIR)"
 
 # The docs job of the conventions workflow, the same checks locally: relative
 # links resolve (lychee, the version lychee-action runs in CI) and no retired
-# product name comes back (the regex the workflow passes, read from it).
+# product name comes back (the regex of `retired-names:` in the review policy,
+# which the workflow reads too).
 LYCHEE_IMAGE ?= lycheeverse/lychee:0.24.2
 
 .PHONY: docs-check
 docs-check: ## Relative links in every Markdown file resolve, and no retired product name is back (what CI's docs job checks).
 	docker run --rm -v "$(CURDIR)":/input -w /input $(LYCHEE_IMAGE) --offline --no-progress --exclude-path node_modules --exclude-path vendor --exclude-path build './**/*.md' './.github/**/*.md'
-	@retired=$$(sed -n "s/.*retired-names: '\(.*\)'.*/\1/p" .github/workflows/pull-request.yml | head -1); \
-	[ -n "$$retired" ] || { echo "No retired-names: line in .github/workflows/pull-request.yml to check against."; exit 1; }; \
+	@retired=$$(sed -n "s/^retired-names: '\(.*\)'.*/\1/p" .github/review-policy.yml | head -1); \
+	[ -n "$$retired" ] || { echo "No retired-names: line in .github/review-policy.yml to check against."; exit 1; }; \
 	if git grep -nIiE "$$retired" -- . | grep -vE '^[^:]+:[0-9]+:\s*retired-names:'; then echo "A retired product name is back (see above)."; exit 1; fi; \
 	echo "No retired product names."
 
@@ -395,6 +414,7 @@ pre-pr: ## Everything a pull request is checked on that runs without a cloud acc
 	$(MAKE) test-integration
 	$(MAKE) test-e2e
 	$(MAKE) plugin-check
+	$(MAKE) review-rules
 	$(MAKE) review-local
 	@echo "✔ Checks passed; the review above says whether the branch is ready for a pull request."
 

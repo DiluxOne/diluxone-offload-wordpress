@@ -1,0 +1,80 @@
+name: Plugin checks
+
+# DiluxOne Offload's own checks, from the shared workflows in DiluxOne/.github:
+# the fast quality gates, the slow wp-env suites and the real-storage suites
+# (this repository's own tests-real-azure.yml and tests-real-s3.yml, called
+# from here), on every pull request, on a push to main, once a week and by
+# hand. The conventions, the accepted-issue gate, the Claude review and the
+# auto-merge decision are the organisation's (org-pull-request.yml, required
+# by its `main` ruleset): nothing of them here. This repository's "own checks"
+# ruleset requires every check below, the real-storage suites included, so
+# nothing merges past them. CodeQL (codeql.yml) is this repository's own too.
+#
+# A push to main runs the suites only when its tree is not the one the pull
+# request's checks ran on. Once a week, and on the Run workflow button,
+# everything runs against today's WordPress and tools; a scheduled failure
+# opens one ci:weekly issue.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    permissions:
+      contents: read
+      pull-requests: read # the push to main looks up the pull request it came from
+      checks: read # and the checks of its head
+    uses: DiluxOne/.github/.github/workflows/plugin-checks-wp.yml@v5
+    with:
+      slug: diluxone-offload
+      version-constant: DILUXONE_OFFLOAD_VERSION
+
+  tests:
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    uses: DiluxOne/.github/.github/workflows/plugin-tests-wp.yml@v5
+
+  # The real-storage suites, this repository's own workflows. Each decides
+  # inside whether it runs (code changed; keys only on this repository's own
+  # non-draft, non-Dependabot pull requests); a skipped one counts as passing
+  # for the required check.
+  real-azure:
+    # Pull requests into main only, as the suite's own trigger had it.
+    if: github.event_name != 'pull_request' || github.base_ref == 'main'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      checks: read # the suite's change detection reads the checks of a merged head
+    uses: ./.github/workflows/tests-real-azure.yml
+    secrets: inherit
+
+  real-s3:
+    # Pull requests into main only, as the suite's own trigger had it.
+    if: github.event_name != 'pull_request' || github.base_ref == 'main'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      checks: read # the suite's change detection reads the checks of a merged head
+    uses: ./.github/workflows/tests-real-s3.yml
+    secrets: inherit
+
+  weekly-failure:
+    needs: [checks, tests]
+    if: ${{ !cancelled() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+    permissions:
+      contents: read
+      issues: write
+    uses: DiluxOne/.github/.github/workflows/weekly-failure.yml@v5
