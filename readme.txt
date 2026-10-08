@@ -4,7 +4,7 @@ Tags: s3, offload, azure, cloud storage, uploads
 Requires at least: 5.1
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -247,7 +247,6 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 == Changelog ==
 
 = 2.1.0 =
-Unreleased.
 
 * Enable Offloading looks for files added since the last sync first: it says how many there are and uploads them before offloading is turned on. A file added between the end of the sync and enabling offloading used to stay off the cloud, a broken image once offloading was on. A synced library also offers Scan and Complete Sync on Sync & Offloading › Sync.
 * Opening Sync & Offloading › Sync more than 90 seconds after a sync finished no longer resets the plugin to "configured", which turned offloading off without a word.
