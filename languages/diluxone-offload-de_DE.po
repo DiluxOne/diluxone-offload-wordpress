@@ -1782,6 +1782,7 @@ msgid "Microsoft Azure Blob Storage"
 msgstr "Microsoft Azure Blob Storage"
 
 #: includes/factories/class-cloud-storage-factory.php:93
+#: templates/admin-provider-connection.php:64
 #: templates/admin-provider-connection.php:122
 msgid "S3-compatible storage"
 msgstr "S3-kompatibler Speicher"
@@ -3730,14 +3731,6 @@ msgstr "OVHcloud Object Storage"
 #: includes/providers/class-s3-presets.php:166
 msgid "IDrive e2"
 msgstr "IDrive e2"
-
-#: templates/admin-provider-connection.php:64
-msgid ""
-"S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud "
-"Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
-msgstr ""
-"S3-kompatibler Speicher (Amazon S3, Cloudflare R2, Backblaze B2, Google "
-"Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
 
 #: templates/admin-provider-connection.php:140
 msgid ""
