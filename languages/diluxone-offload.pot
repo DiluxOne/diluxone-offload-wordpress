@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: DiluxOne Offload – Media Storage 2.0.0\n"
+"Project-Id-Version: DiluxOne Offload – Media Storage 2.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/diluxone-offload\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-03T02:43:00+00:00\n"
+"POT-Creation-Date: 2026-10-11T17:06:25+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: diluxone-offload\n"
@@ -1467,27 +1467,27 @@ msgid "Cloud client not available"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:2091
-#: includes/class-diluxone-offload-plugin-enhanced.php:216
-#: includes/class-diluxone-offload-plugin-enhanced.php:359
-#: includes/class-diluxone-offload-plugin-enhanced.php:385
-#: includes/class-diluxone-offload-plugin-enhanced.php:425
-#: includes/class-diluxone-offload-plugin-enhanced.php:467
-#: includes/class-diluxone-offload-plugin-enhanced.php:504
-#: includes/class-diluxone-offload-plugin-enhanced.php:530
-#: includes/class-diluxone-offload-plugin-enhanced.php:647
-#: includes/class-diluxone-offload-plugin-enhanced.php:727
-#: includes/class-diluxone-offload-plugin-enhanced.php:846
-#: includes/class-diluxone-offload-plugin-enhanced.php:906
-#: includes/class-diluxone-offload-plugin-enhanced.php:936
-#: includes/class-diluxone-offload-plugin-enhanced.php:981
-#: includes/class-diluxone-offload-plugin-enhanced.php:1022
-#: includes/class-diluxone-offload-plugin-enhanced.php:1043
-#: includes/class-diluxone-offload-plugin-enhanced.php:1073
-#: includes/class-diluxone-offload-plugin-enhanced.php:1122
-#: includes/class-diluxone-offload-plugin-enhanced.php:1162
-#: includes/class-diluxone-offload-plugin-enhanced.php:1302
-#: includes/class-diluxone-offload-plugin-enhanced.php:1354
-#: includes/class-diluxone-offload-plugin-enhanced.php:1515
+#: includes/class-diluxone-offload-plugin-enhanced.php:219
+#: includes/class-diluxone-offload-plugin-enhanced.php:362
+#: includes/class-diluxone-offload-plugin-enhanced.php:388
+#: includes/class-diluxone-offload-plugin-enhanced.php:428
+#: includes/class-diluxone-offload-plugin-enhanced.php:470
+#: includes/class-diluxone-offload-plugin-enhanced.php:507
+#: includes/class-diluxone-offload-plugin-enhanced.php:533
+#: includes/class-diluxone-offload-plugin-enhanced.php:650
+#: includes/class-diluxone-offload-plugin-enhanced.php:730
+#: includes/class-diluxone-offload-plugin-enhanced.php:853
+#: includes/class-diluxone-offload-plugin-enhanced.php:912
+#: includes/class-diluxone-offload-plugin-enhanced.php:942
+#: includes/class-diluxone-offload-plugin-enhanced.php:987
+#: includes/class-diluxone-offload-plugin-enhanced.php:1028
+#: includes/class-diluxone-offload-plugin-enhanced.php:1049
+#: includes/class-diluxone-offload-plugin-enhanced.php:1079
+#: includes/class-diluxone-offload-plugin-enhanced.php:1132
+#: includes/class-diluxone-offload-plugin-enhanced.php:1172
+#: includes/class-diluxone-offload-plugin-enhanced.php:1312
+#: includes/class-diluxone-offload-plugin-enhanced.php:1364
+#: includes/class-diluxone-offload-plugin-enhanced.php:1525
 msgid "Unauthorized"
 msgstr ""
 
@@ -1526,18 +1526,18 @@ msgid "Plugin reset to configured state successfully"
 msgstr ""
 
 #: includes/class-diluxone-offload-admin.php:2243
-#: includes/class-diluxone-offload-plugin-enhanced.php:220
-#: includes/class-diluxone-offload-plugin-enhanced.php:363
-#: includes/class-diluxone-offload-plugin-enhanced.php:389
-#: includes/class-diluxone-offload-plugin-enhanced.php:429
-#: includes/class-diluxone-offload-plugin-enhanced.php:471
-#: includes/class-diluxone-offload-plugin-enhanced.php:508
-#: includes/class-diluxone-offload-plugin-enhanced.php:534
-#: includes/class-diluxone-offload-plugin-enhanced.php:651
-#: includes/class-diluxone-offload-plugin-enhanced.php:731
-#: includes/class-diluxone-offload-plugin-enhanced.php:850
-#: includes/class-diluxone-offload-plugin-enhanced.php:910
-#: includes/class-diluxone-offload-plugin-enhanced.php:1026
+#: includes/class-diluxone-offload-plugin-enhanced.php:223
+#: includes/class-diluxone-offload-plugin-enhanced.php:366
+#: includes/class-diluxone-offload-plugin-enhanced.php:392
+#: includes/class-diluxone-offload-plugin-enhanced.php:432
+#: includes/class-diluxone-offload-plugin-enhanced.php:474
+#: includes/class-diluxone-offload-plugin-enhanced.php:511
+#: includes/class-diluxone-offload-plugin-enhanced.php:537
+#: includes/class-diluxone-offload-plugin-enhanced.php:654
+#: includes/class-diluxone-offload-plugin-enhanced.php:734
+#: includes/class-diluxone-offload-plugin-enhanced.php:857
+#: includes/class-diluxone-offload-plugin-enhanced.php:916
+#: includes/class-diluxone-offload-plugin-enhanced.php:1032
 msgid "Sync manager not available"
 msgstr ""
 
@@ -1632,126 +1632,126 @@ msgstr ""
 msgid "Unable to copy file from cloud"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:433
+#: includes/class-diluxone-offload-plugin-enhanced.php:436
 msgid "The target is inspected only before the first sync."
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:441
-#: includes/class-diluxone-offload-plugin-enhanced.php:490
+#: includes/class-diluxone-offload-plugin-enhanced.php:444
+#: includes/class-diluxone-offload-plugin-enhanced.php:493
 #, php-format
 msgid "The container or bucket could not be listed: %s"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:477
+#: includes/class-diluxone-offload-plugin-enhanced.php:480
 msgid "The name typed is not the name of the container or bucket; nothing was deleted."
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:481
+#: includes/class-diluxone-offload-plugin-enhanced.php:484
 msgid "A sync has run since, so what is there is this site's media; nothing was deleted."
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:544
+#: includes/class-diluxone-offload-plugin-enhanced.php:547
 msgid "Cloud client not configured"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:614
+#: includes/class-diluxone-offload-plugin-enhanced.php:617
 msgid "Could not record the files found in the cloud. Check the database error log and try again."
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:634
+#: includes/class-diluxone-offload-plugin-enhanced.php:637
 #, php-format
 msgid "Error scanning remote files: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:715
+#: includes/class-diluxone-offload-plugin-enhanced.php:718
 #, php-format
 msgid "Error calculating download: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:789
+#: includes/class-diluxone-offload-plugin-enhanced.php:792
 #, php-format
 msgid "Error calculating sync: %s"
 msgstr ""
 
 #. translators: %d: number of files
-#: includes/class-diluxone-offload-plugin-enhanced.php:874
+#: includes/class-diluxone-offload-plugin-enhanced.php:879
 #, php-format
 msgid "%d file was added since the last sync: it has to be uploaded before offloading is enabled."
 msgid_plural "%d files were added since the last sync: they have to be uploaded before offloading is enabled."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:886
+#: includes/class-diluxone-offload-plugin-enhanced.php:891
 msgid "Some files are not in the cloud yet: complete the sync, or clear the failed ones, before enabling offloading."
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:895
-#: includes/class-diluxone-offload-plugin-enhanced.php:966
+#: includes/class-diluxone-offload-plugin-enhanced.php:901
+#: includes/class-diluxone-offload-plugin-enhanced.php:972
 msgid "Failed to activate offloading"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:921
+#: includes/class-diluxone-offload-plugin-enhanced.php:927
 msgid "Failed to deactivate offloading"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:940
-#: includes/class-diluxone-offload-plugin-enhanced.php:985
+#: includes/class-diluxone-offload-plugin-enhanced.php:946
+#: includes/class-diluxone-offload-plugin-enhanced.php:991
 msgid "DILUXONE_OFFLOAD_DEV_MODE is not enabled"
 msgstr ""
 
 #. translators: %1$s is current state, %2$s is expected state.
-#: includes/class-diluxone-offload-plugin-enhanced.php:949
-#: includes/class-diluxone-offload-plugin-enhanced.php:994
+#: includes/class-diluxone-offload-plugin-enhanced.php:955
+#: includes/class-diluxone-offload-plugin-enhanced.php:1000
 #, php-format
 msgid "Invalid state: %1$s. Expected: %2$s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1061
+#: includes/class-diluxone-offload-plugin-enhanced.php:1067
 #, php-format
 msgid "Failed to prepare resync: %s"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:1105
+#: includes/class-diluxone-offload-plugin-enhanced.php:1115
 msgid "Failed to discard failed files"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1110
+#: includes/class-diluxone-offload-plugin-enhanced.php:1120
 #, php-format
 msgid "Error discarding failed files: %s"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:1173
+#: includes/class-diluxone-offload-plugin-enhanced.php:1183
 msgid "WordPress reports no uploads directory, so there is nothing to delete from."
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:1310
+#: includes/class-diluxone-offload-plugin-enhanced.php:1320
 msgid "Session ID is required"
 msgstr ""
 
-#: includes/class-diluxone-offload-plugin-enhanced.php:1317
+#: includes/class-diluxone-offload-plugin-enhanced.php:1327
 msgid "No active sync found"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1341
+#: includes/class-diluxone-offload-plugin-enhanced.php:1351
 #, php-format
 msgid "Error taking control: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1503
+#: includes/class-diluxone-offload-plugin-enhanced.php:1513
 #, php-format
 msgid "Error getting sync state: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/class-diluxone-offload-plugin-enhanced.php:1536
+#: includes/class-diluxone-offload-plugin-enhanced.php:1546
 #, php-format
 msgid "Error getting failed files count: %s"
 msgstr ""
@@ -1907,6 +1907,7 @@ msgid "Microsoft Azure Blob Storage"
 msgstr ""
 
 #: includes/factories/class-cloud-storage-factory.php:93
+#: templates/admin-provider-connection.php:64
 #: templates/admin-provider-connection.php:122
 msgid "S3-compatible storage"
 msgstr ""
@@ -2165,10 +2166,6 @@ msgstr ""
 
 #: templates/admin-provider-connection.php:59
 msgid "Select a provider..."
-msgstr ""
-
-#: templates/admin-provider-connection.php:64
-msgid "S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)"
 msgstr ""
 
 #: templates/admin-provider-connection.php:68

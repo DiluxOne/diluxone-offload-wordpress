@@ -170,6 +170,13 @@ test.describe('Cloud Provider › Connection', () => {
 		expect(values).toEqual(['azure', 's3']);
 	});
 
+	test('names the S3 option without a list of providers', async ({ page }) => {
+		await page.goto(CONNECTION);
+		const label = (await page.locator('#cloud_provider option[value="s3"]').innerText()).trim();
+		expect(label).toMatch(/^(S3-compatible storage|Almacenamiento compatible con S3)$/);
+		expect(label).not.toContain('(');
+	});
+
 	test('submitting Azure with empty fields does not silently succeed', async ({ page }) => {
 		await page.goto(CONNECTION);
 
