@@ -246,6 +246,12 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 
 == Changelog ==
 
+= 2.2.0 =
+
+Unreleased.
+
+* The provider selector on Cloud Provider › Connection names its second option just "S3-compatible storage", without the list of providers that made the open dropdown wider than the page.
+
 = 2.1.0 =
 
 * Enable Offloading looks for files added since the last sync first: it says how many there are and uploads them before offloading is turned on. A file added between the end of the sync and enabling offloading used to stay off the cloud, a broken image once offloading was on. A synced library also offers Scan and Complete Sync on Sync & Offloading › Sync.

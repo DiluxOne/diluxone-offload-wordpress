@@ -553,6 +553,12 @@ class AdminRenderTest extends IntegrationTestCase {
         $this->assertStringContainsString('name="s3_secret_access_key" value=""', $html, 'the secret field is always empty');
     }
 
+    public function test_the_s3_option_is_named_without_a_list_of_providers(): void {
+        $html = $this->render('connection');
+        $this->assertSame(1, preg_match('#<option value="s3"[^>]*>(.*?)</option>#s', $html, $m), 'one S3 option');
+        $this->assertSame('S3-compatible storage', trim($m[1]), 'a short label, so the dropdown stays as wide as the field');
+    }
+
     public function test_the_overview_has_three_state_cards(): void {
         $this->configure(PluginState::OFFLOADING_ACTIVE);
         $this->useFakeClient();

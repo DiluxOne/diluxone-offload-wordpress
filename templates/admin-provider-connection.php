@@ -61,7 +61,7 @@ $is_unhealthy          = ( $health['status'] ?? '' ) === 'unhealthy';
 									<?php esc_html_e( 'Microsoft Azure Blob Storage', 'diluxone-offload' ); ?>
 								</option>
 								<option value="s3" <?php selected( $config['cloud_provider'] ?? '', 's3' ); ?>>
-									<?php esc_html_e( 'S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Google Cloud Storage, Hetzner, Scaleway, OVHcloud, MinIO, …)', 'diluxone-offload' ); ?>
+									<?php esc_html_e( 'S3-compatible storage', 'diluxone-offload' ); ?>
 								</option>
 							</select>
 							<p class="description">
