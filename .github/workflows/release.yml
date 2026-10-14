@@ -43,7 +43,7 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@01837f9da2b980374c9c37748a533d0a2d623cd8 # v5.4.0
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@v5
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
