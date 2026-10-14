@@ -100,7 +100,7 @@ Before a release, `make release` on `main` runs the full quality gate and the ma
 
 ## Secrets and the release App
 
-Everything the publication needs lives in the environment `wordpress-org`, never as a repository or organisation secret. The `Release` caller passes `secrets: inherit` (the only way an environment's secrets reach a called workflow), which is why it runs only on `main` and on `X.Y.Z` tags and calls the shared workflow at a fixed commit. After rotating the SVN password, run **SVN credentials check** from the Actions tab: it authenticates from the environment without committing anything.
+Everything the publication needs lives in the environment `wordpress-org`, never as a repository or organisation secret. The `Release` caller passes `secrets: inherit` (the only way an environment's secrets reach a called workflow), which is why it runs only on `main` and on `X.Y.Z` tags and calls the shared workflow at `v5`, a protected ref of DiluxOne/.github that only an administrator moves (nothing is pinned to a commit, DiluxOne/.github#136). After rotating the SVN password, run **SVN credentials check** from the Actions tab: it authenticates from the environment without committing anything.
 
 | In the environment | What it's for |
 | --- | --- |
