@@ -115,6 +115,13 @@ class RealS3ProviderTest extends IntegrationTestCase {
         return $path;
     }
 
+    /** A file of $bytes whose last byte is "0": the one string PHP's empty() is true of. */
+    private function tempFileEndingInZero(int $bytes): string {
+        $path = $this->tempFile($bytes - 1, 'bin');
+        file_put_contents($path, '0', FILE_APPEND);
+        return $path;
+    }
+
     private function key(string $name): string {
         return self::$prefix . 'uploads/2026/09/' . $name;
     }
@@ -242,6 +249,25 @@ class RealS3ProviderTest extends IntegrationTestCase {
             $down = $this->tempFile(0);
             $got  = self::$provider->download_file($key, $down);
             $this->assertTrue($got['success'], $bytes . ': ' . ($got['error'] ?? ''));
+            $this->assertSame(md5_file($local), md5_file($down), (string) $bytes);
+        }
+    }
+
+    /**
+     * WordPress' Requests library hands a body to curl only when !empty($data),
+     * and empty('0') is true: a one-byte file "0", or a file one byte over a
+     * whole number of parts whose last byte is "0", went up with no body and
+     * no Content-Length (issue #71: a 411 from Google on the last part).
+     */
+    public function test_a_body_php_calls_empty_is_still_sent(): void {
+        foreach ([1, 5242880 + 1] as $bytes) {
+            $local  = $this->tempFileEndingInZero($bytes);
+            $remote = $this->key("zero-{$bytes}.bin");
+            $up     = self::$provider->upload_file($local, $remote);
+            $this->assertTrue($up['success'], $bytes . ': ' . ($up['error'] ?? ''));
+            $this->assertSame($bytes, (int) self::$provider->get_file_info($remote)['size'], (string) $bytes);
+            $down = $this->tempFile(0);
+            $this->assertTrue(self::$provider->download_file($remote, $down)['success'], (string) $bytes);
             $this->assertSame(md5_file($local), md5_file($down), (string) $bytes);
         }
     }

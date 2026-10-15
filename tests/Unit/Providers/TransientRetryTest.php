@@ -249,4 +249,63 @@ class TransientRetryTest extends TestCase {
 		}
 		$this->assertCount( 3, $GLOBALS['_test_wp_http_log'], 'the listing does not retry what the request already retried' );
 	}
+
+	/**
+	 * WordPress' Requests library hands a body to curl only when !empty($data),
+	 * and empty('0') is true: a one-byte body "0" went out with no body and no
+	 * Content-Length (a 411 from Google, issue #71). That body is given to the
+	 * handle through http_api_curl, for that request only.
+	 *
+	 * @dataProvider providers
+	 * @param \Closure(): CloudStorageClientInterface $make
+	 */
+	public function test_a_body_php_calls_empty_is_still_sent( \Closure $make, int $created ): void {
+		if ( ! function_exists( 'curl_init' ) ) {
+			$this->markTestSkipped( 'ext-curl' );
+		}
+		$GLOBALS['_test_wp_hooks'] = array();
+		$zero                      = (string) tempnam( sys_get_temp_dir(), 'tr' );
+		file_put_contents( $zero, '0' );
+
+		$seen                     = array();
+		$GLOBALS['_test_wp_http'] = function ( string $method, string $url, array $args ) use ( &$seen, $created ) {
+			$seen[] = $GLOBALS['_test_wp_hooks']['action']['http_api_curl'] ?? array();
+			return self::reply( $created );
+		};
+
+		$provider = $make();
+		$this->assertTrue( $provider->upload_file( $zero, 'uploads/2026/09/zero.txt' )['success'] );
+		$this->assertCount( 1, $seen );
+		$this->assertCount( 1, $seen[0], 'one callback on http_api_curl while the request is sent' );
+		$this->assertSame( array(), $GLOBALS['_test_wp_hooks']['action']['http_api_curl'], 'and none once it is answered' );
+
+		// The callback gives the handle the byte: the request states Content-Length: 1
+		// and carries it. Read back from a socket of this process, once curl gave up waiting.
+		$server = stream_socket_server( 'tcp://127.0.0.1:0', $errno, $errstr );
+		$this->assertNotFalse( $server, (string) $errstr );
+		$handle = curl_init( 'http://' . stream_socket_get_name( $server, false ) . '/' );
+		curl_setopt( $handle, CURLOPT_CUSTOMREQUEST, 'PUT' );
+		curl_setopt( $handle, CURLOPT_RETURNTRANSFER, true );
+		curl_setopt( $handle, CURLOPT_TIMEOUT_MS, 500 );
+		curl_setopt( $handle, CURLOPT_HTTPHEADER, array( 'Expect:' ) );
+		( $seen[0][0]['callback'] )( $handle );
+		curl_exec( $handle );
+		$client = stream_socket_accept( $server, 1 );
+		$this->assertNotFalse( $client );
+		stream_set_timeout( $client, 1 );
+		$request = (string) stream_get_contents( $client );
+		fclose( $client );
+		fclose( $server );
+		$this->assertStringContainsStringIgnoringCase( "\r\nContent-Length: 1\r\n", $request );
+		$this->assertStringEndsWith( "\r\n\r\n0", $request );
+
+		// Any other body goes the usual way, with no hook.
+		$one = (string) tempnam( sys_get_temp_dir(), 'tr' );
+		file_put_contents( $one, '1' );
+		$seen = array();
+		$this->assertTrue( $provider->upload_file( $one, 'uploads/2026/09/one.txt' )['success'] );
+		$this->assertSame( array(), $seen[0] );
+		unlink( $zero );
+		unlink( $one );
+	}
 }
