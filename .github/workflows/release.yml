@@ -16,9 +16,20 @@ name: Release
 
 on:
   push:
-    branches: [main]
-    # X.Y.Z tags only: an administrator's, or the release App's.
+    # security/X.Y.Z: a security patch on the version in production, pushed
+    # by dilux-security once a maintainer approved it in the private
+    # repository (DiluxOne/.github#247, #287).
+    branches: [main, 'security/[0-9]+.[0-9]+.[0-9]+']
     tags: ['[0-9]+.[0-9]+.[0-9]+']
+  # The release, published: where the plugin goes next (#287).
+  release:
+    types: [published]
+  # Publish a release again by hand (after a failure), by its tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to publish to wordpress.org again (X.Y.Z).
+        required: true
 
 # The SVN credentials and the release App's key live in the environment
 # `wordpress-org` (Settings › Environments), which the shared workflow's
@@ -39,13 +50,19 @@ permissions:
 
 jobs:
   release:
-    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@v5
+    if: github.event_name == 'push'
+    # At `v6`, never a pinned commit: see the header.
+    uses: DiluxOne/.github/.github/workflows/plugin-release-wp.yml@v6
     with:
       slug: diluxone-offload
       version-constant: DILUXONE_OFFLOAD_VERSION
-      # Rehearsed on 2026-09-26 (run 36250947147, approved, "Rehearsal of
-      # 2.0.0"); since then an approval publishes. Set to true to rehearse a
-      # change to the pipeline: everything but the SVN commit, the tag and
-      # the release, with the notes in the summary.
       dry-run: false
+    secrets: inherit
+
+  publish:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    uses: DiluxOne/.github/.github/workflows/plugin-publish-wp.yml@v6
+    with:
+      slug: diluxone-offload
+      tag: ${{ inputs.tag || '' }}
     secrets: inherit
