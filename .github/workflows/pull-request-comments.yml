@@ -19,9 +19,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    uses: DiluxOne/.github/.github/workflows/review-reply.yml@v5
+    uses: DiluxOne/.github/.github/workflows/review-reply.yml@v6
     with:
       profile: plugin-wp
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      DILUX_BOT_PRIVATE_KEY: ${{ secrets.DILUX_BOT_PRIVATE_KEY }}
+    secrets: inherit
