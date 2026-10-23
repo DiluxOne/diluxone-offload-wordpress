@@ -255,6 +255,26 @@ class AzureProviderTest extends TestCase {
 		$this->assertSame( 'BlockBlob', $req['args']['headers']['x-ms-blob-type'] );
 	}
 
+	/**
+	 * A one-byte file "0" is a Put Blob like any other: the body is the one
+	 * string PHP's truthiness calls false, and Azure answers 400
+	 * MissingRequiredHeader when the blob type is left out (issue #71).
+	 */
+	public function test_a_file_whose_only_byte_is_zero_is_still_a_put_blob(): void {
+		$tmp = tempnam( sys_get_temp_dir(), 'az' );
+		file_put_contents( $tmp, '0' );
+		$this->answer( fn() => self::reply( 201 ) );
+
+		$r = $this->provider->upload_file( $tmp, '2026/01/zero.bin' );
+		@unlink( $tmp );
+
+		$this->assertTrue( $r['success'] );
+		$headers = $this->requests()[0]['args']['headers'];
+		$this->assertSame( 'BlockBlob', $headers['x-ms-blob-type'] );
+		$this->assertSame( 'application/octet-stream', $headers['Content-Type'] );
+		$this->assertSame( base64_encode( md5( '0', true ) ), $headers['Content-MD5'] );
+	}
+
 	public function test_upload_fails_when_the_local_file_is_missing(): void {
 		$r = $this->provider->upload_file( '/nope/missing.jpg', 'x.jpg' );
 		$this->assertFalse( $r['success'] );
