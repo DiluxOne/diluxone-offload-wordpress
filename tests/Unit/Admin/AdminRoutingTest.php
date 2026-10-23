@@ -208,8 +208,8 @@ class AdminRoutingTest extends AdminTestCase {
 		);
 	}
 
-	public function test_no_redirect_hook_when_the_menu_page_was_not_added(): void {
-		$this->returns( 'add_menu_page', false );
+	public function test_no_redirect_hook_when_the_menu_page_has_no_hook(): void {
+		$this->returns( 'add_menu_page', '' );
 		$this->returns( 'add_submenu_page', false );
 
 		Admin::add_admin_menu();

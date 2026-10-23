@@ -12,7 +12,7 @@
  */
 
 // 1. Composer autoload (PHPUnit, Brain Monkey, Mockery, Tests\ namespace).
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once ( getenv( 'COMPOSER_VENDOR_DIR' ) ?: __DIR__ . '/../vendor' ) . '/autoload.php';
 
 // 2. WordPress constants the plugin expects at the top of diluxone-offload.php.
 //    ABSPATH is normally defined by WordPress core; in unit tests we just need

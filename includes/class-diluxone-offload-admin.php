@@ -350,7 +350,7 @@ class Admin {
 			);
 		}
 
-		if ( is_string( $hook ) && $hook !== '' ) {
+		if ( $hook !== '' ) {
 			\add_action( 'load-' . $hook, array( __CLASS__, 'redirect_legacy_tab' ) );
 		}
 	}
@@ -1950,9 +1950,9 @@ class Admin {
 
 		// Check nonce for security - try different nonce field names
 		$nonce_verified = false;
-		if ( isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
+		if ( isset( $_POST['nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'diluxone_offload_admin' ) ) {
 			$nonce_verified = true;
-		} elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'diluxone_offload_admin' ) ) {
+		} elseif ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'diluxone_offload_admin' ) ) {
 			$nonce_verified = true;
 		}
 

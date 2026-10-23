@@ -19,10 +19,14 @@
     "env:logs": "wp-env logs"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@azure/storage-blob": "^12.34.0",
-    "@playwright/test": "^1.63.0",
-    "@wordpress/env": "^11.16.0",
+    "@playwright/test": "^1.64.1",
+    "@wordpress/env": "^11.17.0",
     "monocart-coverage-reports": "2.13.2"
+  },
+  "overrides": {
+    "http-cache-semantics": "^4.3.0",
+    "qs": "^6.16.1"
   }
 }

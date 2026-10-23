@@ -1059,7 +1059,7 @@ class AzureProvider implements CloudStorageClientInterface {
 	 * The same headers as curl wants them.
 	 *
 	 * @param array<string,string> $ms Headers.
-	 * @return string[]
+	 * @return list<string>
 	 */
 	private static function header_lines( array $ms ): array {
 		$lines = array();
@@ -1189,6 +1189,13 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		try {
 			$file_size = filesize( $local_path );
+			if ( false === $file_size ) {
+				return array(
+					'success'     => false,
+					'error'       => 'Failed to read the file size',
+					'file_handle' => null,
+				);
+			}
 
 			// Build Azure URL with proper encoding for spaces and special characters
 			// HTTPS is always enforced (Azure requirement)

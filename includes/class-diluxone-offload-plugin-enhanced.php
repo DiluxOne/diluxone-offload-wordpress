@@ -182,8 +182,8 @@ class Plugin {
 	 * Our custom editors handle diluxoneoffload:// paths by using temp files.
 	 * This allows WordPress to generate thumbnails even when offloading is active.
 	 *
-	 * @param array<string, mixed> $editors Array of image editor class names
-	 * @return array<string, mixed> Modified array with our custom editors first
+	 * @param string[] $editors Array of image editor class names
+	 * @return string[] Modified array with our custom editors first
 	 */
 	public function filter_image_editors( array $editors ): array {
 		// Remove default Imagick if present
@@ -224,9 +224,9 @@ class Plugin {
 		}
 
 		// Get parameters
-		$session_id   = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ?? '' ) ) : '';
-		$confirmed    = isset( $_POST['confirmed'] ) ? intval( wp_unslash( $_POST['confirmed'] ?? '' ) ) : 0;
-		$retry_failed = isset( $_POST['retry_failed'] ) ? intval( wp_unslash( $_POST['retry_failed'] ?? '' ) ) : 0;
+		$session_id   = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+		$confirmed    = isset( $_POST['confirmed'] ) ? intval( wp_unslash( $_POST['confirmed'] ) ) : 0;
+		$retry_failed = isset( $_POST['retry_failed'] ) ? intval( wp_unslash( $_POST['retry_failed'] ) ) : 0;
 
 		Logger::info( '[DiluxOne Offload AJAX] start_sync - session: ' . $session_id . ', confirmed: ' . $confirmed . ', retry_failed: ' . $retry_failed );
 
@@ -294,8 +294,8 @@ class Plugin {
 		// so run it.
 		Logger::info( '[DiluxOne Offload AJAX] Execution-check PASSED, starting sync...' );
 
-		$concurrency  = isset( $_POST['concurrency'] ) ? intval( wp_unslash( $_POST['concurrency'] ?? '' ) ) : 5;
-		$from_scratch = isset( $_POST['from_scratch'] ) ? intval( wp_unslash( $_POST['from_scratch'] ?? '' ) ) : 0;
+		$concurrency  = isset( $_POST['concurrency'] ) ? intval( wp_unslash( $_POST['concurrency'] ) ) : 5;
+		$from_scratch = isset( $_POST['from_scratch'] ) ? intval( wp_unslash( $_POST['from_scratch'] ) ) : 0;
 
 		// Validate concurrency (3-40 range)
 		if ( $concurrency < 3 ) {
@@ -393,8 +393,8 @@ class Plugin {
 		}
 
 		// Get parameters
-		$concurrency = isset( $_POST['concurrency'] ) ? intval( wp_unslash( $_POST['concurrency'] ?? '' ) ) : 5;
-		$mode        = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ?? '' ) ) : 'continue';
+		$concurrency = isset( $_POST['concurrency'] ) ? intval( wp_unslash( $_POST['concurrency'] ) ) : 5;
+		$mode        = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'continue';
 
 		Logger::info( '[DiluxOne Offload Plugin] Starting reverse sync - mode: ' . $mode . ', concurrency: ' . $concurrency );
 
@@ -738,7 +738,7 @@ class Plugin {
 			require_once DILUXONE_OFFLOAD_DIR . 'includes/class-diluxone-offload-db.php';
 
 			// ⭐ Check if this is a retry_failed request
-			$retry_failed = isset( $_POST['retry_failed'] ) ? intval( wp_unslash( $_POST['retry_failed'] ?? '' ) ) : 0;
+			$retry_failed = isset( $_POST['retry_failed'] ) ? intval( wp_unslash( $_POST['retry_failed'] ) ) : 0;
 
 			$current_state = ConfigManager::get_state();
 
@@ -1314,7 +1314,7 @@ class Plugin {
 
 		try {
 			// Get new session_id from POST
-			$new_session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ?? '' ) ) : '';
+			$new_session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
 
 			if ( empty( $new_session_id ) ) {
 				wp_send_json_error( esc_html__( 'Session ID is required', 'diluxone-offload' ) );
@@ -1366,7 +1366,7 @@ class Plugin {
 
 		try {
 			// Get requesting tab's session_id
-			$requesting_session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ?? '' ) ) : '';
+			$requesting_session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
 
 			// Get current sync metadata
 			$sync_meta = get_option( 'diluxone_offload_sync_meta', array() );
