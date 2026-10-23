@@ -32,7 +32,22 @@ step-by-step flow with its commands is in
    "the issue needs accepting" alone. Someone working from a fork or a
    clone cannot accept, approve or merge: never ask them for a
    maintainer's step; tell them a maintainer will review it and answer
-   soon, with the link to where it waits.
+   soon, with the link to where it waits. A repository's part of an
+   accepted issue is opened as a sub-issue of it, and needs no
+   acceptance of its own. Ask for `accepted` only on an issue that
+   passes the schema check: it carries `awaiting-acceptance`, not
+   `incomplete` (`python3 scripts/issue-schema.py check < issue.md` in
+   DiluxOne/.github says the same before you open or edit it).
+8. **A finding is not a new issue.** Something you find along the way that
+   the task does not need goes in one list, at the end of what you report,
+   with what you recommend; the maintainer picks what becomes work. A
+   change for the whole organisation is one issue in DiluxOne/.github,
+   never one per repository.
+9. **Meet the organisation's rules** before the review asks for them:
+   [test first](https://github.com/DiluxOne/.github/blob/main/rules/test-first.md)
+   and [no credentials in the front end](https://github.com/DiluxOne/.github/blob/main/rules/front-no-credentials.md).
+   The model they belong to (types of work, gates, what merges on its own)
+   is [DiluxOne/.github, `docs/model.md`](https://github.com/DiluxOne/.github/blob/main/docs/model.md).
 <!-- dx:org:end -->
 
 Instructions for any coding agent working in this repository (Claude Code,
