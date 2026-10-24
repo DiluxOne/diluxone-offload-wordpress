@@ -8,8 +8,12 @@ namespace Tests\Integration;
  * It answers every request with the status given in ?status=, defaulting
  * to 201, which is what Azure returns for a created block blob. With
  * ?delay=N (or /delay-N/ in the path) it sleeps N seconds first, which is
- * how the timeout tests get a server slower than the setting allows. The
- * ETag of every answer is the MD5 of the body it received.
+ * how the timeout tests get a server slower than the setting allows. A
+ * path with /fail-once-500/<token>/ answers 500 the first time the server
+ * sees that token and as usual after that; /count/<token>/ only counts.
+ * hits() says how many requests carried a token, so a test can tell how
+ * many times a client asked. The ETag of every answer is the MD5 of the
+ * body it received.
  *
  * The port asked for is used when it is free; otherwise the system picks
  * one, so a server left over from an earlier run (or another test class)
@@ -45,6 +49,20 @@ if (preg_match('#/delay-(\d{1,3})/#', (string) ($_SERVER['REQUEST_URI'] ?? ''), 
 if ($delay > 0) {
     sleep($delay);
 }
+if (preg_match('#/(fail-once-500|count)/([0-9a-f]{8,64})/#', (string) ($_SERVER['REQUEST_URI'] ?? ''), $m)) {
+    // One counter file per token, under a lock: the server has several workers.
+    $counter = fopen(__DIR__ . '/hits-' . $m[2], 'c+');
+    flock($counter, LOCK_EX);
+    $seen = (int) stream_get_contents($counter);
+    ftruncate($counter, 0);
+    rewind($counter);
+    fwrite($counter, (string) ($seen + 1));
+    flock($counter, LOCK_UN);
+    fclose($counter);
+    if ('fail-once-500' === $m[1] && 0 === $seen) {
+        $status = 500;
+    }
+}
 http_response_code($status);
 header('X-Dlx-Server: ' . getenv('DLX_SERVER_TOKEN'));
 // Drain the body so cURL sees a clean upload, and answer with its MD5 as the
@@ -71,6 +89,17 @@ PHP
             usleep(50000);
         }
         throw new \RuntimeException('local blob server did not start');
+    }
+
+    /** A token for /fail-once-500/<token>/ or /count/<token>/ no request carried yet. */
+    public static function token(): string {
+        return bin2hex(random_bytes(8));
+    }
+
+    /** How many requests carried the token. */
+    public function hits(string $token): int {
+        $file = $this->docroot . '/hits-' . $token;
+        return is_file($file) ? (int) file_get_contents($file) : 0;
     }
 
     /** The port asked for when nothing listens on it, or one the system picks. */

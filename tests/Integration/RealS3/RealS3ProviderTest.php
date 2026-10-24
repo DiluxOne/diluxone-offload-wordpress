@@ -346,19 +346,12 @@ class RealS3ProviderTest extends IntegrationTestCase {
         ];
     }
 
-    /** A whole file the way the sync sends one under the chunk threshold: its curl handle, run. Null when it landed. */
+    /** A whole file the way the sync sends one under the chunk threshold: its curl handle, run, and run again on a transient answer. Null when it landed. */
     private static function sendWhole(S3CompatibleProvider $provider, string $local, string $key): ?string {
-        $h = $provider->prepare_batch_upload_handle(['local_path' => $local, 'remote_path' => $key]);
-        if (empty($h['success'])) {
-            return (string) $h['error'];
-        }
-        $body   = (string) curl_exec($h['handle']);
-        $status = (int) curl_getinfo($h['handle'], CURLINFO_HTTP_CODE);
-        $error  = curl_error($h['handle']);
-        if (is_resource($h['file_handle'] ?? null)) {
-            fclose($h['file_handle']);
-        }
-        return '' !== $error ? $error : $provider->verify_upload_response($status, $body);
+        return self::sendRetrying(
+            static fn (): array => $provider->prepare_batch_upload_handle(['local_path' => $local, 'remote_path' => $key]),
+            static fn (int $status, string $body): ?string => $provider->verify_upload_response($status, $body)
+        );
     }
 
     /**
