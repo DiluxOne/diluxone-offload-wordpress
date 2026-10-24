@@ -178,6 +178,29 @@ export async function bytesDiffer( run: RealRun, key: string, expected: string )
 	return verdict;
 }
 
+/**
+ * After a Disconnect: '' when the file brought back holds the object's
+ * bytes; otherwise bytesDiffer()'s answer, followed by the MD5 of the file
+ * as it was uploaded, the one the listing gives for the object and the one
+ * on disk now, and which of the two causes they point to: the listing
+ * matches the disk (a cached read, which the listing settles), or the
+ * listing matches the upload but the disk does not (the plugin's Disconnect
+ * brought back another copy than the one stored).
+ */
+export async function broughtBackDiffers( run: RealRun, key: string, onDisk: string, uploaded: string | undefined ): Promise< string > {
+	const differ = await bytesDiffer( run, key, onDisk );
+	if ( differ === '' ) return '';
+	const listed = await listedMd5( run, key );
+	let cause = 'the listing gives no MD5 to tell';
+	if ( listed && listed === onDisk ) cause = 'the listing matches the disk: a cached read';
+	else if ( listed && listed === uploaded ) cause = 'the listing matches the upload, the disk does not: Disconnect brought back another copy than the one stored';
+	else if ( listed ) cause = 'the listing matches neither the upload nor the disk';
+	const diagnosis = `uploaded ${ uploaded ?? '(not recorded)' }, listed ${ listed || '(none)' }, on disk ${ onDisk } (${ cause })`;
+	// eslint-disable-next-line no-console
+	console.log( `[disconnect] ${ key }: ${ diagnosis }` );
+	return `${ differ }; ${ diagnosis }`;
+}
+
 /** The MD5 the service lists for what it stores ('' on Azure, or when it is not an MD5): the one answer Google never caches. */
 export async function listedMd5( run: RealRun, key: string ): Promise< string > {
 	return run.s3 ? s3.storedMd5( run.s3, run.container, key ) : '';

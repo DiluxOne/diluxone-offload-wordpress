@@ -2,8 +2,8 @@ import { test, expect, request } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, blobMd5, bytesDiffer, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal, objectProps, infrequentClass, unfinishedParts, noUnfinishedParts } from './helpers/storage';
-import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachmentUrl, attachedFile, REPO_IN_CONTAINER, trackedRow, trackedRowsLike, TrackedRow, setStoredSecret, connectionHealth, importAs, attachmentFiles } from './helpers/wp';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, blobMd5, bytesDiffer, broughtBackDiffers, fileMd5, createPrivateContainer, deleteNamedContainer, canMakePrivateContainer, startJourney, form, wrongSecret, secret, secretField, identity, servedFromHost, publicUrlPrefix, privateRefusal, objectProps, infrequentClass, unfinishedParts, noUnfinishedParts } from './helpers/storage';
+import { BASE_URL, wp, shell, shortBatches, pluginState, nativeUploadsDir, filesUnder, md5Inside, md5sUnder, attachmentUrl, attachedFile, REPO_IN_CONTAINER, trackedRow, trackedRowsLike, TrackedRow, setStoredSecret, connectionHealth, importAs, attachmentFiles } from './helpers/wp';
 import { FIXTURES, DISK_FIXTURES, FIXTURE_DIR, generateFixtures, seedMediaLibrary, placeDiskFixtures } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
 
@@ -33,6 +33,8 @@ test.describe.serial( 'single site journey', () => {
 	let run: RealRun;
 	let uploadsDir = '';
 	let seeded: number[] = [];
+	/** The MD5 of every file as it was before the first sync uploaded it, for Disconnect's diagnostics. */
+	let uploadedMd5: Record< string, string > = {};
 	let uiUploadId = 0;
 	let wrongKey = '';
 
@@ -138,6 +140,7 @@ test.describe.serial( 'single site journey', () => {
 		// Originals plus the thumbnails WordPress made of the PNGs, plus the files put on disk.
 		expect( local.length ).toBeGreaterThan( FIXTURES.length + DISK_FIXTURES.length );
 		expect( local ).toContain( `${ subdir.replace( /^\//, '' ) }/legacy café (1).png` );
+		uploadedMd5 = md5sUnder( site, uploadsDir );
 		for ( const rel of placed ) expect( local ).toContain( rel );
 	} );
 
@@ -600,7 +603,7 @@ test.describe.serial( 'single site journey', () => {
 		for ( const key of keys ) {
 			const rel = key.replace( /^uploads\//, '' );
 			expect( local, `${ rel } is back on disk` ).toContain( rel );
-			expect( await bytesDiffer( run, key, md5Inside( site, `${ uploadsDir }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
+			expect( await broughtBackDiffers( run, key, md5Inside( site, `${ uploadsDir }/${ rel }` ), uploadedMd5[ rel ] ), `${ rel } bytes` ).toBe( '' );
 		}
 		expect( local.filter( ( f ) => f.endsWith( '.dlxpart' ) ).length ).toBe( 0 );
 		// Every row has its copy back: the Sync tab counts no file as cloud only.

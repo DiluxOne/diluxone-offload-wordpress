@@ -63,6 +63,17 @@ export function md5Inside( site: Site, file: string ): string {
 	return shell( site, `md5sum "${ file }" | cut -d' ' -f1` );
 }
 
+/** The MD5 of every regular file under a directory inside the container, by its path relative to it. */
+export function md5sUnder( site: Site, dir: string ): Record< string, string > {
+	const out = shell( site, `cd "${ dir }" 2>/dev/null && find . -type f -print0 | xargs -0 -r md5sum` );
+	const md5s: Record< string, string > = {};
+	for ( const line of out.split( '\n' ).filter( Boolean ) ) {
+		const [ , md5, file ] = line.match( /^\\?([0-9a-f]{32}) {2}\.\/(.*)$/ ) ?? [];
+		if ( md5 ) md5s[ file ] = md5;
+	}
+	return md5s;
+}
+
 export function sizeInside( site: Site, file: string ): number {
 	return Number( shell( site, `stat -c %s "${ file }"` ) );
 }
