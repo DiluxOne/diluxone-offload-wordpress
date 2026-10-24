@@ -33,7 +33,9 @@ export const FIXTURES: Fixture[] = [
 	{ name: 'PHOTO-UPPER.PNG', bytes: 80 * 1024 },
 	{ name: 'photo-upper.png', bytes: 70 * 1024 },
 	{ name: '写真 📷 photo.png', bytes: 60 * 1024 },
-	{ name: 'long-' + 'x'.repeat( 180 ) + '.png', bytes: 50 * 1024 },
+	// 170, not more: with the run's folder (10 characters) its URL still fits
+	// the attachment's guid column (255), on every service's public host.
+	{ name: 'long-' + 'x'.repeat( 170 ) + '.png', bytes: 50 * 1024 },
 ];
 
 /**

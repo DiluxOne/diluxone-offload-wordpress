@@ -143,20 +143,40 @@ export async function objectSize( target: S3Target, bucket: string, key: string 
 	return head.ContentLength ?? -1;
 }
 
-/** What the service says about an object, for a failure message. */
+/** What the service says about an object, for a failure message: its HEAD, and its entry in the listing, which Google never serves from a cache. */
 export async function objectFacts( target: S3Target, bucket: string, key: string ): Promise< string > {
 	const head = await client( target ).send( new HeadObjectCommand( { Bucket: bucket, Key: key } ) );
-	return `size ${ head.ContentLength }, ETag ${ head.ETag }, last modified ${ head.LastModified?.toISOString() }`;
+	const listed = await listedObject( target, bucket, key );
+	const entry = listed ? `listed ETag ${ listed.etag }, last modified ${ listed.lastModified }` : 'not in the listing';
+	return `size ${ head.ContentLength }, ETag ${ head.ETag }, last modified ${ head.LastModified?.toISOString() }; ${ entry }`;
 }
 
 /**
- * The MD5 the service computed of what it stores, from the object's ETag,
- * or '' when the ETag is not one (a multipart or composite object). Read
- * from the object's metadata, never from a cached copy of its bytes.
+ * The object's entry in the bucket's listing (a ListObjectsV2 with the key
+ * as prefix, the entry whose key is exactly it), or null when the listing
+ * does not have it. Google serves a public object's HEAD, like its GET,
+ * from its built-in cache; never its listing.
+ */
+export async function listedObject( target: S3Target, bucket: string, key: string ): Promise< { etag: string; lastModified: string; size: number } | null > {
+	const s3 = client( target );
+	let token: string | undefined;
+	do {
+		const page = await s3.send( new ListObjectsV2Command( { Bucket: bucket, Prefix: key, ContinuationToken: token } ) );
+		const entry = ( page.Contents ?? [] ).find( ( o ) => o.Key === key );
+		if ( entry ) return { etag: entry.ETag ?? '', lastModified: entry.LastModified?.toISOString() ?? '', size: entry.Size ?? -1 };
+		token = page.IsTruncated ? page.NextContinuationToken : undefined;
+	} while ( token );
+	return null;
+}
+
+/**
+ * The MD5 the service computed of what it stores, from the object's ETag
+ * in the listing, or '' when the listing does not have the object or the
+ * ETag is not one (a multipart or composite object). Never from a HEAD or a
+ * download, which Google may answer from a cached copy.
  */
 export async function storedMd5( target: S3Target, bucket: string, key: string ): Promise< string > {
-	const head = await client( target ).send( new HeadObjectCommand( { Bucket: bucket, Key: key } ) );
-	const etag = ( head.ETag ?? '' ).replace( /"/g, '' ).toLowerCase();
+	const etag = ( ( await listedObject( target, bucket, key ) )?.etag ?? '' ).replace( /"/g, '' ).toLowerCase();
 	return /^[0-9a-f]{32}$/.test( etag ) ? etag : '';
 }
 

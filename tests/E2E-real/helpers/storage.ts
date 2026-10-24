@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import * as azure from './azure';
 import * as s3 from './s3';
+import { byteVerdict } from './byte-verdict';
 
 /**
  * The storage a real run drives, whichever provider it is: REAL_PROVIDER
@@ -25,6 +27,14 @@ export interface RealRun {
 	container: string;
 	containers: Record< Journey, string >;
 	runId: string;
+	/**
+	 * The folder this run's uploads go into, below the month's folder: no
+	 * other run, nor another attempt of this one, has used it. Google serves
+	 * a public object from its cache for as long as its Cache-Control allows,
+	 * a week here, so a name an earlier run filled with other bytes is read
+	 * back, and brought back by a Disconnect, as that run's copy (#100).
+	 */
+	uploadsFolder: string;
 }
 
 export const PROVIDER: Provider = process.env.REAL_PROVIDER === 's3' ? 's3' : 'azure';
@@ -34,12 +44,14 @@ export const RUN_FILE = path.resolve( __dirname, '../../../build/real-run.json' 
 
 export function newRun( runId: string ): RealRun {
 	const containers = { single: `e2e-${ runId }-single`, network: `e2e-${ runId }-network` };
+	// Short: a URL longer than 255 characters does not fit an attachment's guid.
+	const uploadsFolder = 'r' + BigInt( '0x' + randomBytes( 6 ).toString( 'hex' ) ).toString( 36 ).padStart( 8, '0' ).slice( -8 );
 	if ( PROVIDER === 's3' ) {
 		const target = s3.s3FromEnv();
 		const buckets = target.fixedBucket ? { single: target.fixedBucket, network: target.fixedBucket } : containers;
-		return { provider: 's3', account: '', key: '', s3: target, container: buckets.single, containers: buckets, runId };
+		return { provider: 's3', account: '', key: '', s3: target, container: buckets.single, containers: buckets, runId, uploadsFolder };
 	}
-	return { provider: 'azure', ...azure.credentialsFromEnv(), container: containers.single, containers, runId };
+	return { provider: 'azure', ...azure.credentialsFromEnv(), container: containers.single, containers, runId, uploadsFolder };
 }
 
 /** The run as the given journey sees it: `container` is that journey's own. */
@@ -144,25 +156,65 @@ export async function blobMd5( run: RealRun, key: string ): Promise< string > {
 
 /**
  * '' when the object holds exactly the bytes whose MD5 is `expected`;
- * otherwise what was read, read again two seconds later, and what the
- * service says about the object. It never turns a mismatch of the object
- * into a pass.
+ * otherwise what was read, read again two seconds later, what the listing
+ * says the object stores, and what the service says about the object. It
+ * never turns a mismatch of the object into a pass (byteVerdict()).
  *
- * Google Cloud Storage serves a public object from its built-in cache for
- * as long as the object's Cache-Control allows (a week, the plugin's
- * default), even to an authenticated read, and no request can bypass it.
- * The suite reuses one bucket and the same names on every run with new
- * bytes, so a read can return an earlier run's copy of a correct object.
- * There, the MD5 Google computed of what it stores decides.
+ * Google Cloud Storage serves a public object's GET and HEAD from its
+ * built-in cache for as long as the object's Cache-Control allows (a week,
+ * the plugin's default), even to an authenticated request, and no request
+ * can bypass it. The suite reuses one bucket and the same names on every
+ * run with new bytes, so a read can return an earlier run's copy of a
+ * correct object. There, the MD5 Google lists for what it stores decides:
+ * the listing is never cached.
  */
 export async function bytesDiffer( run: RealRun, key: string, expected: string ): Promise< string > {
 	const first = await blobMd5( run, key );
-	if ( first === expected ) return '';
-	if ( run.s3?.preset === 'gcs' && ( await s3.storedMd5( run.s3, run.container, key ) ) === expected ) return '';
+	const stored = first !== expected && run.s3?.preset === 'gcs' ? await s3.storedMd5( run.s3, run.container, key ) : '';
+	if ( byteVerdict( { expected, first, stored } ) === '' ) {
+		if ( first !== expected ) {
+			// eslint-disable-next-line no-console
+			console.log( `[bytesDiffer] ${ key }: read ${ first }, the listing has ${ stored } (the read was a cached copy)` );
+		}
+		return '';
+	}
 	await new Promise( ( resolve ) => setTimeout( resolve, 2000 ) );
 	const second = await blobMd5( run, key );
 	const facts = run.s3 ? await s3.objectFacts( run.s3, run.container, key ) : `size ${ await blobSize( run, key ) }`;
-	return `expected md5 ${ expected }, read ${ first }, read again ${ second } (${ second === expected ? 'the object is right: the first read was stale' : 'the object itself differs' }); ${ facts }`;
+	const verdict = byteVerdict( { expected, first, second, stored, facts } );
+	if ( verdict === '' ) {
+		// eslint-disable-next-line no-console
+		console.log( `[bytesDiffer] ${ key }: read ${ first }, read again ${ second } (the first read was stale); ${ facts }` );
+	}
+	return verdict;
+}
+
+/**
+ * After a Disconnect: '' when the file brought back holds the object's
+ * bytes; otherwise bytesDiffer()'s answer, followed by the MD5 of the file
+ * as it was uploaded, the one the listing gives for the object and the one
+ * on disk now, and which of the two causes they point to: the listing
+ * matches the disk (a cached read, which the listing settles), or the
+ * listing matches the upload but the disk does not (the plugin's Disconnect
+ * brought back another copy than the one stored).
+ */
+export async function broughtBackDiffers( run: RealRun, key: string, onDisk: string, uploaded: string | undefined ): Promise< string > {
+	const differ = await bytesDiffer( run, key, onDisk );
+	if ( differ === '' ) return '';
+	const listed = await listedMd5( run, key );
+	let cause = 'the listing gives no MD5 to tell';
+	if ( listed && listed === onDisk ) cause = 'the listing matches the disk: a cached read';
+	else if ( listed && listed === uploaded ) cause = 'the listing matches the upload, the disk does not: Disconnect brought back another copy than the one stored';
+	else if ( listed ) cause = 'the listing matches neither the upload nor the disk';
+	const diagnosis = `uploaded ${ uploaded ?? '(not recorded)' }, listed ${ listed || '(none)' }, on disk ${ onDisk } (${ cause })`;
+	// eslint-disable-next-line no-console
+	console.log( `[disconnect] ${ key }: ${ diagnosis }` );
+	return `${ differ }; ${ diagnosis }`;
+}
+
+/** The MD5 the service lists for what it stores ('' on Azure, or when it is not an MD5): the one answer Google never caches. */
+export async function listedMd5( run: RealRun, key: string ): Promise< string > {
+	return run.s3 ? s3.storedMd5( run.s3, run.container, key ) : '';
 }
 
 /** Put an object there as someone else would have: a bucket reused from another install. */

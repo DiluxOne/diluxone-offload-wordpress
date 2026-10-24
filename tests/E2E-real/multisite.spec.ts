@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, bytesDiffer, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
-import { BASE_URL, wp, shell, pluginState, nativeUploadsDir, filesUnder, md5Inside, attachedFile, attachmentUrl, attachmentFiles, trackedRowsLike } from './helpers/wp';
+import { readRun, RealRun, listKeys, putObject, deleteObject, blobExists, blobGone, bytesDiffer, broughtBackDiffers, fileMd5, form, publicUrlPrefix, startJourney } from './helpers/storage';
+import { BASE_URL, wp, shell, pluginState, nativeUploadsDir, filesUnder, md5Inside, md5sUnder, attachedFile, attachmentUrl, attachmentFiles, trackedRowsLike } from './helpers/wp';
 import { FIXTURE_DIR, generateFixtures, seedMediaLibrary } from './helpers/fixtures';
 import * as ui from './helpers/plugin';
 
@@ -24,6 +24,8 @@ test.describe.serial( 'multisite journey', () => {
 	let otherUploads = '';
 	let mainSeeded: number[] = [];
 	let otherSeeded: number[] = [];
+	/** The MD5 of every file of the other site before its sync uploaded it, for Disconnect's diagnostics. */
+	let otherUploadedMd5: Record< string, string > = {};
 	let otherUploadId = 0;
 	let debugBefore = '';
 
@@ -81,6 +83,7 @@ test.describe.serial( 'multisite journey', () => {
 	test( 'the same file names on both sites become different keys', async ( { page } ) => {
 		mainSeeded = seedMediaLibrary( site, SHARED );
 		otherSeeded = seedMediaLibrary( site, SHARED, other );
+		otherUploadedMd5 = md5sUnder( site, otherUploads );
 		for ( const home of [ base, other ] ) {
 			await ui.goTab( page, home, 'sync' );
 			expect( await ui.runSyncToCompletion( page, 'scratch' ) ).toBe( 'success' );
@@ -217,7 +220,7 @@ test.describe.serial( 'multisite journey', () => {
 		expect( pluginState( site ) ).toBe( 'offloading_active' );
 		for ( const key of await listKeys( run, `uploads/sites/${ blogId }/` ) ) {
 			const rel = key.replace( `uploads/sites/${ blogId }/`, '' );
-			expect( await bytesDiffer( run, key, md5Inside( site, `${ otherUploads }/${ rel }` ) ), `${ rel } bytes` ).toBe( '' );
+			expect( await broughtBackDiffers( run, key, md5Inside( site, `${ otherUploads }/${ rel }` ), otherUploadedMd5[ rel ] ), `${ rel } bytes` ).toBe( '' );
 		}
 		expect( ( await listKeys( run, 'uploads/' ) ).filter( ( k ) => ! k.startsWith( 'uploads/sites/' ) ) ).toEqual( mainKeysBefore );
 	} );

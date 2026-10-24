@@ -63,6 +63,17 @@ export function md5Inside( site: Site, file: string ): string {
 	return shell( site, `md5sum "${ file }" | cut -d' ' -f1` );
 }
 
+/** The MD5 of every regular file under a directory inside the container, by its path relative to it. */
+export function md5sUnder( site: Site, dir: string ): Record< string, string > {
+	const out = shell( site, `cd "${ dir }" 2>/dev/null && find . -type f -print0 | xargs -0 -r md5sum` );
+	const md5s: Record< string, string > = {};
+	for ( const line of out.split( '\n' ).filter( Boolean ) ) {
+		const [ , md5, file ] = line.match( /^\\?([0-9a-f]{32}) {2}\.\/(.*)$/ ) ?? [];
+		if ( md5 ) md5s[ file ] = md5;
+	}
+	return md5s;
+}
+
 export function sizeInside( site: Site, file: string ): number {
 	return Number( shell( site, `stat -c %s "${ file }"` ) );
 }
@@ -92,6 +103,24 @@ export function shortBatches( site: Site, on: boolean ): void {
 			? `mkdir -p /var/www/html/wp-content/mu-plugins && printf '%s' "<?php add_filter( 'diluxone_offload_sync_batch_seconds', function () { return 0.0; } );" > ${ file }`
 			: `rm -f ${ file }`
 	);
+}
+
+/**
+ * Every upload of a site into `folder` below the month's folder, or back to
+ * WordPress's own layout with null: a must-use plugin that filters
+ * upload_dir before the plugin's wrapper does, so the object keys carry the
+ * folder too. The real suite gives each run a folder of its own, so no key
+ * is ever written again with other bytes (#100).
+ */
+export function uploadsPerRun( site: Site, folder: string | null ): void {
+	const file = '/var/www/html/wp-content/mu-plugins/diluxone-offload-e2e-uploads-per-run.php';
+	if ( folder === null ) {
+		shell( site, `rm -f ${ file }` );
+		return;
+	}
+	if ( ! /^[a-z0-9-]+$/.test( folder ) ) throw new Error( `Not a folder name: ${ folder }` );
+	const php = `<?php add_filter( 'upload_dir', function ( $d ) { foreach ( array( 'subdir', 'path', 'url' ) as $k ) { $d[ $k ] .= '/${ folder }'; } return $d; }, 5 );\n`;
+	shell( site, `mkdir -p /var/www/html/wp-content/mu-plugins && echo ${ Buffer.from( php ).toString( 'base64' ) } | base64 -d > ${ file }` );
 }
 
 /** PHP that yields the string `s`, whatever quotes, spaces or accents it carries. */
