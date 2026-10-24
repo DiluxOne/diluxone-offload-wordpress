@@ -116,7 +116,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<a href="<?php echo esc_url( Admin::screen_url( 'cloud-provider', 'connection' ) ); ?>" class="button button-primary button-small">
 						<?php esc_html_e( 'Re-enter Credentials', 'diluxone-offload' ); ?>
 					</a>
-				<?php elseif ( $is_configured && $is_paused ) : ?>
+				<?php elseif ( $is_configured ) : ?>
 					<p class="status-label is-paused">
 						<?php
 						printf(
@@ -143,7 +143,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 
 		<!-- Sync Status -->
 		<?php
-		$sync_card_mode = ( $is_synced && ! $is_paused ) ? 'status-success' : ( $is_synced && $is_paused ? 'status-warning' : 'status-neutral' );
+		$sync_card_mode = ( $is_synced && ! $is_paused ) ? 'status-success' : ( $is_synced ? 'status-warning' : 'status-neutral' );
 		?>
 		<div class="status-card <?php echo esc_attr( $sync_card_mode ); ?>">
 			<div class="status-icon">
@@ -156,7 +156,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-details">
 						<?php esc_html_e( 'Your files are in the cloud', 'diluxone-offload' ); ?>
 					</p>
-				<?php elseif ( $is_synced && $is_paused ) : ?>
+				<?php elseif ( $is_synced ) : ?>
 					<p class="status-label is-paused">
 						<?php
 						printf(
@@ -191,7 +191,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 
 		<!-- Offloading Status -->
 		<?php
-		$off_card_mode = ( $is_offloading && ! $is_paused ) ? 'status-success' : ( $is_offloading && $is_paused ? 'status-warning' : 'status-neutral' );
+		$off_card_mode = ( $is_offloading && ! $is_paused ) ? 'status-success' : ( $is_offloading ? 'status-warning' : 'status-neutral' );
 		?>
 		<div class="status-card <?php echo esc_attr( $off_card_mode ); ?>">
 			<div class="status-icon">
@@ -204,7 +204,7 @@ $pause_label = $is_paused ? Admin::pause_reason_short( $pause_cause ) : '';
 					<p class="status-details">
 						<?php esc_html_e( 'Files served from cloud storage', 'diluxone-offload' ); ?>
 					</p>
-				<?php elseif ( $is_offloading && $is_paused ) : ?>
+				<?php elseif ( $is_offloading ) : ?>
 					<p class="status-label is-paused">
 						<?php
 						printf(

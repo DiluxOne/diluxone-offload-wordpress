@@ -75,7 +75,7 @@ $ago           = static function ( int $ts ): string {
 						<?php elseif ( $is_decrypt_failure ) : ?>
 							<span class="status-indicator status-paused"></span>
 							<?php esc_html_e( 'Awaiting Re-entry', 'diluxone-offload' ); ?>
-						<?php elseif ( $is_configured && $is_paused ) : ?>
+						<?php elseif ( $is_configured ) : ?>
 							<span class="status-indicator status-paused"></span>
 							<?php
 							printf(
@@ -127,7 +127,7 @@ $ago           = static function ( int $ts ): string {
 						<?php if ( $is_offloading && ! $is_paused ) : ?>
 							<span class="status-indicator status-success"></span>
 							<?php esc_html_e( 'Active', 'diluxone-offload' ); ?>
-						<?php elseif ( $is_offloading && $is_paused ) : ?>
+						<?php elseif ( $is_offloading ) : ?>
 							<span class="status-indicator status-paused"></span>
 							<?php
 							printf(

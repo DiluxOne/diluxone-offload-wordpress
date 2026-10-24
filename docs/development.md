@@ -121,7 +121,7 @@ The Makefile uses these images by default:
 | --- | --- | --- |
 | `COMPOSER_IMAGE` | `composer:2` | `make install`, `make lint`, `make stan`, `make test*` |
 | `WP_CLI_IMAGE` | `wordpress:cli` | `make i18n` |
-| `PHP_IMAGE` | `php:8.3-cli` | `make psalm` (Psalm needs PHP ≤ 8.3) |
+| `PHP_IMAGE` | `php:8.5-cli` | `make psalm` and `make review-rules`, on the PHP the tools run on |
 | `DOCKER_NET` | `--network host` | `make i18n`, `make test-integration` |
 
 Pin any of them for byte-for-byte reproducibility — e.g. `make stan COMPOSER_IMAGE=composer:2.7.7`. The defaults stay floating because pinning to a digest in-repo would force a Makefile change every time the upstream image moves; the override is there for users who need it.

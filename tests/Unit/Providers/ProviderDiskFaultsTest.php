@@ -107,6 +107,18 @@ class ProviderDiskFaultsTest extends TestCase {
 		$this->assertSame( array(), $this->conversation(), 'nothing is sent for a file that cannot be measured' );
 	}
 
+	public function test_azure_a_batch_handle_for_a_file_gone_between_the_check_and_the_size_gets_no_handle(): void {
+		$path = FaultyStream::file( 'gone-batch.jpg', array( 'content' => 'abc', 'stats_ok' => 1 ) );
+
+		$r = self::quietly( fn() => $this->azure()->prepare_batch_upload_handle( array( 'local_path' => $path, 'remote_path' => 'uploads/gone-batch.jpg' ) ) );
+
+		$this->assertFalse( $r['success'] );
+		$this->assertSame( 'Failed to read the file size', $r['error'] );
+		$this->assertNull( $r['file_handle'] );
+		$this->assertNull( $r['handle'] ?? null, 'no request is prepared for a file that cannot be measured' );
+		$this->assertSame( 0, FaultyStream::$calls['gone-batch.jpg']['opens'], 'the file is not opened for a body' );
+	}
+
 	public function test_azure_a_read_error_on_the_first_block_fails_before_any_block_is_sent(): void {
 		$path = FaultyStream::file( 'bad.mov', array( 'content' => 'abc', 'size' => 5 * self::MIB, 'reads_ok' => 0 ) );
 

@@ -44,7 +44,7 @@ class CloudStreamWrapper {
 	/** @var resource Stream context (set by PHP automatically for stream wrappers) */
 	public $context;
 
-	/** @var resource|false|null Current file handle (null before stream_open, false on fopen failure, resource otherwise) */
+	/** @var resource|null Current file handle (null before stream_open and after close) */
 	private $handle = null;
 
 	/** @var string|null Temp file backing $handle; removed on close. */
@@ -333,9 +333,9 @@ class CloudStreamWrapper {
 	 * core expects, so media_handle_upload() returns a WP_Error and no
 	 * attachment is inserted for a file that does not exist.
 	 *
-	 * @param array<string, mixed> $upload  The upload result ('file', 'url', 'type', or 'error').
-	 * @param string               $context 'upload' or 'sideload'.
-	 * @return array<string, mixed>
+	 * @param mixed  $upload  The upload result ('file', 'url', 'type', or 'error'), as the filter passes it.
+	 * @param string $context 'upload' or 'sideload'.
+	 * @return mixed
 	 */
 	public static function fail_upload_if_write_failed( $upload, $context = 'upload' ) {
 		if ( ! is_array( $upload ) || isset( $upload['error'] ) || empty( $upload['file'] ) ) {

@@ -187,7 +187,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 *
 	 * @param string $key   Object key; '' for the bucket itself.
 	 * @param string $query Query string, already encoded, without '?'.
-	 * @return string
+	 * @return non-empty-string
 	 */
 	private function request_url( string $key = '', string $query = '' ): string {
 		$path = '' === $key ? '' : $this->object_path( $key );
@@ -243,7 +243,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	 * The same headers, as curl wants them.
 	 *
 	 * @param array<string,string> $headers Headers.
-	 * @return string[]
+	 * @return list<string>
 	 */
 	private static function curl_headers( array $headers ): array {
 		$lines = array();
@@ -1040,7 +1040,7 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			if ( false === $landed || is_string( $landed ) ) {
 				return self::no_handle( 'Could not ask for the unfinished upload of ' . $key . ( is_string( $landed ) ? ': ' . $landed : '' ) . '; it is taken up next time' );
 			}
-			if ( null !== $landed && is_string( $upload_id ) ) {
+			if ( null !== $landed ) {
 				$upload = new ChunkedUpload( $local_path, $key, $size, $this->part_size( $size ), $upload_id );
 				foreach ( $landed as $part => $landed_part ) {
 					if ( $part <= $upload->partCount() && $landed_part['size'] === $upload->length( $part ) ) {
