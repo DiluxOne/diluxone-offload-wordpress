@@ -44,7 +44,8 @@ export const RUN_FILE = path.resolve( __dirname, '../../../build/real-run.json' 
 
 export function newRun( runId: string ): RealRun {
 	const containers = { single: `e2e-${ runId }-single`, network: `e2e-${ runId }-network` };
-	const uploadsFolder = `run-${ runId }-${ randomBytes( 3 ).toString( 'hex' ) }`;
+	// Short: a URL longer than 255 characters does not fit an attachment's guid.
+	const uploadsFolder = 'r' + BigInt( '0x' + randomBytes( 6 ).toString( 'hex' ) ).toString( 36 ).padStart( 8, '0' ).slice( -8 );
 	if ( PROVIDER === 's3' ) {
 		const target = s3.s3FromEnv();
 		const buckets = target.fixedBucket ? { single: target.fixedBucket, network: target.fixedBucket } : containers;
