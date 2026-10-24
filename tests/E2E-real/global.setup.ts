@@ -1,6 +1,6 @@
 import { test as setup, expect } from '@playwright/test';
 import { newRun, createContainers, writeRun } from './helpers/storage';
-import { BASE_URL, wp, shell, nativeUploadsDir, Site } from './helpers/wp';
+import { BASE_URL, wp, shell, nativeUploadsDir, uploadsPerRun, Site } from './helpers/wp';
 import { generateFixtures } from './helpers/fixtures';
 
 /**
@@ -58,6 +58,10 @@ setup( 'both sites start clean', async () => {
 		// folders under uploads/ stay.
 		const uploads = nativeUploadsDir( site );
 		if ( uploads.endsWith( '/wp-content/uploads' ) ) shell( site, `rm -rf "${ uploads }"/[0-9][0-9][0-9][0-9]` );
+		// This run's uploads go into a folder no run has used, so no object
+		// key is written twice with different bytes (#100).
+		uploadsPerRun( site, run.uploadsFolder );
+		expect( wp( site, [ 'eval', 'echo wp_upload_dir()["subdir"];' ] ) ).toMatch( new RegExp( `^/\\d{4}/\\d{2}/${ run.uploadsFolder }$` ) );
 	}
 	// Sites an aborted run may have left on the network.
 	const sites = wp( 'network', [ 'site', 'list', '--fields=blog_id,url', '--format=csv' ] ).split( '\n' ).slice( 1 );

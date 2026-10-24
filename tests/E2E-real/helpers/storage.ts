@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import * as azure from './azure';
 import * as s3 from './s3';
 import { byteVerdict } from './byte-verdict';
@@ -26,6 +27,14 @@ export interface RealRun {
 	container: string;
 	containers: Record< Journey, string >;
 	runId: string;
+	/**
+	 * The folder this run's uploads go into, below the month's folder: no
+	 * other run, nor another attempt of this one, has used it. Google serves
+	 * a public object from its cache for as long as its Cache-Control allows,
+	 * a week here, so a name an earlier run filled with other bytes is read
+	 * back, and brought back by a Disconnect, as that run's copy (#100).
+	 */
+	uploadsFolder: string;
 }
 
 export const PROVIDER: Provider = process.env.REAL_PROVIDER === 's3' ? 's3' : 'azure';
@@ -35,12 +44,13 @@ export const RUN_FILE = path.resolve( __dirname, '../../../build/real-run.json' 
 
 export function newRun( runId: string ): RealRun {
 	const containers = { single: `e2e-${ runId }-single`, network: `e2e-${ runId }-network` };
+	const uploadsFolder = `run-${ runId }-${ randomBytes( 3 ).toString( 'hex' ) }`;
 	if ( PROVIDER === 's3' ) {
 		const target = s3.s3FromEnv();
 		const buckets = target.fixedBucket ? { single: target.fixedBucket, network: target.fixedBucket } : containers;
-		return { provider: 's3', account: '', key: '', s3: target, container: buckets.single, containers: buckets, runId };
+		return { provider: 's3', account: '', key: '', s3: target, container: buckets.single, containers: buckets, runId, uploadsFolder };
 	}
-	return { provider: 'azure', ...azure.credentialsFromEnv(), container: containers.single, containers, runId };
+	return { provider: 'azure', ...azure.credentialsFromEnv(), container: containers.single, containers, runId, uploadsFolder };
 }
 
 /** The run as the given journey sees it: `container` is that journey's own. */

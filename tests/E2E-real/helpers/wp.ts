@@ -105,6 +105,24 @@ export function shortBatches( site: Site, on: boolean ): void {
 	);
 }
 
+/**
+ * Every upload of a site into `folder` below the month's folder, or back to
+ * WordPress's own layout with null: a must-use plugin that filters
+ * upload_dir before the plugin's wrapper does, so the object keys carry the
+ * folder too. The real suite gives each run a folder of its own, so no key
+ * is ever written again with other bytes (#100).
+ */
+export function uploadsPerRun( site: Site, folder: string | null ): void {
+	const file = '/var/www/html/wp-content/mu-plugins/diluxone-offload-e2e-uploads-per-run.php';
+	if ( folder === null ) {
+		shell( site, `rm -f ${ file }` );
+		return;
+	}
+	if ( ! /^[a-z0-9-]+$/.test( folder ) ) throw new Error( `Not a folder name: ${ folder }` );
+	const php = `<?php add_filter( 'upload_dir', function ( $d ) { foreach ( array( 'subdir', 'path', 'url' ) as $k ) { $d[ $k ] .= '/${ folder }'; } return $d; }, 5 );\n`;
+	shell( site, `mkdir -p /var/www/html/wp-content/mu-plugins && echo ${ Buffer.from( php ).toString( 'base64' ) } | base64 -d > ${ file }` );
+}
+
 /** PHP that yields the string `s`, whatever quotes, spaces or accents it carries. */
 export function phpString( s: string ): string {
 	return `base64_decode( '${ Buffer.from( s ).toString( 'base64' ) }' )`;
