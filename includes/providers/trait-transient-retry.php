@@ -78,7 +78,7 @@ trait TransientRetry {
 		$attempt    = 0;
 		while ( true ) {
 			$started  = \DiluxOneOffload\Clock::now();
-			$response = wp_remote_request( $url, $args );
+			$response = self::send( $url, $args );
 			$slow     = \DiluxOneOffload\Clock::now() - $started >= static::$slow_answer;
 			if ( ! $repeatable || $slow || ! self::is_transient( $response ) || $attempt >= count( static::$retry_pauses ) ) {
 				return $response;
@@ -93,6 +93,36 @@ trait TransientRetry {
 			}
 			usleep( $pause );
 			++$attempt;
+		}
+	}
+
+	/**
+	 * One request through the WordPress HTTP API, its body included even when
+	 * it is the one string PHP's empty() is true of: "0". WordPress' Requests
+	 * library hands a body to curl only when !empty($data), so a one-byte
+	 * body "0" (a one-byte file, or the last part of a file one byte over a
+	 * whole number of parts whose last byte is 0x30) left with no body and
+	 * no Content-Length; the services answer 411 or wait for the byte. For
+	 * that body the handle is given its bytes through `http_api_curl`, the
+	 * action WordPress fires with the curl handle just before it is run.
+	 *
+	 * @param string              $url  Request URL.
+	 * @param array<string,mixed> $args wp_remote_request() arguments.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	private static function send( string $url, array $args ) {
+		if ( '0' !== ( $args['body'] ?? '' ) ) {
+			return wp_remote_request( $url, $args );
+		}
+		$give_body = static function ( $handle ): void {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- The WordPress HTTP API itself drops this body; this is its own hook for the handle.
+			curl_setopt( $handle, CURLOPT_POSTFIELDS, '0' );
+		};
+		add_action( 'http_api_curl', $give_body );
+		try {
+			return wp_remote_request( $url, $args );
+		} finally {
+			remove_action( 'http_api_curl', $give_body );
 		}
 	}
 
