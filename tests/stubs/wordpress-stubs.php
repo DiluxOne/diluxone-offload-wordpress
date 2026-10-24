@@ -363,7 +363,12 @@ if (!function_exists('remove_filter')) {
 }
 if (!function_exists('remove_action')) {
     function remove_action(string $hook, $callback, int $priority = 10): bool {
-        return remove_filter($hook, $callback, $priority);
+        $list = $GLOBALS['_test_wp_hooks']['action'][$hook] ?? [];
+        $before = count($list);
+        $GLOBALS['_test_wp_hooks']['action'][$hook] = array_values(array_filter(
+            $list, fn($h) => !($h['callback'] == $callback && $h['priority'] === $priority)
+        ));
+        return count($GLOBALS['_test_wp_hooks']['action'][$hook]) < $before;
     }
 }
 if (!function_exists('has_filter')) {

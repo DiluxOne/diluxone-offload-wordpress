@@ -85,6 +85,10 @@ suppressions:
     sniff: WordPress.WP.AlternativeFunctions.curl_curl_init
     fingerprint: 96aae653e00e
     reason: "Talks to the S3 REST API with cURL: the WordPress HTTP API cannot stream a request body from a file, which a large upload needs to stay out of memory; the file functions read that local file or a temporary one."
+  - file: includes/providers/trait-transient-retry.php
+    sniff: WordPress.WP.AlternativeFunctions.curl_curl_setopt
+    fingerprint: 5054a3037dad
+    reason: "Gives the curl handle the one body WordPress' own HTTP API drops, the string \"0\" (empty('0') is true in its Requests transport), through WordPress' http_api_curl action, for that request only; the request itself goes through wp_remote_request()."
   - file: includes/providers/trait-part-upload.php
     sniff: WordPress.WP.AlternativeFunctions.curl_curl_setopt_array
     fingerprint: f352d7e13d73

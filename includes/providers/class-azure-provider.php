@@ -1115,10 +1115,10 @@ class AzureProvider implements CloudStorageClientInterface {
 		}
 
 		$content_length = strlen( $body );
-		$content_md5    = $body ? base64_encode( md5( $body, true ) ) : '';
+		$content_md5    = '' !== $body ? base64_encode( md5( $body, true ) ) : '';
 
 		// Use provided content_type or default to octet-stream
-		if ( empty( $content_type ) && $body ) {
+		if ( '' === $content_type && '' !== $body ) {
 			$content_type = 'application/octet-stream';
 		}
 
@@ -1129,7 +1129,7 @@ class AzureProvider implements CloudStorageClientInterface {
 			'x-ms-date'    => $date,
 			'x-ms-version' => '2020-04-08',
 		);
-		if ( $body && $method === 'PUT' ) {
+		if ( '' !== $body && $method === 'PUT' ) {
 			$ms += array(
 				'x-ms-blob-content-type' => $content_type,
 				'x-ms-blob-type'         => 'BlockBlob',
@@ -1158,7 +1158,7 @@ class AzureProvider implements CloudStorageClientInterface {
 
 		$headers = array( 'Authorization' => $authorization ) + $ms;
 
-		if ( $body && $method === 'PUT' ) {
+		if ( '' !== $body && $method === 'PUT' ) {
 			$headers['Content-Type'] = $content_type;
 			if ( $content_md5 ) {
 				$headers['Content-MD5'] = $content_md5;
