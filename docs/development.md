@@ -9,7 +9,7 @@ For contribution rules (issues, branch naming, commit conventions, PR workflow),
 | Tool | Why |
 | --- | --- |
 | **Docker** (Docker Desktop on macOS/Windows or Docker Engine on Linux) | Runs `wp-env` (the local WordPress stack) and the PHP toolchain (PHPCS, PHPStan, Psalm, PHPUnit, WP-CLI) without forcing you to install matching PHP extensions on the host. |
-| **Node.js 18+** and **npm** | Boots `wp-env` (`npm run env:start` / `make env`). |
+| **Node.js 22.13+** and **npm** | Boots `wp-env` (`npm run env:start` / `make env`). |
 | **`make`** | Optional but recommended — wraps every common task behind a short target. See `make help`. |
 | **`gh`** (GitHub CLI) | Optional — convenient for working with issues, PRs, and CI logs. |
 
