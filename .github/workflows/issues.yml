@@ -2,9 +2,10 @@ name: Issues
 
 # What happens to an issue, from the shared workflows in DiluxOne/.github: the
 # triage classifies it when it opens (from docs/roadmap.md, the README and
-# readme.txt), the reproduction job tries to write a failing unit test when a
-# maintainer labels it repro:run, and an issue a person accepts lands on the
-# Offload Project. Usage questions go to the wordpress.org forum.
+# readme.txt) and the reproduction job tries to write a failing unit test for a
+# report the triage calls a bug (repro-triaged), and a maintainer can start one
+# by hand with the label repro:run. Usage questions go to the wordpress.org
+# forum.
 
 on:
   issues:
@@ -48,8 +49,12 @@ jobs:
       triage-bug: ${{ needs.triage.outputs.bug }}
     secrets: inherit
 
+  # When a person opens or edits an issue not accepted yet: it is checked
+  # against the issue schema and labelled awaiting-acceptance or incomplete.
   # When a person accepts an issue: it lands on the Offload Project as
-  # Accepted, and a pull request opened before gets its gate re-run. When it
+  # Accepted, it is assigned to that person if nobody has it, and a pull
+  # request opened before gets its gate re-run; a release issue ("Release
+  # X.Y.Z", the Release form) opens its release pull request. When it
   # closes: Done.
   accepted:
     permissions:
