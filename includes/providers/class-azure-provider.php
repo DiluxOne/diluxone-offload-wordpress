@@ -1188,6 +1188,9 @@ class AzureProvider implements CloudStorageClientInterface {
 		}
 
 		try {
+			// The size now, not the one file_exists() left in the stat cache,
+			// as upload_file() reads it.
+			clearstatcache( true, $local_path );
 			$file_size = filesize( $local_path );
 			if ( false === $file_size ) {
 				return array(
