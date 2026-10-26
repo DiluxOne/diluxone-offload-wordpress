@@ -44,8 +44,11 @@ class S3Presets {
 	 * `infrequent` means the service stores a new object in a cheaper class
 	 * for files read less often when asked with `x-amz-storage-class:
 	 * STANDARD_IA` (Amazon S3, Cloudflare R2), which Settings › Serving offers.
+	 * `verify_downloads` means the service's signed reads can be answered
+	 * from a cache with the bytes of an object since overwritten (Google
+	 * Cloud Storage), so every download is checked against the listing.
 	 *
-	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool, max_parts?: int, infrequent?: bool}>
+	 * @return array<string, array{label: string, endpoint: string, region: string, region_fixed: bool, path_style: bool, public_url: string, http: bool, acl: bool, max_parts?: int, infrequent?: bool, verify_downloads?: bool}>
 	 */
 	public static function all(): array {
 		return array(
@@ -102,14 +105,15 @@ class S3Presets {
 				'acl'          => true,
 			),
 			'gcs'      => array(
-				'label'        => __( 'Google Cloud Storage (HMAC keys)', 'diluxone-offload' ),
-				'endpoint'     => 'https://storage.googleapis.com',
-				'region'       => 'auto',
-				'region_fixed' => true,
-				'path_style'   => true,
-				'public_url'   => 'https://storage.googleapis.com/{bucket}',
-				'http'         => false,
-				'acl'          => false,
+				'label'            => __( 'Google Cloud Storage (HMAC keys)', 'diluxone-offload' ),
+				'endpoint'         => 'https://storage.googleapis.com',
+				'region'           => 'auto',
+				'region_fixed'     => true,
+				'path_style'       => true,
+				'public_url'       => 'https://storage.googleapis.com/{bucket}',
+				'http'             => false,
+				'acl'              => false,
+				'verify_downloads' => true,
 			),
 			'hetzner'  => array(
 				'label'        => __( 'Hetzner Object Storage', 'diluxone-offload' ),
@@ -205,6 +209,18 @@ class S3Presets {
 	 */
 	public static function offers_infrequent( string $preset ): bool {
 		return (bool) ( self::all()[ $preset ]['infrequent'] ?? false );
+	}
+
+	/**
+	 * Whether a download from the service is checked against the listing's
+	 * MD5: its signed reads can come from a cache that still holds an
+	 * overwritten object's old bytes.
+	 *
+	 * @param string $preset Preset key.
+	 * @return bool
+	 */
+	public static function verifies_downloads( string $preset ): bool {
+		return (bool) ( self::all()[ $preset ]['verify_downloads'] ?? false );
 	}
 
 	/**

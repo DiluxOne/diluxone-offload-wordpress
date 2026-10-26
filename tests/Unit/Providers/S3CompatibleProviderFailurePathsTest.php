@@ -424,6 +424,39 @@ class S3CompatibleProviderFailurePathsTest extends TestCase {
 		$this->assertNotContains( 'DELETE', array_column( $this->requests(), 'method' ) );
 	}
 
+	public function test_a_google_download_that_stays_stale_leaves_no_file_behind(): void {
+		$GLOBALS['_test_wp_http'] = static function ( string $m, string $url ): array {
+			if ( false !== strpos( $url, 'list-type=2' ) ) {
+				$body = '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>media</Name>'
+					. '<Contents><Key>uploads/a.jpg</Key><Size>9</Size><ETag>"' . md5( 'new bytes' ) . '"</ETag><LastModified>2026-10-26T00:00:00.000Z</LastModified></Contents>'
+					. '<IsTruncated>false</IsTruncated></ListBucketResult>';
+				return array( 'response' => array( 'code' => 200, 'message' => 'OK' ), 'body' => $body, 'headers' => array() );
+			}
+			return array( 'response' => array( 'code' => 200, 'message' => 'OK' ), 'body' => 'old bytes', 'headers' => array() );
+		};
+		$dest     = sys_get_temp_dir() . '/s3f-' . uniqid() . '/a.jpg';
+		$provider = new S3CompatibleProvider(
+			array(
+				'preset'            => 'gcs',
+				'endpoint'          => 'https://storage.googleapis.com',
+				'region'            => 'auto',
+				'bucket'            => 'media',
+				'access_key_id'     => 'GOOGUNIT',
+				'secret_access_key' => 'unit-test-secret',
+				'path_style'        => true,
+			)
+		);
+
+		$r = $provider->download_file( 'uploads/a.jpg', $dest );
+
+		$this->assertFalse( $r['success'] );
+		$this->assertStringContainsString( 'MD5', $r['error'] );
+		$this->assertFileDoesNotExist( $dest, 'bytes that are not the stored object are not kept' );
+		if ( is_dir( dirname( $dest ) ) ) {
+			rmdir( dirname( $dest ) );
+		}
+	}
+
 	// ── Part, batch and download handles when the disk says no ─
 
 	public function test_a_part_beyond_what_the_file_now_holds_gets_no_handle(): void {

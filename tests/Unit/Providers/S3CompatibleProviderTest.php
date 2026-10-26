@@ -418,6 +418,107 @@ class S3CompatibleProviderTest extends TestCase {
 		$this->assertFileDoesNotExist( $dest, 'the error document is not left behind' );
 	}
 
+	/** A listing of one key whose ETag is $etag. */
+	private static function listing_of( string $key, string $etag ): string {
+		return '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>media</Name>'
+			. '<Contents><Key>' . $key . '.webp</Key><Size>1</Size><ETag>"' . md5( 'other' ) . '"</ETag><LastModified>2026-10-26T00:00:00.000Z</LastModified></Contents>'
+			. '<Contents><Key>' . $key . '</Key><Size>1</Size><ETag>"' . $etag . '"</ETag><LastModified>2026-10-26T00:00:00.000Z</LastModified></Contents>'
+			. '<IsTruncated>false</IsTruncated></ListBucketResult>';
+	}
+
+	private static function google(): S3CompatibleProvider {
+		return self::make( array( 'preset' => 'gcs', 'endpoint' => 'https://storage.googleapis.com', 'region' => 'auto' ) );
+	}
+
+	private static function dest(): string {
+		return sys_get_temp_dir() . '/s3v-' . uniqid() . '/x.jpg';
+	}
+
+	private static function clean( string $dest ): void {
+		if ( file_exists( $dest ) ) {
+			unlink( $dest );
+		}
+		if ( is_dir( dirname( $dest ) ) ) {
+			rmdir( dirname( $dest ) );
+		}
+	}
+
+	public function test_a_download_from_another_service_sends_no_listing_request(): void {
+		$this->answer( fn() => self::reply( 200, 'the bytes' ) );
+		$dest = self::dest();
+
+		$r = self::make( array( 'preset' => 'aws' ) )->download_file( 'uploads/x.jpg', $dest );
+
+		$this->assertTrue( $r['success'] );
+		$this->assertCount( 1, $this->requests(), 'one request per download, no billed listing' );
+		self::clean( $dest );
+	}
+
+	public function test_a_google_download_of_a_multipart_object_is_not_compared(): void {
+		$this->answer(
+			fn( string $m, string $url ) => false !== strpos( $url, 'list-type=2' )
+				? self::reply( 200, self::listing_of( 'uploads/x.jpg', md5( 'parts' ) . '-3' ) )
+				: self::reply( 200, 'the bytes' )
+		);
+		$dest = self::dest();
+
+		$r = self::google()->download_file( 'uploads/x.jpg', $dest );
+
+		$this->assertTrue( $r['success'] );
+		$this->assertSame( 'the bytes', file_get_contents( $dest ) );
+		$this->assertStringContainsString( 'prefix=uploads%2Fx.jpg', $this->requests()[1]['url'] );
+		self::clean( $dest );
+	}
+
+	public function test_a_google_download_whose_listing_cannot_be_read_fails(): void {
+		$this->answer(
+			fn( string $m, string $url ) => false !== strpos( $url, 'list-type=2' )
+				? self::reply( 403, self::error( 'AccessDenied', 'Access denied.' ) )
+				: self::reply( 200, 'the bytes' )
+		);
+		$dest = self::dest();
+
+		$r = self::google()->download_file( 'uploads/x.jpg', $dest );
+
+		$this->assertFalse( $r['success'] );
+		$this->assertStringContainsString( '403', $r['error'] );
+		$this->assertFileDoesNotExist( $dest, 'unverified bytes are not kept' );
+		self::clean( $dest );
+	}
+
+	public function test_a_google_download_of_a_key_absent_from_the_listing_fails_as_404(): void {
+		$this->answer(
+			fn( string $m, string $url ) => false !== strpos( $url, 'list-type=2' )
+				? self::reply( 200, self::listing_of( 'uploads/other.jpg', md5( 'the bytes' ) ) )
+				: self::reply( 200, 'the bytes' )
+		);
+		$dest = self::dest();
+
+		$r = self::google()->download_file( 'uploads/x.jpg', $dest );
+
+		$this->assertFalse( $r['success'] );
+		$this->assertMatchesRegularExpression( '/\b404\b/', $r['error'], 'the stream wrapper reads a missing object from the 404' );
+		$this->assertFileDoesNotExist( $dest );
+		self::clean( $dest );
+	}
+
+	public function test_a_stale_google_download_is_asked_again_without_the_cache(): void {
+		$this->answer(
+			fn( string $m, string $url, array $args ) => false !== strpos( $url, 'list-type=2' )
+				? self::reply( 200, self::listing_of( 'uploads/x.jpg', md5( 'new bytes' ) ) )
+				: self::reply( 200, 'no-cache' === ( $args['headers']['Cache-Control'] ?? '' ) ? 'new bytes' : 'old bytes' )
+		);
+		$dest = self::dest();
+
+		$r = self::google()->download_file( 'uploads/x.jpg', $dest );
+
+		$this->assertTrue( $r['success'] );
+		$this->assertSame( 'new bytes', file_get_contents( $dest ) );
+		$this->assertSame( array( 'GET', 'GET', 'GET', 'GET' ), array_column( $this->requests(), 'method' ), 'object, listing, object again, listing again' );
+		$this->assertSame( 'no-cache', $this->requests()[2]['args']['headers']['Cache-Control'] );
+		self::clean( $dest );
+	}
+
 	public function test_file_exists_is_a_head(): void {
 		$this->answer( fn( string $m, string $url ) => self::reply( false !== strpos( $url, 'here' ) ? 200 : 404 ) );
 		$this->assertTrue( $this->provider->file_exists( 'uploads/here.jpg' ) );
