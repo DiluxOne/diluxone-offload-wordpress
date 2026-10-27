@@ -125,6 +125,15 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	private $download_timeout;
 
 	/**
+	 * Whether a download is checked against the listing's MD5
+	 * (S3Presets::verifies_downloads()): Google's signed reads can come
+	 * from a cache that still holds an overwritten object's old bytes.
+	 *
+	 * @var bool
+	 */
+	private $verify_downloads;
+
+	/**
 	 * @param array<string, mixed> $config The saved provider_config, plus `upload_timeout`.
 	 */
 	public function __construct( array $config = array() ) {
@@ -135,6 +144,8 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 		$this->path_style = (bool) ( $config['path_style'] ?? true );
 		$this->object_acl = ! empty( $config['object_acl'] );
 		$this->max_parts  = S3Presets::max_parts( (string) ( $config['preset'] ?? '' ) );
+
+		$this->verify_downloads = S3Presets::verifies_downloads( (string) ( $config['preset'] ?? '' ) );
 
 		$this->new_object_headers = array();
 		$cache_control            = (string) ( $config['cache_control'] ?? '' );
@@ -679,9 +690,20 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 	// ── Read, inspect, delete, copy ─────────────────────────
 
 	/**
+	 * What a download fails with when the listing's MD5 is not that of the
+	 * bytes that came back.
+	 */
+	private const DOWNLOAD_MISMATCH = "Download failed: the stored object's MD5 does not match what was downloaded";
+
+	/**
 	 * Download an object to a local (temp) file, streamed to disk. Signed,
 	 * through the endpoint rather than the public URL, so a wrong Public
 	 * URL never breaks the plugin's own reads.
+	 *
+	 * On a service whose signed reads go through a cache (Google), the
+	 * bytes are checked against the listing, which is never cached: on a
+	 * mismatch the GET is made once more with `Cache-Control: no-cache`,
+	 * and if that still differs the file is deleted and the download fails.
 	 *
 	 * @param string $remote_path Object key.
 	 * @param string $local_path  Destination (a temp file).
@@ -693,10 +715,42 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 			wp_mkdir_p( $dir );
 		}
 
+		$key   = ltrim( $remote_path, '/' );
+		$error = $this->fetch( $key, $local_path );
+		if ( '' === $error && $this->verify_downloads ) {
+			$error = $this->listing_check( $key, $local_path );
+			if ( self::DOWNLOAD_MISMATCH === $error ) {
+				$error = $this->fetch( $key, $local_path, array( 'Cache-Control' => 'no-cache' ) );
+				if ( '' === $error ) {
+					$error = $this->listing_check( $key, $local_path );
+				}
+			}
+		}
+		if ( '' === $error ) {
+			return OperationResult::success()->toArray();
+		}
+
+		// Streaming writes whatever came back: on an error, the error
+		// document; on a mismatch, bytes that are not the stored object.
+		if ( file_exists( $local_path ) ) {
+			wp_delete_file( $local_path );
+		}
+		return OperationResult::failure( $error )->toArray();
+	}
+
+	/**
+	 * One signed GET of an object, streamed to a file.
+	 *
+	 * @param string               $key        Object key.
+	 * @param string               $local_path Destination.
+	 * @param array<string,string> $headers    Extra request headers.
+	 * @return string '' on a 200, the failure line otherwise.
+	 */
+	private function fetch( string $key, string $local_path, array $headers = array() ): string {
 		$response = $this->request(
 			'GET',
-			$this->request_url( ltrim( $remote_path, '/' ) ),
-			array(),
+			$this->request_url( $key ),
+			$headers,
 			'',
 			$this->download_timeout,
 			array(
@@ -704,18 +758,41 @@ class S3CompatibleProvider implements CloudStorageClientInterface {
 				'filename' => $local_path,
 			)
 		);
-
-		$status = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
-		if ( 200 === $status ) {
-			return OperationResult::success()->toArray();
+		if ( is_wp_error( $response ) ) {
+			return 'Download failed: ' . $response->get_error_message();
 		}
-
-		// Streaming writes whatever came back: on an error, the error document.
-		if ( file_exists( $local_path ) ) {
-			wp_delete_file( $local_path );
-		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
 		// The stream wrapper tells a missing object from a failure by the 404.
-		return OperationResult::failure( is_wp_error( $response ) ? 'Download failed: ' . $response->get_error_message() : 'HTTP ' . $status . ( 404 === $status ? ': not found' : '' ) )->toArray();
+		return 200 === $status ? '' : 'HTTP ' . $status . ( 404 === $status ? ': not found' : '' );
+	}
+
+	/**
+	 * Whether a downloaded file is the stored object, by the listing's MD5.
+	 *
+	 * @param string $key        Object key.
+	 * @param string $local_path The downloaded file.
+	 * @return string '' when it is, or when the listing has no MD5 to compare
+	 *                (a multipart object); DOWNLOAD_MISMATCH when it differs;
+	 *                the failure line when the listing cannot tell.
+	 */
+	private function listing_check( string $key, string $local_path ): string {
+		try {
+			$page = $this->list_page( $key );
+		} catch ( \Exception $e ) {
+			return 'Download not verified: ' . $e->getMessage();
+		}
+		// The key sorts first among those it is a prefix of, so it is on the first page.
+		foreach ( $page['files'] as $file ) {
+			if ( $key !== $file['path'] ) {
+				continue;
+			}
+			if ( ! is_string( $file['md5'] ) ) {
+				return '';
+			}
+			$md5 = md5_file( $local_path, true );
+			return false !== $md5 && hash_equals( $file['md5'], base64_encode( $md5 ) ) ? '' : self::DOWNLOAD_MISMATCH;
+		}
+		return 'HTTP 404: not found';
 	}
 
 	/**
