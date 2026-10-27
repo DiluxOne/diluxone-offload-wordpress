@@ -33,3 +33,4 @@ build/
 # wp-env local override (machine-specific dev config)
 .wp-env.override.json
 .env.e2e
+languages/*.mo
