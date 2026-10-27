@@ -251,7 +251,6 @@ Requirements: PHP `ext-openssl` (enabled by default on virtually every host).
 Unreleased.
 
 * A file of exactly one byte, or one byte over a whole number of upload parts, whose last byte is the character 0 now uploads. WordPress' HTTP library sent that byte as no body at all, and the storage service refused the upload (a 411 from Google Cloud Storage) or waited for it until the transfer timeout.
-* A download from Google Cloud Storage is checked against the stored object and never keeps an old cached copy of a file that was overwritten: Google's cache could answer with the earlier bytes, which were written to the server as if they were current.
 * The provider selector on Cloud Provider › Connection names its second option just "S3-compatible storage", without the list of providers that made the open dropdown wider than the page.
 
 = 2.1.0 =
