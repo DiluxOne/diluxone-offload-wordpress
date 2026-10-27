@@ -71,13 +71,12 @@ class Issue102Test extends TestCase {
 
 		$result = self::google()->download_file( 'uploads/photo.png', $this->dest );
 
-		if ( file_exists( $this->dest ) ) {
-			$this->assertSame( md5( self::STORED ), md5_file( $this->dest ), 'A file on disk is the stored object, never the copy Google\'s cache served.' );
+		if ( empty( $result['success'] ) ) {
+			$this->assertFileDoesNotExist( $this->dest, 'A download that could not get the stored object fails and leaves nothing on disk.' );
+			return;
 		}
-		if ( ! empty( $result['success'] ) ) {
-			$this->assertFileExists( $this->dest );
-			$this->assertSame( md5( self::STORED ), md5_file( $this->dest ), 'A download reported as done has the stored object\'s MD5.' );
-		}
+		$this->assertFileExists( $this->dest );
+		$this->assertSame( md5( self::STORED ), md5_file( $this->dest ), 'A download reported as done has the stored object\'s MD5, never the copy Google\'s cache served.' );
 	}
 
 	public function test_a_download_whose_md5_matches_the_listing_is_written(): void {
