@@ -78,46 +78,61 @@ so it is reviewed on GitHub once. Every push to an open pull request is a
 paid review and a round of waiting.
 
 1. **Set up once.** You need Docker, Node.js (for `npx`), GNU make, git,
-   `gh` signed in, a checkout of [DiluxOne/.github](https://github.com/DiluxOne/.github)
+   Python 3, `gh` signed in, a checkout of [DiluxOne/.github](https://github.com/DiluxOne/.github)
    beside this one (`../.github`, for `dx`), and the Claude Code CLI for
-   step 6; no PHP on the host. Then run
-   `make install` (the dev tools, in `vendor/`), `make env` (WordPress at
-   http://localhost:8888, admin / password, with the plugin mounted; a
-   second site at :8889 for the tests) and `make env-multisite` (turns that
-   second site into a network). After a restart, `make env` again.
+   the review; no PHP on the host. `make pre-pr` installs the rest itself.
+   To work on the plugin, run `make install` (the dev tools, in `vendor/`),
+   `make env` (WordPress at http://localhost:8888, admin / password, with
+   the plugin mounted; a second site at :8889 for the tests) and
+   `make env-multisite` (turns that second site into a network). After a
+   restart, `make env` again.
 2. **An accepted issue, then its branch:** `dx start <number>` checks the
    issue is accepted and creates `<type>/<number>-<slug>` from `main`.
 3. **Make the change** with its tests at every layer it touches (unit,
    integration, end-to-end, and the real-storage suites when storage
    behaviour changes), the docs that describe it, and, when a user notices
-   it, one bullet under the newest `= X.Y.Z =` entry of `readme.txt`, below
-   its `Unreleased.` line.
+   it, its changelog line in a file of its own, `changelog.d/<issue>.md`
+   (one bullet, `* …`, written for users), never in `readme.txt`, which the
+   release writes.
 4. **Commit** as the organisation's rules above say.
 5. **Write the pull request description** in `.git/dx/pr.md`, which
    `dx start` wrote already closing the issue: 📝 What changes and 💡 Why
    are required.
-6. **Run everything:**
+6. **Run everything:** `dx check`, or by hand:
    ```bash
-   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
+   make pre-pr
+   make review-local REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
    ```
-   One after the other, it runs what a pull request is checked on:
-   `make check` (PHPCS, PHPStan level 8, Psalm taint, unit tests), the
-   string extraction CI fails on any warning of (`make i18n-check`), the unit
-   tests again on PHP 7.4, the minimum (`make test-unit-min`), the docs
-   check (`make docs-check`: links resolve, no retired product name), the
-   integration suite, the end-to-end suite, wordpress.org's Plugin Check in
-   strict mode (a warning fails), the kind's review rules (`make
-   review-rules`: every suppression listed with its reason in
-   `.github/review-suppressions.yml`), and the local review: the same
+   `make pre-pr` is the one check before a pull request. It needs nothing
+   started before it: on a fresh clone it installs what it uses (composer,
+   npm, Chromium, the organisation's scripts at the ref this repository's
+   workflows call), and it runs the slow suites in a WordPress of its own
+   (`build/pre-pr`, ports 8892/8893, apart from `make env`'s), which it
+   removes at the end whether a step passed or failed, so the next run
+   starts from the same state. One after the other, stopping at the first
+   failure, it runs what the pull request and the merge queue run: PHPCS,
+   PHPStan level 8, Psalm taint, the design system's stylelint on the CSS
+   the branch changes, the translations in the form that merges (and
+   compiled), the string extraction CI fails on any warning of
+   (`make i18n-check`), the unit tests on the tools' PHP and on PHP 7.4,
+   the minimum, `php -l` on every supported PHP, `readme.txt` and the
+   version markers (with `gh`), the docs check (`make docs-check`: links
+   resolve, no retired product name), wordpress.org's Plugin Check in strict
+   mode (a warning fails), the kind's review rules (`make review-rules`:
+   every suppression listed with its reason in
+   `.github/review-suppressions.yml`), and the integration suite on a
+   network and the end-to-end suite. It takes about half an hour. Any step
+   can run alone (`make help` lists them).
+   `dx check` then runs the local review (`make review-local`): the same
    conventions, accepted-issue gate, risk floor and Claude review the pull
    request will get, from the organisation's shared scripts
    ([DiluxOne/.github](https://github.com/DiluxOne/.github)), on your own
    Claude account (it uses that account's quota, like any Claude Code
-   session). Any step can run alone (`make review-local` is the last one).
+   session).
    A change to docs only (Markdown, `docs/`, no code) needs just
    `make docs-check` and `make review-local`: on GitHub such a pull request
    skips the slow suites too. What stays on GitHub: the unit tests on
-   PHP 8.0 to 8.5, the real-storage suites and CodeQL. Run
+   PHP 8.0 to 8.4, the real-storage suites and CodeQL. Run
    `make screenshots` when a listing screen changes; when the change touches
    storage, the real-storage journeys against a local S3 server need no
    keys: `make s3-up && make test-real REAL_PROVIDER=s3` (`s3-up` adds one
@@ -181,8 +196,10 @@ What you must do, and never do, in a change:
   released, or, from its release pull request on, the one being released;
   CI holds every pull request to that.
 - **Write the changelog in the same pull request.** A change a user notices
-  adds one bullet under the newest `= X.Y.Z =` entry of `readme.txt`, below
-  its first line `Unreleased.`, written for users.
+  adds its line in a file of its own, `changelog.d/<issue>.md` (one bullet,
+  written for users), never in `readme.txt`: the release pull request writes
+  the fragments under the version's heading and removes them, and CI fails a
+  pull request that edits `readme.txt`'s changelog by hand.
 - **The line `Unreleased.` is the release switch.** While it is there, every
   push to `main` ends green as **Not ready** and nothing waits for approval.
   The pull request that removes it is the maintainer's decision to release
