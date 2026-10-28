@@ -6,7 +6,9 @@
 #   and for each job of this repository's pull request and merge queue, and
 #   its wp-env's ports are apart from `make env`'s and Plugin Check's;
 # - with `npx` and `docker` stubbed on PATH and one step forced to fail, it
-#   exits non-zero, runs no later step, and still destroys its environment.
+#   exits non-zero, runs no later step, and still destroys its environment;
+# - after a failing run and after a passing one, nothing of its environment
+#   is left running and the next run starts it anew, and passes again.
 #
 # The real run is `make pre-pr` itself; nothing here starts a container.
 # Needs the organisation's scripts (REVIEW_CENTRAL, build/.dx-central by
@@ -137,6 +139,19 @@ grep -qE "^npx \[[^]]*/build/pre-pr\] wp-env destroy --force" "$log" && ok "its 
 [ ! -f "$state" ] && ok "nothing of it is left running" || bad "its environment is left running"
 grep -qE "^npx \[[^]]*/build/pcp\] wp-env stop" "$log" && ok "Plugin Check's environment is stopped too" || bad "Plugin Check's environment is not stopped"
 grep -q "^docker " "$log" && bad "a stubbed run called docker: $(grep -m1 '^docker ' "$log")" || ok "the stubbed run starts no container"
+
+# -- Again, from the same state ----------------------------------------
+# After a failing run and after a passing one, nothing of build/pre-pr is
+# left running, and the next run starts its environment anew.
+starts() { grep -cE "^npx \[[^]]*/build/pre-pr\] wp-env start" "$log"; }
+stubbed "pre-pr-env-up t-pass"; status=$?
+[ "$status" -eq 0 ] && ok "after a failed run, the next one passes" || bad "after a failed run, the next one fails (exit $status)"
+[ "$(starts)" -eq 1 ] && ! grep -q "started while running" "$log" && ok "and starts its environment anew" || bad "after a failed run, the environment was not started anew"
+[ ! -f "$state" ] && ok "a passing run leaves nothing of it running" || bad "a passing run leaves its environment running"
+stubbed "pre-pr-env-up t-pass"; status=$?
+[ "$status" -eq 0 ] && ok "a passing run passes again right after" || bad "a second passing run fails (exit $status)"
+[ "$(starts)" -eq 1 ] && ! grep -q "started while running" "$log" && ok "from nothing, its environment started anew" || bad "the second run found its environment still there"
+[ ! -f "$state" ] && ok "and leaves nothing running either" || bad "the second run leaves its environment running"
 
 if [ "$fail" -eq 0 ]; then echo "all tests passed"; else cat "$t/out"; fi
 exit "$fail"
