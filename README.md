@@ -76,13 +76,15 @@ make env-multisite  # the tests site as a network, for the multisite tests
 ```
 
 1. **Start from an accepted issue**, and branch from `main` as `<type>/<number>-<kebab-case>`, for example `fix/61-sync-retry-count` (`dx start <number>`, from [DiluxOne/.github](https://github.com/DiluxOne/.github/blob/main/docs/agents.md)).
-2. **Make the change with its tests at every layer it touches** (unit, integration, end-to-end, the real-storage suites when storage behaviour changes, the screenshots when a screen changes), the docs that describe it, and a changelog line when a user will notice it ([`docs/testing-and-quality.md`](docs/testing-and-quality.md)).
+2. **Make the change with its tests at every layer it touches** (unit, integration, end-to-end, the real-storage suites when storage behaviour changes, the screenshots when a screen changes), the docs that describe it, and, when a user will notice it, its changelog line in `changelog.d/<issue>.md`, never in `readme.txt` ([`docs/testing-and-quality.md`](docs/testing-and-quality.md), [`docs/release.md`](docs/release.md)).
 3. **Commit** with [Conventional Commit](https://www.conventionalcommits.org/) headers of 72 characters or fewer.
 4. **Write the pull request description** in `.git/dx/pr.md`, which `dx start` wrote with the sections of the organisation's [template](https://github.com/DiluxOne/.github/blob/main/pull_request_template.md), already closing the issue.
-5. **Run everything the pull request will be checked on, here, first:**
+5. **Run everything the pull request will be checked on, here, first:** `dx check`, or by hand:
    ```bash
-   make pre-pr REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
+   make pre-pr
+   make review-local REVIEW_ARGS="--title 'fix(sync): what it does' --body-file .git/dx/pr.md"
    ```
+   `make pre-pr` is the one check before a pull request: every check the pull request and the merge queue run, from a fresh clone, in a WordPress of its own that it removes at the end (`make env` is not needed for it). `make review-local` is the review.
 6. **Fix what it finds.** The local review writes each finding, with its file and line, to `.git/dx-review/findings.md`. Fix, commit, run step 5 again (it reviews only what changed) until it says **Ready for a pull request**.
 7. **Open the pull request.** The same checks and the same review run again on GitHub, plus the few that need the cloud's keys. Every push to an open pull request is another paid review and another wait, so it opens clean and is reviewed once.
 
@@ -90,22 +92,21 @@ make env-multisite  # the tests site as a network, for the multisite tests
 
 ## What runs on your machine and what runs on GitHub
 
-Almost everything a pull request is checked on runs on your machine with `make pre-pr`, including the AI review, on your own Claude account. Only what needs the cloud's keys or a matrix of PHP versions stays on GitHub.
+Almost everything a pull request is checked on runs on your machine with `make pre-pr`, and the AI review with `make review-local` (both with `dx check`), on your own Claude account. Only what needs the cloud's keys or a matrix of PHP versions stays on GitHub.
 
 ```mermaid
 flowchart TB
-    subgraph LOCAL["💻 On your machine: make pre-pr"]
+    subgraph LOCAL["💻 On your machine: dx check = make pre-pr, then make review-local"]
         direction TB
-        L1["make check<br/>PHPCS · PHPStan level 8 · Psalm taint · unit tests"]
-        L1b["make i18n-check<br/>string extraction, any warning fails"]
-        L2["make test-unit-min<br/>unit tests on PHP 7.4, the minimum"]
-        L3["make docs-check<br/>links resolve, no retired names"]
-        L4["make test-integration<br/>PHPUnit on a WordPress network (wp-env)"]
-        L5["make test-e2e<br/>Playwright, every screen, no cloud account"]
-        L6["make plugin-check<br/>wordpress.org's Plugin Check, strict"]
-        L6b["make review-rules<br/>the kind's rules, suppressions with their reason"]
+        L0["setup<br/>composer · npm · Chromium · DiluxOne/.github at the callers' ref"]
+        L1["lint · stan · psalm · design-lint<br/>PHPCS · PHPStan level 8 · Psalm taint · the design system's stylelint"]
+        L1b["i18n-form · i18n-check · i18n-compile<br/>translations in the form that merges, extraction, compiled"]
+        L2["test-unit · test-unit-min · syntax<br/>unit tests on PHP 8.5 and 7.4, php -l from 7.4 to 8.5"]
+        L3["readme-check · docs-check<br/>readme.txt, changelog fragments, version markers; links, retired names"]
+        L6["plugin-check · review-rules<br/>wordpress.org's Plugin Check, strict; the kind's rules"]
+        L5["integration and E2E, in build/pre-pr (8892/8893)<br/>PHPUnit on a network · Playwright, every screen, no cloud account"]
         L7["make review-local<br/>conventions · accepted issue · risk floor · Claude review"]
-        L1 --> L1b --> L2 --> L3 --> L4 --> L5 --> L6 --> L6b --> L7
+        L0 --> L1 --> L1b --> L2 --> L3 --> L6 --> L5 --> L7
         L8["optional: make s3-up && make test-real REAL_PROVIDER=s3<br/>real-storage journeys on a local S3 server, no keys"]
     end
 
@@ -132,13 +133,17 @@ flowchart TB
 | Check | On your machine | On GitHub |
 | --- | --- | --- |
 | Conventions: branch, title, commits, description, accepted issue | `make review-local` | ✅ |
-| PHPCS, PHPStan level 8, Psalm taint, unit tests | `make check` | ✅ |
+| PHPCS, PHPStan level 8, Psalm taint, unit tests on PHP 8.5 | `make check` | ✅ |
 | Unit tests on PHP 7.4 | `make test-unit-min` | ✅ |
-| Unit tests on PHP 8.0 to 8.5 | no | ✅ |
+| Unit tests on PHP 8.0 to 8.4 | no | ✅ |
+| PHP syntax on every PHP from 7.4 to 8.5 | `make syntax` | ✅ |
+| Translations in the form that merges | `make i18n-form` | ✅ |
+| readme.txt, changelog fragments, version markers | `make readme-check` | ✅ |
+| The design system's stylelint on changed CSS | `make design-lint` | ✅ |
 | Docs: links and retired names | `make docs-check` | ✅ |
 | i18n extraction, any warning fails | `make i18n-check` | ✅ |
-| Integration tests (WordPress + MySQL, multisite) | `make test-integration` | ✅ |
-| End-to-end tests (every screen, no cloud account) | `make test-e2e` | ✅ |
+| Integration tests (WordPress + MySQL, multisite) | `make pre-pr`'s own site; `make test-integration` on `make env`'s | ✅ |
+| End-to-end tests (every screen, no cloud account) | `make pre-pr`'s own site; `make test-e2e` on `make env`'s | ✅ |
 | wordpress.org Plugin Check, strict | `make plugin-check` | ✅ |
 | The kind's review rules (suppressions with their reason) | `make review-rules` | ✅ |
 | The Claude review | `make review-local`, on your Claude account | ✅ on the organisation's account; not on forks |

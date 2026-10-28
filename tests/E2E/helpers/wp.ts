@@ -1,12 +1,19 @@
 import { execFileSync } from 'node:child_process';
 
 /**
+ * The wp-env project the suite drives: WP_ENV_DIR when set (`make pre-pr`
+ * runs it against its own, build/pre-pr), else the checkout's (`make env`).
+ */
+const cwd = process.env.WP_ENV_DIR || undefined;
+
+/**
  * WP-CLI against the wp-env dev site the mock suite drives. Used only to put
  * the site in a state the browser cannot reach without a cloud account, and
  * to put it back.
  */
 export function wp( args: string[] ): string {
 	const out = execFileSync( 'npx', [ 'wp-env', 'run', 'cli', 'wp', ...args ], {
+		cwd,
 		encoding: 'utf8',
 		stdio: [ 'ignore', 'pipe', 'pipe' ],
 		env: { ...process.env, WP_ENV_DEBUG: '' },
@@ -17,6 +24,7 @@ export function wp( args: string[] ): string {
 /** A shell command in the dev site's CLI container (WP-CLI on the PATH, /var/www/html shared with the web server). */
 export function shell( command: string ): string {
 	const out = execFileSync( 'npx', [ 'wp-env', 'run', 'cli', 'bash', '-c', command ], {
+		cwd,
 		encoding: 'utf8',
 		stdio: [ 'ignore', 'pipe', 'pipe' ],
 		env: { ...process.env, WP_ENV_DEBUG: '' },
