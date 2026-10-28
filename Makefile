@@ -176,7 +176,7 @@ STAMP        ?= 1
 
 build/next-version.py:
 	@mkdir -p build
-	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/v5/scripts/next-version.py -o "$@"
+	@curl -sSfL https://raw.githubusercontent.com/DiluxOne/.github/$(REVIEW_CENTRAL_REF)/scripts/next-version.py -o "$@"
 
 # stamp <dir>: the three version markers of the copy under <dir> become the
 # development version, and a `Build:` header line (absent in the tree)
@@ -203,7 +203,9 @@ dist: $(if $(filter 0,$(STAMP)),,$(NEXT_VERSION)) ## Build build/diluxone-offloa
 	@# replacing the inode leaves the container looking at a mount that is gone.
 	@# --delete-excluded too: a file that became excluded must leave the dist,
 	@# --delete alone keeps it there from an earlier build.
-	@rsync -a --delete --delete-excluded --exclude-from=.distignore --exclude='build' ./ "$(DIST_DIR)/"
+	@# /.dx-*/ are the organisation's working copies an autopilot run keeps
+	@# beside the checkout (git-ignored through .git/info/exclude), never ours.
+	@rsync -a --delete --delete-excluded --exclude-from=.distignore --exclude='build' --exclude='/.dx-*/' ./ "$(DIST_DIR)/"
 	@# rsync copies the working tree, so a file git never saw (a local .env,
 	@# a scratch script, a symlink to either) lands in the dist unless
 	@# .distignore names it. What ships is what is committed: anything else
@@ -261,7 +263,7 @@ plugin-check-all: pcp-env ## Plugin Check on the built dist, including warnings 
 
 .PHONY: plugin-check-down
 plugin-check-down: ## Stop the Plugin Check environment.
-	@cd "$(PCP_DIR)" && npx @wordpress/env stop 2>/dev/null || true
+	@[ ! -f "$(PCP_DIR)/.wp-env.json" ] || { cd "$(PCP_DIR)" && npx @wordpress/env stop 2>/dev/null || true; }
 
 .PHONY: test-e2e
 test-e2e: ## Run the Playwright end-to-end suite against the wp-env dev site (needs `make env` first).
@@ -382,11 +384,14 @@ check: lint stan psalm test ## Run the fast quality gates (lint, stan, psalm, un
 # The organisation's local review (DiluxOne/.github, scripts/local-review.sh):
 # the pull request's conventions, risk floor and Claude review, run before the
 # pull request exists. The script is the organisation's own, trusted at the
-# moving tag REVIEW_CENTRAL_REF (v5, what CI calls too); it is cloned into
-# build/.dx-central and refreshed on every run. REVIEW_CENTRAL=<path> uses a
-# checkout of your own instead, to try a change to the review itself.
+# moving tag REVIEW_CENTRAL_REF, the one this repository's callers name
+# (`DiluxOne/.github/...@v7` in .github/workflows/plugin-checks.yml), so what
+# runs here is what CI runs; it is cloned into build/.dx-central and refreshed
+# on every run. REVIEW_CENTRAL=<path> uses a checkout of your own instead, to
+# try a change to the review itself.
 REVIEW_CENTRAL     ?= build/.dx-central
-REVIEW_CENTRAL_REF ?= v5
+CALLERS_REF        := $(shell sed -n 's|.*uses: DiluxOne/\.github/\.github/workflows/[^@]*@\([A-Za-z0-9._-]*\).*|\1|p' .github/workflows/plugin-checks.yml 2>/dev/null | head -1)
+REVIEW_CENTRAL_REF ?= $(or $(CALLERS_REF),$(error No DiluxOne/.github ref found in .github/workflows/plugin-checks.yml: set REVIEW_CENTRAL_REF))
 
 .PHONY: dx-central
 dx-central:
@@ -416,24 +421,196 @@ LYCHEE_IMAGE ?= lycheeverse/lychee:0.24.2
 
 .PHONY: docs-check
 docs-check: ## Relative links in every Markdown file resolve, and no retired product name is back (what CI's docs job checks).
-	docker run --rm -v "$(CURDIR)":/input -w /input $(LYCHEE_IMAGE) --offline --no-progress --exclude-path node_modules --exclude-path vendor --exclude-path build './**/*.md' './.github/**/*.md'
+	docker run --rm -v "$(CURDIR)":/input -w /input $(LYCHEE_IMAGE) --offline --no-progress --exclude-path node_modules --exclude-path vendor --exclude-path build --exclude-path '\.dx-' './**/*.md' './.github/**/*.md'
 	@retired=$$(sed -n "s/^retired-names: '\(.*\)'.*/\1/p" .github/review-policy.yml | head -1); \
 	[ -n "$$retired" ] || { echo "No retired-names: line in .github/review-policy.yml to check against."; exit 1; }; \
 	if git grep -nIiE "$$retired" -- . | grep -vE '^[^:]+:[0-9]+:\s*retired-names:'; then echo "A retired product name is back (see above)."; exit 1; fi; \
 	echo "No retired product names."
 
+# -- The one check before a pull request -------------------------------
+# `make pre-pr` (DiluxOne/.github#479): every check this repository's pull
+# request and merge queue run (plugin-checks.yml → the organisation's
+# plugin-checks-wp.yml and plugin-tests-wp.yml, and the pipeline's docs job),
+# one after the other, stopping at the first failure. It needs nothing
+# started before it: it installs what it uses and runs the slow suites in a
+# wp-env of its own, build/pre-pr on ports 8892/8893 (apart from `make env`'s
+# 8888/8889, other projects' 8890/8891 and Plugin Check's 8896/8897). Whether
+# a step passes or fails, that environment is destroyed at the end and
+# Plugin Check's stopped, so the next run starts from the same state. What
+# stays on GitHub: CodeQL, the unit tests on PHP 8.0 to 8.4 and the
+# real-storage suites. The Claude review is not in it: `dx check` runs it
+# after this, or `make review-local`.
+GITHUB_REPO      := DiluxOne/diluxone-offload-wordpress
+MAIN_FILE        := diluxone-offload.php
+VERSION_CONSTANT := DILUXONE_OFFLOAD_VERSION
+# The folder wp-env mounts the checkout as, inside its containers.
+REPO_DIR         := $(notdir $(CURDIR))
+# What the branch is compared with (the changelog, the design system).
+PRE_PR_BASE      ?= origin/main
+PRE_PR_DIR       := $(CURDIR)/build/pre-pr
+PRE_PR_PORT      ?= 8892
+PRE_PR_TESTS_PORT ?= 8893
+# The config's ports, whatever a runner exports for wp-env.
+PRE_PR_WPENV     := env -u WP_ENV_PORT -u WP_ENV_TESTS_PORT npx wp-env
+PRE_PR_STEPS     ?= pre-pr-setup \
+                    lint stan psalm design-lint \
+                    i18n-form i18n-check i18n-compile \
+                    test-unit test-unit-min syntax \
+                    readme-check docs-check plugin-check review-rules \
+                    pre-pr-env-up pre-pr-integration pre-pr-e2e
+
 .PHONY: pre-pr
-pre-pr: ## Everything a pull request is checked on that runs without a cloud account, one after the other, then the local review (needs `make env` and `make env-multisite`).
-	$(MAKE) check
-	$(MAKE) i18n-check
-	$(MAKE) test-unit-min
-	$(MAKE) docs-check
-	$(MAKE) test-integration
-	$(MAKE) test-e2e
-	$(MAKE) plugin-check
-	$(MAKE) review-rules
-	$(MAKE) review-local
-	@echo "✔ Checks passed; the review above says whether the branch is ready for a pull request."
+pre-pr: ## The one check before a pull request: everything its pull request and merge queue run, from a fresh clone, in an environment of its own it removes at the end.
+	@trap 'status=$$?; trap - EXIT; $(MAKE) --no-print-directory pre-pr-env-down; exit $$status' EXIT; \
+	trap 'exit 130' INT TERM; \
+	set -e; \
+	for step in $(PRE_PR_STEPS); do \
+	  printf '\n── make %s ──\n' "$$step"; \
+	  $(MAKE) --no-print-directory "$$step"; \
+	done; \
+	echo "✔ make pre-pr passed: every check of the pull request and the merge queue (CodeQL and the real-storage suites run on GitHub). The review: dx check, or make review-local."
+
+.PHONY: pre-pr-setup
+pre-pr-setup: ## What pre-pr needs on a fresh clone: composer, npm, Chromium, the organisation's scripts.
+	$(MAKE) --no-print-directory install
+	npm ci --no-audit --no-fund
+	npx playwright install chromium
+	$(MAKE) --no-print-directory dx-central
+
+# The stylesheets this branch changes, against the design system repos.yml
+# gives the repository, as CI's "Design system (stylelint)" job.
+.PHONY: design-lint
+design-lint: dx-central ## The CSS the branch changes against the design system, as CI's "Design system" check.
+	@base=$$(git merge-base $(PRE_PR_BASE) HEAD) || { echo "✖ No merge base with $(PRE_PR_BASE): fetch it (git fetch origin main)."; exit 1; }; \
+	out=$$(mktemp); trap 'rm -f "$$out"' EXIT; \
+	GITHUB_OUTPUT=$$out python3 "$(REVIEW_CENTRAL)/scripts/design-lint.py" plan --repo $(notdir $(GITHUB_REPO)) --base "$$base" --head HEAD; \
+	if grep -qx 'run=true' "$$out"; then \
+	  npm ci --prefix "$(REVIEW_CENTRAL)/scripts/stylelint" --ignore-scripts --no-audit --no-fund --silent && \
+	  python3 "$(REVIEW_CENTRAL)/scripts/design-lint.py" check --repo $(notdir $(GITHUB_REPO)) --base "$$base" --head HEAD; \
+	else echo "No stylesheet to check against the design system."; fi
+
+# gettext (msgcat, msgfmt) for the organisation's plugin-i18n.sh, in a small
+# image built once, so the host needs none.
+GETTEXT_IMAGE ?= diluxone-gettext
+ifeq ($(DOCKER),1)
+I18N_SH = $(DOCKER_RUN) -e HOME=/tmp -v "$(abspath $(REVIEW_CENTRAL))":/central:ro $(GETTEXT_IMAGE) bash /central/scripts/plugin-i18n.sh
+else
+I18N_SH = bash "$(REVIEW_CENTRAL)/scripts/plugin-i18n.sh"
+endif
+
+.PHONY: gettext-image
+gettext-image:
+	@[ "$(DOCKER)" != 1 ] || docker image inspect $(GETTEXT_IMAGE) >/dev/null 2>&1 \
+	  || printf 'FROM alpine:3.22\nRUN apk add --no-cache bash gettext git\n' | docker build -q -t $(GETTEXT_IMAGE) - >/dev/null
+
+.PHONY: i18n-form
+i18n-form: dx-central gettext-image ## languages/*.pot and *.po in the form that merges, no .mo committed (plugin-i18n.sh check).
+	$(I18N_SH) check .
+
+.PHONY: i18n-compile
+i18n-compile: dx-central gettext-image ## Build languages/*.mo from the .po (never committed), as CI does before the tests.
+	$(I18N_SH) compile .
+
+# The PHP every check runs on, from the pack and the plugin's Requires PHP
+# (the organisation's kind.sh and php-versions.py, as CI's "PHP versions"
+# job): sets $$versions, every release from the minimum to the tools' PHP.
+define php_versions
+t=$$(mktemp -d); trap 'rm -rf "$$t"' EXIT; \
+GITHUB_OUTPUT=$$t/kind RUNNER_TEMP=$$t DEFAULT_POLICY="$(REVIEW_CENTRAL)/policy/review-policy.default.yml" \
+  KIND_DEFAULT=wordpress-plugin EVENT=push CENTRAL="$(REVIEW_CENTRAL)" bash "$(REVIEW_CENTRAL)/scripts/kind.sh" >/dev/null; \
+: > $$t/php; \
+SETTINGS="$$(sed -n 's/^settings=//p' $$t/kind)" MAIN=$(MAIN_FILE) README=readme.txt GITHUB_OUTPUT=$$t/php \
+  python3 "$(REVIEW_CENTRAL)/scripts/php-versions.py" >/dev/null; \
+versions=$$(sed -n 's/^versions=//p' $$t/php | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)))')
+endef
+
+.PHONY: syntax
+syntax: dx-central ## php -l on every shipped PHP file, on every PHP from the minimum to the tools', as CI's "PHP x.y syntax".
+	@$(MAKE) --no-print-directory dist STAMP=0 >/dev/null
+	@set -e; $(php_versions); \
+	[ -n "$$versions" ] || { echo "✖ No PHP versions from the pack."; exit 1; }; \
+	for v in $$versions; do \
+	  docker run --rm -q -u $(DOCKER_USER) -v "$(CURDIR)/$(DIST_DIR)":/src:ro php:$$v-cli \
+	    sh -c 'find /src -type f -name "*.php" -print0 | xargs -0 -n1 php -l >/dev/null' \
+	    || { echo "✖ PHP $$v: a shipped file does not parse."; exit 1; }; \
+	  echo "✔ PHP $$v syntax"; \
+	done
+
+# CI's "readme.txt and versions": the headers, the version alignment and the
+# changelog entry; the changelog fragments, and readme.txt's changelog not
+# edited by hand against the base; the markers against what was released
+# (needs gh signed in: the type labels of what merged give the version).
+.PHONY: readme-check
+readme-check: dx-central ## readme.txt headers, versions, changelog fragments and release markers, as CI's "readme.txt and versions".
+	@set -euo pipefail; \
+	for h in "Contributors" "Tags" "Requires at least" "Tested up to" "Requires PHP" "Stable tag" "License"; do \
+	  grep -qE "^$${h}:" readme.txt || { echo "✖ readme.txt: missing header $${h}"; exit 1; }; \
+	done; \
+	! grep -qE '^\s*\*\s*Tested up to:' $(MAIN_FILE) || { echo "✖ $(MAIN_FILE): Tested up to belongs only in readme.txt."; exit 1; }; \
+	stable=$$(grep -oP '^Stable tag:\s*\K\S+' readme.txt); \
+	version=$$(grep -oP '^\s*\*\s*Version:\s*\K\S+' $(MAIN_FILE)); \
+	base=$$(printf '%s' "$$version" | sed -E 's/-(dev|alpha|beta|rc)([.0-9]*)?$$//'); \
+	if [ "$$version" = "$$base" ]; then \
+	  [ "$$stable" = "$$base" ] || { echo "✖ Version $$version has no pre-release suffix, so Stable tag ($$stable) must equal it."; exit 1; }; \
+	else \
+	  [ "$$(printf '%s\n%s\n' "$$stable" "$$base" | sort -V | tail -1)" = "$$base" ] || { echo "✖ Version $$version is behind Stable tag $$stable."; exit 1; }; \
+	fi; \
+	constant=$$(grep -oP "$(VERSION_CONSTANT)',\s*'\K[^']+" $(MAIN_FILE)); \
+	[ "$$constant" = "$$version" ] || { echo "✖ $(VERSION_CONSTANT) ($$constant) differs from Version ($$version)."; exit 1; }; \
+	grep -qE "^=\s*$${stable}\s*=" readme.txt || { echo "✖ readme.txt: no '= $${stable} =' changelog entry."; exit 1; }; \
+	echo "✔ readme.txt: Stable tag $$stable, Version $$version."; \
+	bash "$(REVIEW_CENTRAL)/scripts/changelog-fragments.sh" check .; \
+	merge=$$(git merge-base $(PRE_PR_BASE) HEAD) || { echo "✖ No merge base with $(PRE_PR_BASE): fetch it (git fetch origin main)."; exit 1; }; \
+	t=$$(mktemp -d); trap 'rm -rf "$$t"' EXIT; \
+	git show "$$merge:readme.txt" > "$$t/base-readme.txt" 2>/dev/null || : > "$$t/base-readme.txt"; \
+	git diff --name-status --no-renames "$$merge" HEAD -- changelog.d \
+	  | bash "$(REVIEW_CENTRAL)/scripts/changelog-fragments.sh" pull-request "$$t/base-readme.txt" .; \
+	python3 "$(REVIEW_CENTRAL)/scripts/next-version.py" --repo $(GITHUB_REPO) --base main --json > "$$t/next.json" \
+	  || { echo "✖ next-version.py could not read GitHub, so the version markers are not checked: sign gh in (gh auth login)."; exit 1; }; \
+	field() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))[sys.argv[2]]; print(str(v).lower() if isinstance(v,bool) else v)' "$$t/next.json" "$$1"; }; \
+	bash "$(REVIEW_CENTRAL)/scripts/release-markers.sh" check . $(MAIN_FILE) $(VERSION_CONSTANT) "$$(field last)" "$$(field next)" "$$(field pending)"
+
+# The slow suites' environment: the root .wp-env.json with the checkout
+# mounted from build/pre-pr ("../..", so the plugin folder keeps the
+# repository's name) on ports of its own.
+.PHONY: pre-pr-env-config
+pre-pr-env-config:
+	@mkdir -p "$(PRE_PR_DIR)"
+	@python3 -c 'import json,sys; c=json.load(open(".wp-env.json")); c.update(plugins=["../.."], port=int(sys.argv[1]), testsPort=int(sys.argv[2])); print(json.dumps(c, indent=2))' \
+	  $(PRE_PR_PORT) $(PRE_PR_TESTS_PORT) > "$(PRE_PR_DIR)/.wp-env.json"
+
+# Started, then the tests site made a network, as CI's integration job does
+# (`multisite` is on by default and no integration-targets are declared).
+.PHONY: pre-pr-env-up
+pre-pr-env-up: pre-pr-env-config ## Start pre-pr's own wp-env (build/pre-pr, ports 8892/8893), its tests site a network.
+	cd "$(PRE_PR_DIR)" && $(PRE_PR_WPENV) start
+	cd "$(PRE_PR_DIR)" && $(PRE_PR_WPENV) run cli wp plugin activate $(REPO_DIR)
+	@cd "$(PRE_PR_DIR)" && { $(PRE_PR_WPENV) run tests-cli wp core is-installed --network >/dev/null 2>&1 \
+	  || $(PRE_PR_WPENV) run tests-cli wp core multisite-convert --title="Tests network"; }
+	@cd "$(PRE_PR_DIR)" && { $(PRE_PR_WPENV) run tests-cli wp core is-installed --network >/dev/null 2>&1 \
+	  || { echo "✖ The tests site is not a network after converting it (a database that is not fresh?)."; exit 1; }; }
+	cd "$(PRE_PR_DIR)" && $(PRE_PR_WPENV) run tests-cli wp plugin activate $(REPO_DIR) --network
+
+.PHONY: pre-pr-integration
+pre-pr-integration: ## The integration suite on pre-pr's network (needs pre-pr-env-up).
+	cd "$(PRE_PR_DIR)" && $(PRE_PR_WPENV) run tests-cli sh -c "cd wp-content/plugins/$(REPO_DIR) && php vendor/bin/phpunit -c phpunit-integration.xml"
+
+.PHONY: pre-pr-e2e
+pre-pr-e2e: ## The E2E suite against pre-pr's development site, with CI's retries (needs pre-pr-env-up).
+	@mkdir -p build
+	env -u WP_ENV_PORT -u WP_ENV_TESTS_PORT CI=1 WP_BASE_URL=http://localhost:$(PRE_PR_PORT) WP_ENV_DIR="$(PRE_PR_DIR)" npx playwright test
+
+# Destroyed, not stopped: the E2E suite and the network conversion leave
+# state in its databases and wp-config.php that a second run must not find.
+.PHONY: pre-pr-env-down
+pre-pr-env-down: ## Destroy pre-pr's own wp-env and stop Plugin Check's.
+	-@[ ! -f "$(PRE_PR_DIR)/.wp-env.json" ] || { cd "$(PRE_PR_DIR)" && if $(PRE_PR_WPENV) destroy --force >/dev/null 2>&1; then echo "✔ pre-pr's environment destroyed"; \
+	  else echo "✖ pre-pr's environment could not be destroyed: cd build/pre-pr && npx wp-env destroy --force"; fi; }
+	-@$(MAKE) --no-print-directory plugin-check-down
+
+.PHONY: test-pre-pr
+test-pre-pr: dx-central ## The pre-pr target's own test (tests/bin/pre-pr-test.sh): what it runs, that it stops at a failure and always removes its environment.
+	bash tests/bin/pre-pr-test.sh
 
 # -- Local dev environment (wp-env) ------------------------------------
 .PHONY: env env-up
