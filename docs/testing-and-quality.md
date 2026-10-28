@@ -123,7 +123,7 @@ CI: the fast suite's **i18n** job, on the shipped tree (what `.distignore` leave
 make i18n-check
 ```
 
-`make i18n-check` runs `wp i18n make-pot` into `build/i18n-check.pot` and fails, like the CI job, when any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so the output is captured and grepped). `make pre-pr` runs it right after `make check`. `make i18n` regenerates `languages/diluxone-offload.pot`, the template the translations are merged from.
+`make i18n-check` runs `wp i18n make-pot` into `build/i18n-check.pot` and fails, like the CI job, when any `Warning:` / `Error:` line appears in the output (WP-CLI prints them to stderr but exits 0 even when present, so the output is captured and grepped). `make pre-pr` runs it right after the translations' form check (`make i18n-form`). `make i18n` regenerates `languages/diluxone-offload.pot`, the template the translations are merged from.
 
 The workflow catches three real classes of bug:
 

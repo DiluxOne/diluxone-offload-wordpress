@@ -130,7 +130,10 @@ fi
 # -- A failing step ----------------------------------------------------
 # Plugin Check's environment as plugin-check leaves it (its config is all
 # plugin-check-down looks for).
-mkdir -p build/pcp && { [ -f build/pcp/.wp-env.json ] || echo '{}' > build/pcp/.wp-env.json; }
+if [ ! -f build/pcp/.wp-env.json ]; then
+  mkdir -p build/pcp && echo '{}' > build/pcp/.wp-env.json
+  trap 'rm -rf "$t"; rm -f build/pcp/.wp-env.json' EXIT
+fi
 stubbed "pre-pr-env-up t-pass t-fail t-later"; status=$?
 [ "$status" -ne 0 ] && ok "a failing step fails make pre-pr (exit $status)" || bad "make pre-pr passed with a failing step"
 grep -q "step t-pass" "$log" && grep -q "step t-fail" "$log" && ok "the steps before it ran" || bad "the steps before the failure did not run"

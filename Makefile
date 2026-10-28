@@ -483,7 +483,7 @@ pre-pr-setup: ## What pre-pr needs on a fresh clone: composer, npm, Chromium, th
 design-lint: dx-central ## The CSS the branch changes against the design system, as CI's "Design system" check.
 	@base=$$(git merge-base $(PRE_PR_BASE) HEAD) || { echo "✖ No merge base with $(PRE_PR_BASE): fetch it (git fetch origin main)."; exit 1; }; \
 	out=$$(mktemp); trap 'rm -f "$$out"' EXIT; \
-	GITHUB_OUTPUT=$$out python3 "$(REVIEW_CENTRAL)/scripts/design-lint.py" plan --repo $(notdir $(GITHUB_REPO)) --base "$$base" --head HEAD; \
+	GITHUB_OUTPUT=$$out python3 "$(REVIEW_CENTRAL)/scripts/design-lint.py" plan --repo $(notdir $(GITHUB_REPO)) --base "$$base" --head HEAD || exit 1; \
 	if grep -qx 'run=true' "$$out"; then \
 	  npm ci --prefix "$(REVIEW_CENTRAL)/scripts/stylelint" --ignore-scripts --no-audit --no-fund --silent && \
 	  python3 "$(REVIEW_CENTRAL)/scripts/design-lint.py" check --repo $(notdir $(GITHUB_REPO)) --base "$$base" --head HEAD; \
@@ -547,15 +547,16 @@ readme-check: dx-central ## readme.txt headers, versions, changelog fragments an
 	  grep -qE "^$${h}:" readme.txt || { echo "✖ readme.txt: missing header $${h}"; exit 1; }; \
 	done; \
 	! grep -qE '^\s*\*\s*Tested up to:' $(MAIN_FILE) || { echo "✖ $(MAIN_FILE): Tested up to belongs only in readme.txt."; exit 1; }; \
-	stable=$$(grep -oP '^Stable tag:\s*\K\S+' readme.txt); \
-	version=$$(grep -oP '^\s*\*\s*Version:\s*\K\S+' $(MAIN_FILE)); \
+	stable=$$(grep -oP '^Stable tag:\s*\K\S+' readme.txt || true); \
+	version=$$(grep -oP '^\s*\*\s*Version:\s*\K\S+' $(MAIN_FILE) || true); \
+	[ -n "$$version" ] || { echo "✖ $(MAIN_FILE): no Version: header."; exit 1; }; \
 	base=$$(printf '%s' "$$version" | sed -E 's/-(dev|alpha|beta|rc)([.0-9]*)?$$//'); \
 	if [ "$$version" = "$$base" ]; then \
 	  [ "$$stable" = "$$base" ] || { echo "✖ Version $$version has no pre-release suffix, so Stable tag ($$stable) must equal it."; exit 1; }; \
 	else \
 	  [ "$$(printf '%s\n%s\n' "$$stable" "$$base" | sort -V | tail -1)" = "$$base" ] || { echo "✖ Version $$version is behind Stable tag $$stable."; exit 1; }; \
 	fi; \
-	constant=$$(grep -oP "$(VERSION_CONSTANT)',\s*'\K[^']+" $(MAIN_FILE)); \
+	constant=$$(grep -oP "$(VERSION_CONSTANT)',\s*'\K[^']+" $(MAIN_FILE) || true); \
 	[ "$$constant" = "$$version" ] || { echo "✖ $(VERSION_CONSTANT) ($$constant) differs from Version ($$version)."; exit 1; }; \
 	grep -qE "^=\s*$${stable}\s*=" readme.txt || { echo "✖ readme.txt: no '= $${stable} =' changelog entry."; exit 1; }; \
 	echo "✔ readme.txt: Stable tag $$stable, Version $$version."; \
