@@ -19,9 +19,9 @@
         "phpcompatibility/phpcompatibility-wp": "^2.1.8",
         "phpstan/extension-installer": "^1.4.3",
         "phpstan/phpstan": "^2.3.1",
-        "phpunit/phpunit": "^9.6.38",
+        "phpunit/phpunit": "^13.4.6",
         "szepeviktor/phpstan-wordpress": "^2.0.4",
-        "vimeo/psalm": "^6.20.1",
+        "vimeo/psalm": "^7.0.4",
         "wp-coding-standards/wpcs": "^3.4.1"
     },
     "autoload-dev": {
